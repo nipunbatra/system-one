@@ -1,64 +1,52 @@
-# open-slide workspace
+# System 1 models: deciding without writing
 
-Slides as React components. Each slide lives under `slides/<id>/index.tsx` and default-exports an array of page components. The `@open-slide/core` runtime handles layout, scaling, navigation, thumbnails, and fullscreen play mode — you just write the pages.
+A 60 to 80 minute lecture on decision models such as Jev: models that read a
+state, answer a typed question, and return calibrated probabilities without
+generating text. The lecture has a 73-slide deck and three notebooks.
 
-## Getting started
+Audience: students who have studied machine learning and a little deep
+learning, and have not looked inside an LLM.
+
+## Notebooks
+
+| | Notebook | What it covers | Runtime |
+|---|---|---|---|
+| 1 | [Read, don't write](notebooks/01_read_dont_write.ipynb) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nipunbatra/system-one/blob/main/notebooks/01_read_dont_write.ipynb) | Tokens, the generation loop, reading option probabilities, ECE, temperature scaling, thresholds | CPU or T4 |
+| 2 | [Train a decision head](notebooks/02_train_a_decision_head.ipynb) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nipunbatra/system-one/blob/main/notebooks/02_train_a_decision_head.ipynb) | Proper scoring rules, a linear head on a frozen LLM, calibration on held-out rows | CPU or T4 |
+| 3 | [Unsloth decision model](notebooks/03_unsloth_decision_model.ipynb) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nipunbatra/system-one/blob/main/notebooks/03_unsloth_decision_model.ipynb) | LoRA plus a decision head on Qwen3.5-0.8B with Unsloth's `FastDecisionModel` | T4 (CUDA needed) |
+
+Notebooks 1 and 2 use `Qwen/Qwen2.5-0.5B-Instruct` and AG News. Their saved
+outputs come from a run on an Apple laptop, and every measured number in the
+slides comes from those runs. Notebook 3 follows Unsloth's official recipe and
+is committed without outputs.
+
+## Slides
+
+The deck is one file, `slides/system-one/index.tsx`, built with
+[open-slide](https://github.com/open-slide/open-slide).
 
 ```bash
-pnpm install
-pnpm dev
+npm install
+npm run dev
 ```
 
-Then open the dev server and edit `slides/getting-started/index.tsx`, or create a new slide at `slides/<your-slide>/index.tsx`.
+Then open `http://localhost:5173/s/system-one`.
 
-## Scripts
+## How the numbers reach the slides
 
-| Command | Description |
-| --- | --- |
-| `pnpm dev` | Start the dev server with hot reload. |
-| `pnpm build` | Build a static bundle you can deploy. |
-| `pnpm preview` | Preview the built bundle locally. |
+1. `notebooks/build.py` writes the three notebooks.
+2. Running notebooks 1 and 2 writes `notebooks/results_1.json` and `results_2.json`.
+3. `science/make_assets.py` merges them into `slides/system-one/assets/science.json`, which the deck imports.
 
-## Authoring a slide
+## Checking pages
 
-```tsx
-// slides/my-slide/index.tsx
-import type { Page, SlideMeta } from '@open-slide/core';
+`node scripts/shots.mjs <outdir>` screenshots every page from the running dev
+server and reports any page whose content overflows. It needs Puppeteer; set
+`PUPPETEER_FROM` to a folder whose `node_modules` has it, and `CHROME` to a
+Chrome binary if it is not in the default macOS location.
 
-const Cover: Page = () => (
-  <div style={{ width: '100%', height: '100%' }}>Hello</div>
-);
+## A note on Jev
 
-export const meta: SlideMeta = { title: 'My slide' };
-export default [Cover] satisfies Page[];
-```
-
-Every page renders into a fixed **1920 × 1080** canvas — design with absolute pixel values. Put images, videos, and fonts under `slides/<id>/assets/` and import them directly.
-
-See [`CLAUDE.md`](./CLAUDE.md) for the full authoring guide.
-
-## Navigation
-
-- Arrow keys / PageUp / PageDown move between pages.
-- `F` enters fullscreen play mode; Esc exits.
-- In play mode: Space / → next, ← prev.
-
-## Claude Code integration
-
-This workspace ships with Claude Code skills preconfigured under `.claude/skills/` and `.agents/skills/`. Ask Claude Code to "make slides about X" and the `create-slide` skill takes over. Use `apply-comments` to iterate via inspector-style markers inside your source.
-
-## Config
-
-Optional `open-slide.config.ts` at the workspace root:
-
-```ts
-import type { OpenSlideConfig } from '@open-slide/core';
-
-const openSlideConfig: OpenSlideConfig = {
-  port: 5173,
-};
-
-export default openSlideConfig;
-```
-
-Supported fields: `slidesDir`, `port`.
+Jev's architecture, size, training data and the details of RLCD are not
+published. The deck says what is public, and the notebooks build an open
+reproduction of the idea with small open models.
