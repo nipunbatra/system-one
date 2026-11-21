@@ -4602,10 +4602,168 @@ const NotFit: Page = () => (
   </Frame>
 );
 
+type Band = { from: number; to: number; label: string; color: string };
+const Scale = ({ app, q, bands, why }: { app: string; q: string; bands: Band[]; why: string }) => (
+  <Card style={{ width: 544, padding: '22px 26px' }}>
+    <div style={{ fontFamily: serif, fontSize: 36, fontWeight: 700 }}>{app}</div>
+    <div style={{ fontSize: 24, color: C.pred, height: 64, lineHeight: 1.3 }}>{q}</div>
+    <div style={{ ...row, gap: 16, height: 300 }}>
+      <div style={{ ...col, justifyContent: 'space-between', fontFamily: mono, fontSize: 22, color: C.soft, textAlign: 'right', width: 44, flexShrink: 0 }}>
+        <span>1.0</span>
+        <span>0.0</span>
+      </div>
+      <div style={{ ...col, width: 46, flexShrink: 0, borderRadius: 8, overflow: 'hidden' }}>
+        {bands.map((b) => (
+          <div key={b.label} style={{ height: 300 * (b.to - b.from), background: b.color }} />
+        ))}
+      </div>
+      <div style={{ ...col, flex: 1, minWidth: 0 }}>
+        {bands.map((b) => (
+          <div key={b.label} style={{ height: 300 * (b.to - b.from), display: 'flex', flexDirection: 'column', justifyContent: 'center', borderTop: `2px dashed ${C.rule}` }}>
+            <div style={{ fontSize: 23, fontWeight: 600, color: b.color === C.rule ? C.ink : b.color, lineHeight: 1.15, whiteSpace: 'nowrap' }}>
+              {b.label}
+              <span style={{ fontFamily: mono, fontSize: 19, color: C.muted, fontWeight: 400, marginLeft: 10 }}>
+                {b.from.toFixed(1)} to {b.to.toFixed(1)}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+    <div style={{ fontSize: 24, color: C.soft, lineHeight: 1.35, marginTop: 14 }}>{why}</div>
+  </Card>
+);
+
+const ThreeThresholds: Page = () => (
+  <Frame
+    part={6}
+    title="The costly mistake decides where the thresholds go"
+    line="These threshold values are illustrative. In each application they are set on labelled data, by asking which wrong action costs more."
+  >
+    <div style={{ ...row, gap: 34, alignItems: 'stretch' }}>
+      <Scale
+        app="Support email"
+        q="P(the customer is asking for a refund)"
+        bands={[
+          { from: 0.9, to: 1.0, label: 'automatic refund', color: C.truth },
+          { from: 0.1, to: 0.9, label: 'a person looks at it', color: C.rule },
+          { from: 0.0, to: 0.1, label: 'not a refund', color: C.muted },
+        ]}
+        why="A wrong automatic refund costs money, so the automatic band is narrow."
+      />
+      <Steps>
+        <Step>
+          <Scale
+            app="Brick kilns"
+            q="P(there is a kiln in this tile)"
+            bands={[
+              { from: 0.3, to: 1.0, label: 'a person confirms', color: C.s1 },
+              { from: 0.0, to: 0.3, label: 'skip the tile', color: C.muted },
+            ]}
+            why="A missed kiln is the costly mistake and a person checks anyway, so the bar is low."
+          />
+        </Step>
+        <Step>
+          <Scale
+            app="Game move"
+            q="P(the top move is the best move)"
+            bands={[
+              { from: 0.7, to: 1.0, label: 'play it at once', color: C.s2 },
+              { from: 0.0, to: 0.7, label: 'run a search first', color: C.rule },
+            ]}
+            why="A search costs time and a bad move can lose the game, so only clear moves skip the search."
+          />
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const PRowApp = ({ y, app, a, b, c }: { y: number; app: string; a: [string, string]; b: [string, string]; c: [string, string] }) => (
+  <g>
+    <text x={20} y={y + 62} fontSize={32} fontFamily="Georgia, serif" fontWeight={700} fill={C.ink}>{app}</text>
+    <Box x={330} y={y} w={400} h={110} text={a[0]} sub={a[1]} color={C.s1} size={28} />
+    <Arr x1={730} y1={y + 55} x2={800} y2={y + 55} />
+    <Box x={810} y={y} w={400} h={110} text={b[0]} sub={b[1]} color={C.s2} size={28} />
+    <Arr x1={1210} y1={y + 55} x2={1280} y2={y + 55} />
+    <Box x={1290} y={y} w={390} h={110} text={c[0]} sub={c[1]} size={28} />
+  </g>
+);
+
+const PipelineThree: Page = () => (
+  <Frame
+    part={6}
+    title="The same pattern in all three applications"
+    line="The decision model looks at every input because it is cheap. The slow and costly step, an LLM, a person or a search, runs only on the inputs it passes on."
+  >
+    <svg width={1700} height={690} viewBox="0 0 1700 690">
+      <Arrows />
+      <text x={530} y={36} textAnchor="middle" fontSize={24} fill={C.s1} fontWeight={600}>SYSTEM 1 · EVERY INPUT</text>
+      <text x={1010} y={36} textAnchor="middle" fontSize={24} fill={C.s2} fontWeight={600}>SYSTEM 2 · ONLY WHERE NEEDED</text>
+      <text x={1485} y={36} textAnchor="middle" fontSize={24} fill={C.muted} fontWeight={600}>RESULT</text>
+      <PRowApp y={70} app="Support email" a={['decision model', 'team, refund, urgency']} b={['LLM', 'writes the reply']} c={['reply sent', 'after a decision-model check']} />
+      <PRowApp y={270} app="Brick kilns" a={['decision model', 'kiln in this tile?']} b={['a person', 'confirms flagged tiles']} c={['a map of kilns', 'for the district']} />
+      <PRowApp y={470} app="Game move" a={['decision model', 'a probability per move']} b={['search', 'when no move stands out']} c={['the move is played', 'within the time limit']} />
+    </svg>
+  </Frame>
+);
+
+const Watch = ({ app, items }: { app: string; items: string[] }) => (
+  <Card style={{ width: 544, padding: '24px 28px' }}>
+    <div style={{ fontFamily: serif, fontSize: 36, fontWeight: 700, marginBottom: 8 }}>{app}</div>
+    {items.map((t) => (
+      <div key={t} style={{ fontSize: 26, lineHeight: 1.35, padding: '12px 0', borderTop: `2px solid ${C.rule}`, color: C.soft }}>
+        {t}
+      </div>
+    ))}
+  </Card>
+);
+
+const LimitsApps: Page = () => (
+  <Frame
+    part={6}
+    title="What to keep checking in each application"
+    line="Calibration is measured on past data. When the inputs change, the probabilities can stop matching what happens, so the check on fresh labelled data has to be repeated."
+  >
+    <div style={{ ...row, gap: 34, alignItems: 'stretch' }}>
+      <Watch
+        app="Support email"
+        items={[
+          'New products bring emails unlike last year’s tickets.',
+          'Rewording a question or reordering its options can move the probabilities.',
+          'The model gives no reason, so disputed cases still need a person.',
+        ]}
+      />
+      <Steps>
+        <Step>
+          <Watch
+            app="Brick kilns"
+            items={[
+              'A new region or season looks different from the training tiles.',
+              'Accuracy of box answers is reported only by the vendor so far.',
+              'Kilns are rare, so most flagged tiles may still be false alarms.',
+            ]}
+          />
+        </Step>
+        <Step>
+          <Watch
+            app="Game move"
+            items={[
+              'Positions unlike the training games get unreliable probabilities.',
+              'Counting and calculation belong in code, here the search.',
+              'A confident wrong move loses the game, so test the threshold in play.',
+            ]}
+          />
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
 const Thresholds: Page = () => (
   <Frame
     part={6}
-    title="Thresholds turn a probability into an action"
+    title="Application 1: thresholds turn a probability into an action"
     line="We choose the 0.9 and the 0.1. If a wrong automatic action is costly, we set them further apart. Our email reads 0.74, so a person looks at it."
   >
     <svg width={1700} height={690} viewBox="0 0 1700 690">
@@ -4650,7 +4808,7 @@ const ThresholdLive: Page = () => {
     <Frame
       part={6}
       title="Choose the threshold, read off the error rate"
-      line="Our trained head on the 1,000 test items. A higher threshold sends more items to a person and makes the automatic path safer."
+      line="This is the measurement the recipe asks for, done on our trained head and the 1,000 news items. A higher threshold sends more items to a person and makes the automatic path safer."
     >
       <div style={{ ...row, gap: 70, alignItems: 'center', height: '100%' }}>
         <div style={{ width: 520, textAlign: 'center' }}>
@@ -4696,7 +4854,7 @@ const ThresholdLive: Page = () => {
 const Pipeline: Page = () => (
   <Frame
     part={6}
-    title="A decision model and an LLM in one pipeline"
+    title="Application 1 as a pipeline: a decision model and an LLM"
     line="The decision model routes the email, the LLM writes the reply, and the decision model checks the reply. The LLM runs only for the step that needs writing."
   >
     <svg width={1700} height={690} viewBox="0 0 1700 690">
@@ -4730,7 +4888,7 @@ const Limit = ({ head, body }: { head: string; body: string }) => (
 const Limits: Page = () => (
   <Frame
     part={6}
-    title="Limits: an independent benchmark of Jev"
+    title="Limits reported by an independent benchmark of Jev"
     line="Deußer et al., 2026, tested Jev zero-shot on 37 datasets. It beat a 27-billion-parameter open LLM on 27 of them, and the paper reports these limits."
   >
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, marginTop: 10 }}>
@@ -4955,9 +5113,12 @@ const deck: [Page, string][] = [
   [AppGame, 'The board probabilities are illustrative. Treating a policy as a choice question is our framing; the decision-model vendors do not discuss games.'],
   [NotFit, 'The list for generative LLMs follows Liquid’s documentation. The other two columns summarise this lecture.'],
   [Thresholds, 'From the IBM video’s refund example.'],
+  [ThreeThresholds, 'All threshold values here are illustrative choices. Ask the class which mistake is worse in each case before revealing the bands.'],
   [ThresholdLive, 'Drag to 0.9 and to 0.5. Ask which threshold a bank would choose and which a news app would.'],
   [Pipeline, 'Kahneman’s picture again: fast most of the time, slow when needed.'],
+  [PipelineThree, 'Kahneman again: System 1 for every input, System 2 where it is needed. In the kiln case System 2 is a person.'],
   [Limits, 'The benchmark also reports that binary probabilities need tuned thresholds: micro-F1 on UNFAIR-ToS rises from 0.50 to 0.75.'],
+  [LimitsApps, 'These are our cautions for the three applications, drawn from the benchmark’s limits and from Part 4. The rare-event point is the base-rate effect.'],
   [Jevons, 'William Stanley Jevons, The Coal Question, 1865.'],
   [Summary, 'Walk the picture left to right, then the two boxes below.'],
   [Notebooks, 'Notebook 3 needs a GPU and takes much longer; show its saved outputs.'],
