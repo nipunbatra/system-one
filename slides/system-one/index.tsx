@@ -1025,6 +1025,10 @@ const Embed: Page = () => (
       <text x={1475} y={332} textAnchor="middle" fontSize={28} fontFamily={mono} fill={C.s2}>0.02 −0.11 … 0.07</text>
       <text x={1475} y={400} textAnchor="middle" fontSize={28} fill={C.soft}>{sci.hidden} numbers</text>
       <text x={1475} y={440} textAnchor="middle" fontSize={24} fill={C.muted}>values shown are illustrative</text>
+      <text x={830} y={655} textAnchor="middle" fontSize={28} fill={C.soft}>
+        {sci.vocab.toLocaleString('en-US')} × {sci.hidden} = {Math.round((sci.vocab * sci.hidden) / 1e6)} M numbers, about{' '}
+        {Math.round((100 * sci.vocab * sci.hidden) / 1e6 / sci.params_M)}% of the model’s {sci.params_M} M parameters
+      </text>
     </svg>
   </Frame>
 );
@@ -1054,6 +1058,9 @@ const Attention: Page = () => (
     line="Self-attention replaces each token’s vector with a weighted mix of the earlier tokens. Here “it” takes most of its meaning from “charged twice”."
   >
     <svg width={1700} height={690} viewBox="0 0 1700 690">
+      <text x={850} y={56} textAnchor="middle" fontSize={30} fill={C.s2}>
+        new vector for “it” = 0.42 × v(charged) + 0.27 × v(twice) + 0.15 × v(fix) + 0.08 × v(month) + …
+      </text>
       <AttArc from={9} to={2} w={0.42} />
       <AttArc from={9} to={3} w={0.27} />
       <AttArc from={9} to={5} w={0.08} />
@@ -1227,11 +1234,11 @@ const Softmax: Page = () => (
         <Step>
           <div style={col}>
             <SmHead w={340}>e to the power z</SmHead>
-            <SmCell w={340} color={C.soft}>7.39</SmCell>
-            <SmCell w={340} color={C.soft}>2.72</SmCell>
-            <SmCell w={340} color={C.soft}>1.11</SmCell>
-            <div style={{ height: 70, fontFamily: mono, fontSize: 34, color: C.soft, textAlign: 'center', borderTop: `3px solid ${C.rule}`, paddingTop: 12 }}>
-              total 11.21
+            <SmCell w={340} color={C.soft}>e<sup style={{ fontSize: 26 }}>2.0</sup> = 7.39</SmCell>
+            <SmCell w={340} color={C.soft}>e<sup style={{ fontSize: 26 }}>1.0</sup> = 2.72</SmCell>
+            <SmCell w={340} color={C.soft}>e<sup style={{ fontSize: 26 }}>0.1</sup> = 1.11</SmCell>
+            <div style={{ height: 70, fontFamily: mono, fontSize: 23, whiteSpace: 'nowrap', color: C.soft, textAlign: 'center', borderTop: `3px solid ${C.rule}`, paddingTop: 12 }}>
+              7.39 + 2.72 + 1.11 ≈ 11.21
             </div>
           </div>
         </Step>
@@ -1317,26 +1324,44 @@ print(tok.decode(ids[0]))
   </Frame>
 );
 
+const GEN = sci.generated_tokens as string[];
+const show = (t: string) => t.replace(/ /g, '␣').replace(/\n/g, '⏎');
+
 const Written: Page = () => (
   <Frame
     part={2}
     title="Our model writes its answer to the email"
-    line={`The ${sci.n_generated} tokens of JSON needed ${sci.passes} forward passes. The extra pass is the one where the model picks its end token.`}
+    line={`Each box is one forward pass. The ${sci.n_generated} tokens of JSON needed ${sci.passes} passes, because the last pass is the one where the model picks its end token.`}
   >
-    <div style={{ ...row, gap: 70, alignItems: 'center', height: '100%' }}>
-      <div style={{ flex: 1 }}>
+    <div style={{ ...row, gap: 50, alignItems: 'center', height: '100%' }}>
+      <div style={{ width: 560, flexShrink: 0 }}>
         <Label>Asked for JSON with team, refund, urgency</Label>
-        <div style={{ height: 18 }} />
-        <Code size={40} code={sci.generated} />
+        <div style={{ height: 14 }} />
+        <Code size={34} code={sci.generated} />
       </div>
       <Steps>
         <Step>
-          <div style={{ ...row, gap: 70 }}>
-            <Big value={String(sci.passes)} label="forward passes" color={C.s2} />
-            <Big value={`${sci.ms_generate}`} label="milliseconds" color={C.s2} />
-          </div>
-          <div style={{ fontSize: 26, color: C.muted, textAlign: 'center', marginTop: 30 }}>
-            {sci.model.split('/')[1]} on a MacBook GPU
+          <div style={{ width: 1080 }}>
+            <Label color={C.s2}>The same answer, one token per pass</Label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 14 }}>
+              {GEN.map((t, i) => (
+                <div key={i} style={{ textAlign: 'center' }}>
+                  <div style={{ fontFamily: mono, fontSize: 26, border: `2px solid ${C.s2}`, borderRadius: 8, padding: '6px 10px', background: C.white, minWidth: 44 }}>{show(t)}</div>
+                  <div style={{ fontSize: 18, color: C.muted }}>{i + 1}</div>
+                </div>
+              ))}
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontFamily: mono, fontSize: 26, border: `2px solid ${C.loss}`, borderRadius: 8, padding: '6px 10px', color: C.loss, background: C.white }}>stop</div>
+                <div style={{ fontSize: 18, color: C.muted }}>{sci.passes}</div>
+              </div>
+            </div>
+            <div style={{ fontFamily: mono, fontSize: 30, marginTop: 26, color: C.s2 }}>
+              {sci.n_generated} tokens + 1 stop = {sci.passes} passes
+            </div>
+            <div style={{ fontFamily: mono, fontSize: 30, color: C.s2 }}>
+              {sci.ms_generate} ms / {sci.passes} passes ≈ {Math.round(sci.ms_generate / sci.passes)} ms per pass
+            </div>
+            <div style={{ fontSize: 23, color: C.muted, marginTop: 8 }}>␣ is a space, ⏎ a new line · {sci.model.split('/')[1]} on a MacBook GPU</div>
           </div>
         </Step>
       </Steps>
@@ -1802,6 +1827,13 @@ const Timing: Page = () => (
           <TimeBar label="read one answer" ms={sci.ms_one_pass} passes="1 pass" color={C.s1} />
         </Step>
       </Steps>
+      <Steps>
+        <Step>
+          <div style={{ fontFamily: mono, fontSize: 36, marginTop: 20 }}>
+            {sci.ms_generate} ms / {sci.ms_one_pass} ms = <b>{(sci.ms_generate / sci.ms_one_pass).toFixed(1)}</b> times faster
+          </div>
+        </Step>
+      </Steps>
       <div style={{ fontSize: 26, color: C.muted, marginTop: 20 }}>
         median of 5 runs · {sci.model.split('/')[1]} on a MacBook GPU · notebook 1 reproduces this
       </div>
@@ -1976,6 +2008,43 @@ const Request: Page = () => (
 `}
         />
       </div>
+    </div>
+  </Frame>
+);
+
+const Response: Page = () => (
+  <Frame
+    part={3}
+    title="One response: an answer for every question"
+    line="The response has no generated text. Each question gets its typed answer and the probabilities behind it, and the count of output tokens is zero."
+  >
+    <div style={{ ...row, gap: 50, alignItems: 'center', height: '100%' }}>
+      <div style={{ flexShrink: 0 }}>
+        <Code
+          size={27}
+          code={`
+{
+  "answers": {
+    "team":    {"choice": "technical",
+                "probabilities": {"billing": ${f2(sci.p_team[0])}, "technical": ${f2(sci.p_team[1])},
+                                  "sales": ${f2(sci.p_team[2])}}},
+    "refund":  {"noul": ${f2(sci.p_refund_yes)}},
+    "urgency": {"score": ${f2(sci.p_urgency[1] + 2 * sci.p_urgency[2])},
+                "probabilities": {"0": ${f2(sci.p_urgency[0])}, "1": ${f2(sci.p_urgency[1])}, "2": ${f2(sci.p_urgency[2])}}}
+  },
+  "usage": {"output_tokens": 0}
+}
+`}
+        />
+      </div>
+      <Steps>
+        <Step>
+          <div style={{ fontSize: 29, lineHeight: 1.45, color: C.soft }}>
+            The numbers are our small model’s answers for the email, laid out in the response format that Jev and Liquid document.
+            <div style={{ marginTop: 18, color: C.ink }}>A program reads <span style={{ fontFamily: mono }}>answers.refund.noul</span> and compares it with a threshold. It never parses a sentence.</div>
+          </div>
+        </Step>
+      </Steps>
     </div>
   </Frame>
 );
@@ -2201,6 +2270,14 @@ const Definition: Page = () => (
         Among all the answers given with <span style={{ color: C.pred }}>probability p</span>, a{' '}
         <span style={{ color: C.truth }}>fraction p</span> are correct.
       </p>
+      <Steps>
+        <Step>
+          <div style={{ fontFamily: mono, fontSize: 38, marginTop: 60, textAlign: 'center', lineHeight: 1.6 }}>
+            <div style={{ fontFamily: 'var(--osd-font-body)', fontSize: 32, color: C.soft }}>Example: the model gives 200 answers with probability 0.8.</div>
+            <span style={{ color: C.pred }}>0.8</span> × 200 = <span style={{ color: C.truth }}>160</span> of them should be correct
+          </div>
+        </Step>
+      </Steps>
     </div>
   </Frame>
 );
@@ -3505,19 +3582,32 @@ const LogScore: Page = () => (
     title="Cross-entropy is also a proper scoring rule"
     line="Cross-entropy, the usual classification loss, is the log score. A classifier head trained with it is rewarded for reporting correct probabilities."
   >
-    <div style={{ ...col, gap: 60, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-      <Eq size={76}>
+    <div style={{ ...col, gap: 34, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+      <Eq size={62}>
         <span style={{ color: C.loss }}>loss</span> = − log <I color={C.pred}>p</I>
-        <sub style={{ fontSize: 40, color: C.truth }}>correct option</sub>
+        <sub style={{ fontSize: 34, color: C.truth }}>correct option</sub>
       </Eq>
       <Steps>
         <Step>
-          <div style={{ fontFamily: mono, fontSize: 40, lineHeight: 1.7, textAlign: 'center' }}>
+          <div style={{ fontFamily: mono, fontSize: 34, lineHeight: 1.6, textAlign: 'center' }}>
             <div>
-              gave the right option <span style={{ color: C.pred }}>0.9</span> → −log 0.9 = <span style={{ color: C.loss }}>0.11</span>
+              gave the correct option <span style={{ color: C.pred }}>0.9</span> → −log 0.9 = <span style={{ color: C.loss }}>0.11</span>
             </div>
             <div>
-              gave the right option <span style={{ color: C.pred }}>0.1</span> → −log 0.1 = <span style={{ color: C.loss }}>2.30</span>
+              gave the correct option <span style={{ color: C.pred }}>0.1</span> → −log 0.1 = <span style={{ color: C.loss }}>2.30</span>
+            </div>
+          </div>
+        </Step>
+        <Step>
+          <div style={{ fontFamily: mono, fontSize: 32, lineHeight: 1.7, borderTop: `2px solid ${C.rule}`, paddingTop: 18 }}>
+            <div style={{ fontFamily: 'var(--osd-font-body)', fontSize: 27, color: C.soft }}>
+              On the ten emails: 7 “yes” emails get −log p, and 3 “no” emails get −log(1 − p)
+            </div>
+            <div>
+              <span style={{ color: C.pred }}>say 0.70</span> → 7 × 0.357 + 3 × 1.204 = <b style={{ color: C.loss }}>6.11</b>
+            </div>
+            <div>
+              <span style={{ color: C.pred }}>say 0.99</span> → 7 × 0.010 + 3 × 4.605 = <b style={{ color: C.loss }}>13.89</b>
             </div>
           </div>
         </Step>
@@ -3772,7 +3862,7 @@ const Thresholds: Page = () => (
   <Frame
     part={6}
     title="Thresholds turn a probability into an action"
-    line="We choose the 0.9 and the 0.1. If a wrong automatic action is costly, we set them further apart."
+    line="We choose the 0.9 and the 0.1. If a wrong automatic action is costly, we set them further apart. Our email reads 0.74, so a person looks at it."
   >
     <svg width={1700} height={690} viewBox="0 0 1700 690">
       <text x={130} y={40} fontSize={30} fill={C.pred}>P(refund request)</text>
@@ -3789,6 +3879,11 @@ const Thresholds: Page = () => (
       <text x={340} y={375} fontSize={40} fontWeight={600} fill={C.ink}>a person looks at it</text>
       <text x={340} y={425} fontSize={30} fill={C.soft}>or a slower, bigger model does</text>
       <text x={340} y={614} fontSize={40} fontWeight={600} fill={C.muted}>not a refund, carry on</text>
+      <line x1={270} y1={150 + ((0.9 - sci.p_refund_yes) / 0.8) * 420} x2={330} y2={150 + ((0.9 - sci.p_refund_yes) / 0.8) * 420} stroke={C.pred} strokeWidth={4} />
+      <circle cx={235} cy={150 + ((0.9 - sci.p_refund_yes) / 0.8) * 420} r={13} fill={C.pred} />
+      <text x={340} y={160 + ((0.9 - sci.p_refund_yes) / 0.8) * 420} fontSize={30} fill={C.pred}>
+        our email: P(refund) = {f2(sci.p_refund_yes)}, which is between 0.1 and 0.9
+      </text>
     </svg>
   </Frame>
 );
@@ -3841,7 +3936,7 @@ const ThresholdLive: Page = () => {
             </div>
             <div style={{ width: 320 }}>
               <div style={{ fontFamily: serif, fontSize: 96, fontWeight: 700, color: C.loss }}>{(100 * err).toFixed(1)}%</div>
-              <div style={{ fontSize: 30, color: C.soft }}>of those are wrong ({wrong})</div>
+              <div style={{ fontSize: 30, color: C.soft }}>wrong: {wrong} / {auto}</div>
             </div>
             <div style={{ width: 320 }}>
               <div style={{ fontFamily: serif, fontSize: 96, fontWeight: 700, color: C.muted }}>{conf.length - auto}</div>
@@ -3895,7 +3990,7 @@ const Limits: Page = () => (
     line="Deußer et al., 2026, tested Jev zero-shot on 37 datasets. It beat a 27-billion-parameter open LLM on 27 of them, and the paper reports these limits."
   >
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, marginTop: 10 }}>
-      <Limit head="Default thresholds can fail" body="Prompt-injection detection had perfect precision but 50% recall until the threshold was tuned." />
+      <Limit head="Default thresholds can fail" body="Prompt-injection detection had perfect precision but 50% recall. On UNFAIR-ToS, tuning the thresholds raised micro-F1 from 0.50 to 0.75." />
       <Limit head="No reasons" body="It returns probabilities and never shows intermediate steps." />
       <Limit head="Arithmetic belongs in code" body="The vendor advises doing sums and counting outside the model." />
       <Limit head="Unknown training data" body="The authors cannot rule out that benchmark items were seen in training." />
@@ -3909,7 +4004,7 @@ const Jevons: Page = () => (
     title="Why the name: Jevons, 1865"
     line="When a decision costs almost nothing, people will use it in places where an LLM is too slow or too expensive today."
   >
-    <div style={{ ...row, gap: 60, alignItems: 'center', height: '100%' }}>
+    <div style={{ ...row, gap: 60, alignItems: 'center', marginTop: 30 }}>
       <Card style={{ flex: 1 }}>
         <Label>Steam engines</Label>
         <div style={{ fontFamily: serif, fontSize: 46, lineHeight: 1.35, marginTop: 14 }}>
@@ -3927,6 +4022,16 @@ const Jevons: Page = () => (
         </Step>
       </Steps>
     </div>
+    <Steps>
+      <Step>
+        <div style={{ marginTop: 40, fontFamily: mono, fontSize: 32, lineHeight: 1.6, textAlign: 'center' }}>
+          <div style={{ fontFamily: 'var(--osd-font-body)', fontSize: 27, color: C.soft }}>At Jev’s listed price of $0.042 per million input tokens</div>
+          1,000,000 emails × 100 tokens = 100 M tokens
+          <br />
+          100 × $0.042 = <b style={{ color: C.s1 }}>$4.20</b> for a million decisions
+        </div>
+      </Step>
+    </Steps>
   </Frame>
 );
 
@@ -4037,6 +4142,7 @@ const deck: [Page, string][] = [
   [ScoreCalc, 'The model is confidently wrong about urgency. Keep this in mind for calibration.'],
   [MoreTypes, 'How Liquid computes its newer answer types is not published. The multi-select and number readouts here are our own construction on an untrained model.'],
   [Request, 'Field names follow the Jev and Unsloth request format: state, questions, type, instructions, criteria.'],
+  [Response, 'Field names follow the Jev and Liquid docs: choice with probabilities, noul as one number, score with its probabilities. I left out the confidence field because its formula is not documented.'],
   [Jev, 'Jev facts are from Wikipedia and the benchmark paper, Liquid facts from its docs and blog. The last line lists models named in secondary roundups that I have not checked against vendor pages.'],
   [Recap3, ''],
   [S4, ''],

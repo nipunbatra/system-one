@@ -174,6 +174,7 @@ with torch.no_grad():
         ids = torch.cat([ids, nxt.view(1, 1)], dim=1)   # append it and go again
 generated = tok.decode(ids[0, n_prompt:])
 n_generated = ids.shape[1] - n_prompt
+generated_tokens = [tok.decode([i]) for i in ids[0, n_prompt:].tolist()]   # one entry per forward pass
 print(generated)
 print(f"\\n{n_generated} tokens written, so {passes} forward passes")
 '''),
@@ -424,7 +425,7 @@ results = {
     "letter_logits": [round(v, 3) for v in model(**x).logits[0, -1].float().cpu()[letter_ids[:3]].tolist()],
     "p_team": [round(v, 4) for v in p_team.tolist()], "p_refund_yes": round(p_refund[0].item(), 4),
     "p_urgency": [round(v, 4) for v in p_urgency.tolist()], "urgency_score": round(score, 3),
-    "generated": generated, "n_generated": int(n_generated), "passes": int(passes),
+    "generated": generated, "generated_tokens": generated_tokens, "n_generated": int(n_generated), "passes": int(passes),
     "ms_generate": round(ms_generate), "ms_one_pass": round(ms_one_pass),
     "written": {"n": len(written), "kinds": kinds.most_common(), "examples": {k: v[:200] for k, v in kind_examples.items()},
                 "usable": len(stated), "accuracy": round(float(np.mean(stated_right)), 4),
