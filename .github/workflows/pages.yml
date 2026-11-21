@@ -27,8 +27,13 @@ jobs:
       - run: npm run build
         env:
           OSD_BASE: /system-one/
-      # Deep links such as /system-one/s/system-one are client-side routes.
-      - run: cp dist/index.html dist/404.html
+      # The app's own index.html serves the deck route and any other deep link;
+      # the site root gets the landing page with links to slides and notebooks.
+      - run: |
+          mkdir -p dist/s/system-one
+          cp dist/index.html dist/s/system-one/index.html
+          cp dist/index.html dist/404.html
+          cp site/index.html dist/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

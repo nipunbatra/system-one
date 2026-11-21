@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>System 1 models: deciding without writing</title>
+<meta name="description" content="A lecture on decision models such as Jev: slides and three Colab notebooks.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #faf7f2; --card: #fffdf9; --text: #1f1b16; --soft: #5c544a; --muted: #8a8177; --rule: #e6dfd3; --accent: #c44536; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "Work Sans", system-ui, sans-serif; font-size: 18px; line-height: 1.55; }
+  main { max-width: 980px; margin: 0 auto; padding: 72px 24px 64px; }
+  .kicker { color: var(--accent); font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; font-size: 14px; }
+  h1 { font-family: "Playfair Display", Georgia, serif; font-size: clamp(38px, 6vw, 60px); line-height: 1.1; margin: 10px 0 18px; }
+  h2 { font-family: "Playfair Display", Georgia, serif; font-size: 28px; margin: 56px 0 6px; }
+  p.lead { font-size: 21px; color: var(--soft); max-width: 720px; margin: 0 0 30px; }
+  p.sub { color: var(--soft); margin: 0 0 20px; }
+  a { color: var(--accent); }
+  .btn { display: inline-block; background: var(--accent); color: #fff; text-decoration: none; font-weight: 600; font-size: 20px; padding: 15px 28px; border-radius: 10px; }
+  .btn:hover { background: #a83a2d; }
+  .hint { display: block; margin-top: 12px; color: var(--muted); font-size: 15px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 18px; }
+  .card { background: var(--card); border: 1.5px solid var(--rule); border-radius: 12px; padding: 22px 24px 20px; display: flex; flex-direction: column; }
+  .num { font-family: "Playfair Display", Georgia, serif; font-size: 44px; font-weight: 700; color: var(--accent); line-height: 1; }
+  .card h3 { font-size: 21px; margin: 12px 0 8px; }
+  .card p { margin: 0 0 14px; color: var(--soft); font-size: 16.5px; flex: 1; }
+  .where { color: var(--muted); font-size: 14.5px; margin-bottom: 14px; }
+  .links { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 15.5px; }
+  .colab { background: var(--text); color: #fff; text-decoration: none; font-weight: 600; padding: 7px 14px; border-radius: 8px; }
+  .colab:hover { background: #3a332b; }
+  ol.route { margin: 0; padding-left: 22px; color: var(--soft); }
+  ol.route li { padding: 3px 0; }
+  ol.route b { color: var(--text); font-weight: 600; }
+  footer { margin-top: 56px; padding-top: 20px; border-top: 1.5px solid var(--rule); color: var(--muted); font-size: 15px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="kicker">Lecture</div>
+  <h1>System 1 models: deciding without writing</h1>
+  <p class="lead">How an LLM produces an answer, why most software only needs a calibrated decision, and how models like Jev give one in a single pass. About 60 to 80 minutes with the notebook demos.</p>
+
+  <a class="btn" href="s/system-one">Open the slides</a>
+  <span class="hint">73 slides. Arrow keys move between pages; press F for full screen.</span>
+
+  <h2>Notebooks</h2>
+  <p class="sub">Each one opens in Colab. Notebooks 1 and 2 run on a free CPU or T4 runtime; notebook 3 needs a T4.</p>
+  <div class="grid">
+    <div class="card">
+      <div class="num">1</div>
+      <h3>Read, don't write</h3>
+      <p>Tokens, the generation loop, reading option probabilities, expected calibration error, temperature scaling, thresholds.</p>
+      <div class="where">CPU or T4 · about 2 minutes on T4</div>
+      <div class="links">
+        <a class="colab" href="https://colab.research.google.com/github/nipunbatra/system-one/blob/main/notebooks/01_read_dont_write.ipynb">Open in Colab</a>
+        <a href="https://github.com/nipunbatra/system-one/blob/main/notebooks/01_read_dont_write.ipynb">View on GitHub</a>
+      </div>
+    </div>
+    <div class="card">
+      <div class="num">2</div>
+      <h3>Train a decision head</h3>
+      <p>Proper scoring rules, a linear head on a frozen LLM, calibration on held-out rows.</p>
+      <div class="where">CPU or T4 · about 2 minutes on T4</div>
+      <div class="links">
+        <a class="colab" href="https://colab.research.google.com/github/nipunbatra/system-one/blob/main/notebooks/02_train_a_decision_head.ipynb">Open in Colab</a>
+        <a href="https://github.com/nipunbatra/system-one/blob/main/notebooks/02_train_a_decision_head.ipynb">View on GitHub</a>
+      </div>
+    </div>
+    <div class="card">
+      <div class="num">3</div>
+      <h3>Unsloth decision model</h3>
+      <p>LoRA plus a decision head on Qwen3.5-0.8B for choice, noul and score questions.</p>
+      <div class="where">T4 (CUDA needed) · start it before class</div>
+      <div class="links">
+        <a class="colab" href="https://colab.research.google.com/github/nipunbatra/system-one/blob/main/notebooks/03_unsloth_decision_model.ipynb">Open in Colab</a>
+        <a href="https://github.com/nipunbatra/system-one/blob/main/notebooks/03_unsloth_decision_model.ipynb">View on GitHub</a>
+      </div>
+    </div>
+  </div>
+
+  <h2>What the lecture covers</h2>
+  <ol class="route">
+    <li><b>Two ways of thinking.</b> Fast judgements and slow reasoning, in people and in software.</li>
+    <li><b>How an LLM answers.</b> Tokens, attention, logits, softmax and the generation loop.</li>
+    <li><b>Read, don't write.</b> Taking option probabilities from one forward pass.</li>
+    <li><b>Calibration.</b> Reliability diagrams, ECE by hand and in Python, temperature scaling.</li>
+    <li><b>Training for calibration.</b> RLHF, RLVR and RLCD; Brier and log score; a trained decision head.</li>
+    <li><b>Putting it to work.</b> Thresholds, pipelines with an LLM, and the limits reported so far.</li>
+  </ol>
+
+  <footer>
+    Nipun Batra, IIT Gandhinagar · <a href="https://github.com/nipunbatra/system-one">Source on GitHub</a> · Slides built with <a href="https://open-slide.dev">open-slide</a>
+  </footer>
+</main>
+</body>
+</html>
