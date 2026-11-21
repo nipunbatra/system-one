@@ -22,8 +22,12 @@ is committed without outputs.
 
 ## Slides
 
+**View the slides: <https://nipunbatra.github.io/system-one/s/system-one>**
+
 The deck is one file, `slides/system-one/index.tsx`, built with
 [open-slide](https://github.com/open-slide/open-slide).
+
+To run them locally:
 
 ```bash
 npm install
