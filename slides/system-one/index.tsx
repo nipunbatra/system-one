@@ -1857,6 +1857,9 @@ const Voting: Page = () => (
               </div>
             ))}
           </div>
+          <div style={{ fontSize: 26, color: C.muted, marginTop: 18 }}>
+            This prompt asks for a word. Part 3 asks the same question with lettered options, and the split there is different.
+          </div>
         </Step>
       </Steps>
     </div>
@@ -2057,7 +2060,7 @@ const Strip = ({ x, y, keep, color }: { x: number; y: number; keep: number; colo
 
 const ArchOne = ({ x, kind, opts, top, sub, notes, dim }: { x: number; kind: 0 | 1 | 2; opts: string[]; top: string; sub: string; notes: [string, string]; dim?: boolean }) => {
   const color = [C.s2, C.s1, C.s1][kind];
-  const name = ['Chat LLM', 'Letter readout', 'Decision model'][kind];
+  const name = ['Chat LLM', 'Letter readout', 'New trained head'][kind];
   const k = opts.length;
   return (
     <g transform={`translate(${x} 0)`} opacity={dim ? 0.35 : 1}>
@@ -2117,7 +2120,7 @@ const ArchDiff: Page = () => (
   <Frame
     part={3}
     title="What changed inside the model"
-    line={`All three share the transformer blocks. The readout keeps 3 of the output layer’s ${sci.vocab.toLocaleString('en-US')} scores and trains nothing. A decision model replaces that layer with a small trained head.`}
+    line={`All three share the transformer blocks. The readout keeps 3 of the output layer’s ${sci.vocab.toLocaleString('en-US')} scores and trains nothing. A new head replaces that layer. A decision model is either of these two, once trained.`}
   >
     <ArchFig
       opts={['billing', 'technical', 'sales']}
@@ -2126,11 +2129,19 @@ const ArchDiff: Page = () => (
       head="one probability per option"
       notes={[
         [`${sci.passes} passes for one answer`, 'trained to write the next token'],
-        ['1 pass · nothing new is trained', 'we only choose which scores to read'],
-        ['1 pass · the head is trained', 'built in Part 5'],
+        ['1 pass · nothing trained yet', 'Liquid’s d1 models train this readout'],
+        ['1 pass · the head is trained', 'ours in Part 5, and Unsloth’s'],
       ]}
     />
   </Frame>
+);
+
+const WR = ({ q, w, r }: { q: string; w: string; r: ReactNode }) => (
+  <div style={{ ...row, gap: 30, fontSize: 28, padding: '7px 0' }}>
+    <div style={{ width: 200, color: C.soft }}>{q}</div>
+    <div style={{ width: 360, fontFamily: mono, color: C.s2 }}>{w}</div>
+    <div style={{ fontFamily: mono, color: C.s1 }}>{r}</div>
+  </div>
 );
 
 const Honest: Page = () => (
@@ -2139,17 +2150,17 @@ const Honest: Page = () => (
     title="The probabilities show doubt that the text hid"
     line="The written answer looked certain, but the probabilities are almost equal for billing and technical. A program can see that and act on it."
   >
-    <div style={{ ...row, gap: 70, alignItems: 'center', height: '100%' }}>
-      <Card color={C.s2} style={{ width: 620 }}>
+    <div style={{ ...row, gap: 50, alignItems: 'center' }}>
+      <Card color={C.s2} style={{ width: 620, flexShrink: 0, padding: '24px 32px' }}>
         <Label color={C.s2}>The model wrote</Label>
-        <div style={{ fontFamily: mono, fontSize: 44, marginTop: 24 }}>"team": "billing"</div>
-        <div style={{ fontSize: 30, color: C.soft, marginTop: 20 }}>no sign of doubt</div>
+        <div style={{ fontFamily: mono, fontSize: 44, marginTop: 20 }}>"team": "billing"</div>
+        <div style={{ fontSize: 30, color: C.soft, marginTop: 16 }}>no sign of doubt</div>
       </Card>
       <Steps>
         <Step>
-          <Card color={C.s1} style={{ width: 1000 }}>
+          <Card color={C.s1} style={{ width: 1000, padding: '20px 32px' }}>
             <Label color={C.s1}>The model’s probabilities</Label>
-            <div style={{ ...col, marginTop: 16 }}>
+            <div style={{ ...col, marginTop: 8 }}>
               <Bar label="billing" p={sci.p_team[0]} width={480} />
               <Bar label="technical" p={sci.p_team[1]} width={480} />
               <Bar label="sales" p={sci.p_team[2]} width={480} />
@@ -2158,6 +2169,23 @@ const Honest: Page = () => (
         </Step>
       </Steps>
     </div>
+    <Steps>
+      <Step>
+        <div style={{ marginTop: 26, borderTop: `2px solid ${C.rule}`, paddingTop: 16 }}>
+          <div style={{ ...row, gap: 30, fontSize: 22, letterSpacing: '0.1em', color: C.muted, fontWeight: 600 }}>
+            <div style={{ width: 200 }}>ALL THREE</div>
+            <div style={{ width: 360 }}>WRITTEN</div>
+            <div>READ</div>
+          </div>
+          <WR q="team" w="billing" r={`technical ${f2(sci.p_team[1])}, billing ${f2(sci.p_team[0])}`} />
+          <WR q="refund" w="false" r={`yes ${f2(sci.p_refund_yes)}`} />
+          <WR q="urgency" w="2, today" r={`not urgent ${f2(sci.p_urgency[0])}`} />
+          <div style={{ fontSize: 27, color: C.soft, marginTop: 8 }}>
+            The two disagree. This small model was never trained for the task, so neither is reliable yet. Reading shows the doubt, and Part 5 trains the answers.
+          </div>
+        </div>
+      </Step>
+    </Steps>
   </Frame>
 );
 
@@ -2213,7 +2241,7 @@ const ScoreCalc: Page = () => (
   <Frame
     part={3}
     title="A score is the probability-weighted level"
-    line="The levels are numbered 0, 1 and 2. Our untrained model rates this email “not urgent”, which is a poor answer. Part 5 shows how training improves such answers."
+    line="The levels are numbered 0, 1 and 2. Our model, which has no training for this task, rates this email “not urgent”, which is a poor answer. Answers like this are what training repairs, and Part 5 shows how."
   >
     <div style={{ ...col, gap: 50, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
       <div style={{ fontFamily: mono, fontSize: 40, color: C.soft }}>
@@ -2318,7 +2346,7 @@ const MoreTypes: Page = () => (
     part={3}
     nb={1}
     title="The same readout covers some newer answer types"
-    line={`Multi-select is one yes or no question per option. A number is a choice over candidate values. Our untrained model gets the count wrong: the email says twice.`}
+    line={`Multi-select is one yes or no question per option. A number is a choice over candidate values. Our model, not trained for this, gets the count wrong: the email says twice.`}
   >
     <div style={{ ...row, gap: 34, alignItems: 'stretch', marginTop: 20 }}>
       <div style={{ width: 544, display: 'flex' }}>
@@ -4100,8 +4128,8 @@ const LogScore: Page = () => (
     title="Cross-entropy is also a proper scoring rule"
     line="Cross-entropy, the usual classification loss, is the log score. A classifier head trained with it is rewarded for reporting correct probabilities."
   >
-    <div style={{ ...col, gap: 34, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-      <Eq size={62}>
+    <div style={{ ...col, gap: 22, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+      <Eq size={56}>
         <span style={{ color: C.loss }}>loss</span> = − log <I color={C.pred}>p</I>
         <sub style={{ fontSize: 34, color: C.truth }}>correct option</sub>
       </Eq>
@@ -4127,6 +4155,11 @@ const LogScore: Page = () => (
             <div>
               <span style={{ color: C.pred }}>say 0.99</span> → 7 × 0.010 + 3 × 4.605 = <b style={{ color: C.loss }}>13.89</b>
             </div>
+          </div>
+        </Step>
+        <Step>
+          <div style={{ fontSize: 27, lineHeight: 1.4, color: C.ink, background: C.panel, borderRadius: 'var(--osd-radius)', padding: '12px 22px', width: 1500 }}>
+            Our LLM was trained with this loss too, so why was it over-confident in Part 4? It was trained to predict next tokens of text, not to answer “which topic?” through letters. The loss is proper for the task it was used on.
           </div>
         </Step>
       </Steps>
@@ -4171,7 +4204,8 @@ const RLCDIdeas: Page = () => (
       <Step>
         <div style={{ fontSize: 28, lineHeight: 1.4, color: C.ink, marginTop: 26, background: C.panel, borderRadius: 'var(--osd-radius)', padding: '16px 24px' }}>
           Is this reinforcement learning or supervised learning? When the correct answer is known and the reward is a proper scoring rule,
-          raising the reward is the same as lowering a supervised loss. Nothing has to be sampled.
+          raising the reward is the same as lowering a supervised loss. The open recipes (our head, Unsloth, Liquid) all do this: supervised
+          training on labelled rows, then a temperature fitted on held-out rows.
         </div>
       </Step>
     </Steps>
@@ -4186,7 +4220,7 @@ const HeadWhy: Page = () => (
   >
     <div style={{ ...row, gap: 40, alignItems: 'stretch', marginTop: 10 }}>
       <Card style={{ width: 830, padding: '30px 34px' }} color={C.muted}>
-        <Label>What Part 3 did</Label>
+        <Label>What Parts 3 and 4 did</Label>
         <div style={{ fontSize: 32, lineHeight: 1.45, marginTop: 12 }}>
           Used the LLM’s own output layer. It gives {sci.vocab.toLocaleString('en-US')} scores, one per token, and we kept the four for A, B, C and D.
         </div>
@@ -4412,7 +4446,7 @@ const HeadResults: Page = () => (
     part={5}
     nb={2}
     title="Results after training, on the same 1,000 test items"
-    line={`The ${sci.head.params.toLocaleString('en-US')}-parameter head trains in a few seconds. It is more accurate and much better calibrated than reading the LLM’s letter logits.`}
+    line={`The ${sci.head.params.toLocaleString('en-US')}-parameter head trains in a few seconds. Temperature had already repaired the confidence. Training is what raises the accuracy, from ${f2(sci.zs.accuracy)} to ${f2(sci.head.raw.accuracy)}.`}
   >
     <div style={{ ...col, justifyContent: 'center', height: '100%' }}>
       <div style={{ ...row, height: 60, fontSize: 28, color: C.muted }}>
@@ -4421,6 +4455,7 @@ const HeadResults: Page = () => (
         <div style={{ width: 520 }}>ECE (lower is better)</div>
       </div>
       <ResRow name="LLM letters, as read" acc={sci.zs.accuracy} e={sci.zs.ece} color={C.soft} />
+      <ResRow name={`LLM letters, T = ${sci.zs.T.toFixed(1)}`} acc={sci.zs.accuracy} e={sci.zs.ece_T} color={C.soft} />
       <Steps>
         <Step>
           <ResRow name="trained head" acc={sci.head.raw.accuracy} e={sci.head.raw.ece} color={C.s1} />
@@ -4535,8 +4570,7 @@ const Recap5: Page = () => (
       <RecapItem>A proper scoring rule is lowest when the stated probability is the true one.</RecapItem>
       <RecapItem>Cross-entropy and the Brier score are both proper.</RecapItem>
       <RecapItem>
-        A trained head took us from {f2(sci.zs.accuracy)} to {f2(sci.head.raw.accuracy)} accuracy and from {f2(sci.zs.ece)} to{' '}
-        {f2(sci.head.cal.ece)} ECE.
+        Training a head raised accuracy from {f2(sci.zs.accuracy)} to {f2(sci.head.raw.accuracy)}, and its ECE is {f2(sci.head.cal.ece)} after a small temperature.
       </RecapItem>
     </div>
   </Frame>
@@ -4770,7 +4804,7 @@ const AppEmail: Page = () => (
             <AppRow k="Training">none to start. Fine-tune if routing accuracy on your tickets is short.</AppRow>
           </Step>
           <Step>
-            <AppRow k="Calibration">a few hundred resolved tickets, to set the 0.9 and 0.1 thresholds</AppRow>
+            <AppRow k="Calibration">one or two hundred resolved tickets, to set the 0.9 and 0.1 thresholds</AppRow>
             <AppRow k="Action">route automatically above the threshold, otherwise ask a person</AppRow>
           </Step>
         </Steps>
@@ -4859,7 +4893,7 @@ const AppGame: Page = () => (
         <Steps>
           <Step>
             <AppRow k="Model and head">a decision model as a fast policy: System 1 for the game</AppRow>
-            <AppRow k="Training">needed. Labels come free from a solver or from who won, the same verified reward as RLVR.</AppRow>
+            <AppRow k="Training">needed. Labels come free from a solver or from who won.</AppRow>
           </Step>
           <Step>
             <AppRow k="Calibration">positions from games held out of training</AppRow>
@@ -5469,7 +5503,7 @@ const Taxonomy: Page = () => (
       <Fam n="I" name="Encoder classifiers" items={[['encoder', C.truth], ['→'], ['head'], ['→'], ['label', C.pred]]} out="One label from a fixed set, fixed when the model was trained." ex="BERT, DeBERTa: spam, sentiment, intent" size="5–50 ms · 0.1–0.6 B" />
       <Steps>
         <Step><Fam n="II" name="Reward models" items={[['LLM', C.s2], ['→'], ['head'], ['→'], ['0.82', C.pred]]} out="One score for a prompt and its answer." ex="the judge that RLHF trains against" size="10–100 ms · 0.3–70 B" /></Step>
-        <Step><Fam here n="III" name="Decision engines" items={[['reader', C.s1], ['→'], ['3 typed heads', C.s1]]} out="Typed answers to questions written in the request." ex="Jev, Laya, Liquid d1, System One Gemma" size="10–70 ms · 0.15–27 B" /></Step>
+        <Step><Fam here n="III" name="Decision engines" items={[['reader', C.s1], ['→'], ['head'], ['→'], ['typed answers', C.s1]]} out="Typed answers to questions written in the request." ex="Jev, Laya, Liquid d1, System One Gemma" size="10–70 ms · 0.15–27 B" /></Step>
         <Step><Fam n="IV" name="Contrastive models" items={[['state'], ['action'], ['→'], ['match', C.pred]]} out="How well an input matches each stored action." ex="CLM-8B; dense search and routing" size="5–30 ms · 0.3–8 B" /></Step>
         <Step><Fam n="V" name="Extraction models" items={[['text'], ['→'], ['span', C.truth]]} out="A value copied from the input: a span, a number, a box." ex="newer and less studied" size="1–10 ms · 0.15–1 B" /></Step>
       </Steps>
@@ -5534,7 +5568,7 @@ const Convert: Page = () => (
         </Step>
         <Step>
           <svg width={1700} height={220} viewBox="0 0 1700 220" style={{ position: 'absolute', left: 0, top: 470 }}>
-            <EditBand y={20} n="3" head="Attach a small head, then train" body="The head is new. LoRA adapts the blocks a little." />
+            <EditBand y={20} n="3" head="Attach a small head, then train" body="LoRA: small trainable additions to the frozen blocks." />
             <g transform="translate(900 24)">
               {TEAMS.map((o, i) => (
                 <g key={o}>
@@ -5755,7 +5789,7 @@ const ThreeLevels: Page = () => (
               <br />
               Laya ECE <L>0.081</L> <span style={{ fontSize: 22, color: C.muted }}>after temperature</span>
             </div>
-            <div style={{ fontSize: 25, color: C.soft, marginTop: 12 }}>Our head: {f2(sci.head.cal.ece)} on news it was trained for.</div>
+            <div style={{ fontSize: 25, color: C.soft, marginTop: 12 }}>The two reports disagree about Jev, which is a reason to measure on your own data. Our head: {f2(sci.head.cal.ece)}, on news it was trained for.</div>
           </Card>
         </Step>
       </Steps>
@@ -5767,7 +5801,7 @@ const TwoTrainings: Page = () => (
   <Frame
     part={5}
     title="Two ways to train a decision model"
-    line="Both end in one pass and a probability per option. Liquid keeps the readout its model already has, and Unsloth adds a new head to an ordinary LLM."
+    line="Liquid’s model starts at 83% because its readout is already trained. Unsloth’s new head starts near chance, and reaches 74% on this same Banking77 data after training."
     src="Liquid AI cookbook, “How to Fine-Tune a Decision Model with Unsloth” · Unsloth, “Train your own Decision Model”, 2026"
     nb={3}
   >
@@ -5825,7 +5859,7 @@ const HeadCalc = ({ type, pic, how, children }: { type: string; pic: string; how
   <Card color={C.s1} style={{ width: 550, flexShrink: 0, boxSizing: 'border-box', padding: '22px 26px' }}>
     <TypeChip t={type} />
     <div style={{ fontFamily: serif, fontSize: 33, fontWeight: 700, margin: '14px 0 6px' }}>{pic}</div>
-    <div style={{ fontSize: 25, lineHeight: 1.4, color: C.soft, height: 106 }}>{how}</div>
+    <div style={{ fontSize: 25, lineHeight: 1.4, color: C.soft, height: 144 }}>{how}</div>
     <div style={{ fontFamily: mono, fontSize: 25, lineHeight: 1.65 }}>{children}</div>
   </Card>
 );
@@ -5833,8 +5867,8 @@ const HeadCalc = ({ type, pic, how, children }: { type: string; pic: string; how
 const TypedHeads: Page = () => (
   <Frame
     part={6}
-    title="Three typed heads, three small formulas"
-    line="Each head turns scores into probabilities in the way its answer type needs. The scores here are chosen to reproduce our email’s numbers."
+    title="The last step differs by answer type"
+    line="Whether a model has one shared head or a small head per type, scores become probabilities in the way the answer type needs. These scores are chosen to reproduce our email’s numbers."
     src="head designs for Jev-style models as described in Roitman, 2026, section 6.1 · vendors do not publish their own"
   >
     <div style={{ ...row, gap: 24, alignItems: 'stretch' }}>
@@ -5848,15 +5882,15 @@ const TypedHeads: Page = () => (
       <Steps>
         <Step>
           <HeadCalc type="choice" pic="A contest" how="One score per option. Softmax makes them compete, so the probabilities sum to 1.">
-            23.26 · 23.33 · 19.40
+            scores 23.26 · 23.33 · 19.40
             <br />
-            softmax
+            softmax (as in Part 3)
             <br />
             = <P>0.48</P> · <P>0.51</P> · <P>0.01</P>
           </HeadCalc>
         </Step>
         <Step>
-          <HeadCalc type="score" pic="Cut points on a line" how="One score z, and one cut point per step up the scale. Each cut gives P(at least this level).">
+          <HeadCalc type="score" pic="Cut points on a line" how="One design: a score z and a cut point per step up the scale. Our Part 3 readout used a softmax over the levels instead.">
             P(≥ soon) &nbsp;= sig(0 − 2.6) = 0.07
             <br />
             P(≥ today) = sig(0 − 3.9) = 0.02
@@ -5903,6 +5937,112 @@ const CostThreshold: Page = () => (
             If undoing a refund cost only ₹50, the threshold would be 50 / (50 + 50) = 0.50. Our email reads <P>{f2(sci.p_refund_yes)}</P>, which is below 0.90, so a person looks at it.
           </div>
         </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+
+// ---------------------------------------------------------------- the definition, and training on one page
+
+const IO = ({ head, color, children }: { head: string; color: string; children: ReactNode }) => (
+  <div style={{ width: 510, flexShrink: 0, boxSizing: 'border-box', background: C.white, border: `2px solid ${color}`, borderRadius: 'var(--osd-radius)', padding: '20px 26px' }}>
+    <Label color={color}>{head}</Label>
+    <div style={{ fontSize: 28, lineHeight: 1.45, marginTop: 10 }}>{children}</div>
+  </div>
+);
+
+const WhatIs: Page = () => (
+  <Frame
+    part={1}
+    title="So what is a decision model?"
+    line="Each later part explains one piece of this: the pass in Part 2, the reading in Part 3, the probability in Part 4, the training in Part 5, the use in Part 6."
+    src="definition after Roitman, 2026, section 2.4: a model that maps an input state to a bounded, structured decision without generating free text"
+  >
+    <div style={{ ...col, gap: 28 }}>
+      <Card color={C.s1} style={{ padding: '24px 34px' }}>
+        <div style={{ fontFamily: serif, fontSize: 41, lineHeight: 1.35 }}>
+          A decision model reads an input and a list of questions. For each question it returns{' '}
+          <span style={{ color: C.s1 }}>one answer from a fixed set</span>, with a{' '}
+          <span style={{ color: C.pred }}>probability</span> for every allowed answer. It writes no text.
+        </div>
+      </Card>
+      <Steps>
+        <Step>
+          <div style={{ ...row, gap: 16, alignItems: 'center' }}>
+            <IO head="In" color={C.ink}>
+              “{EMAIL}”
+              <div style={{ color: C.soft, marginTop: 8 }}>Which team? billing · technical · sales</div>
+            </IO>
+            <div style={{ fontSize: 44, color: C.muted }}>→</div>
+            <IO head="Inside" color={C.s2}>
+              one forward pass
+              <div style={{ color: C.soft, marginTop: 8 }}>no loop, no generated tokens</div>
+            </IO>
+            <div style={{ fontSize: 44, color: C.muted }}>→</div>
+            <IO head="Out" color={C.s1}>
+              <b>technical</b>
+              <div style={{ fontFamily: mono, fontSize: 25, marginTop: 8 }}>
+                billing <P>{f2(sci.p_team[0])}</P> · technical <P>{f2(sci.p_team[1])}</P> · sales <P>{f2(sci.p_team[2])}</P>
+              </div>
+            </IO>
+          </div>
+        </Step>
+        <Step>
+          <div style={{ fontSize: 30, lineHeight: 1.45, color: C.soft }}>
+            Examples: Jev (hosted, September 2026), Liquid’s d1 models, and models you train yourself with Unsloth. None of them explains, summarises or chats; that work goes to an LLM.
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const TrainRow = ({ who, by, what, rows, loss, res, dim }: { who: string; by: string; what: string; rows: string; loss: string; res: ReactNode; dim?: boolean }) => (
+  <div style={{ ...row, gap: 22, padding: '13px 0', borderBottom: `2px solid ${C.rule}`, fontSize: 25, lineHeight: 1.35, alignItems: 'baseline', color: dim ? C.muted : C.ink }}>
+    <div style={{ width: 300, flexShrink: 0, fontSize: 28, fontWeight: 700 }}>{who}<div style={{ fontSize: 21, fontWeight: 400, color: C.muted }}>{by}</div></div>
+    <div style={{ width: 400, flexShrink: 0 }}>{what}</div>
+    <div style={{ width: 400, flexShrink: 0 }}>{rows}</div>
+    <div style={{ width: 240, flexShrink: 0 }}>{loss}</div>
+    <div style={{ flex: 1, fontFamily: mono, fontSize: 24 }}>{res}</div>
+  </div>
+);
+
+const TrainOnePage: Page = () => (
+  <Frame
+    part={5}
+    title="Training a decision model, on one page"
+    line="Every recipe has the same five steps. They differ in which weights are trained and in how many kinds of question the rows contain."
+    src="our notebook 2 · Unsloth’s guide · Liquid AI’s cookbook · Jev’s training is unpublished"
+    nb={2}
+  >
+    <svg width={1700} height={210} viewBox="0 0 1700 210">
+      <Arrows />
+      <Box x={0} y={30} w={310} h={110} text="1 · labelled rows" sub="input, questions, answers" size={27} />
+      <Arr x1={310} y1={85} x2={350} y2={85} />
+      <Box x={358} y={30} w={310} h={110} text="2 · one pass" sub="LLM + head → probabilities" color={C.s2} size={27} />
+      <Arr x1={668} y1={85} x2={708} y2={85} />
+      <Box x={716} y={30} w={310} h={110} text="3 · proper loss" sub="−log p(correct answer)" color={C.loss} size={27} />
+      <Arr x1={1026} y1={85} x2={1066} y2={85} />
+      <Box x={1074} y={30} w={290} h={110} text="4 · held-out rows" sub="fit a temperature" color={C.pred} size={27} />
+      <Arr x1={1364} y1={85} x2={1404} y2={85} />
+      <Box x={1412} y={30} w={288} h={110} text="5 · test rows" sub="accuracy and ECE" color={C.truth} size={27} />
+      <path d="M871,140 L871,185 L513,185 L513,146" fill="none" stroke={C.loss} strokeWidth={3} markerEnd="url(#ahr)" />
+      <text x={692} y={206} textAnchor="middle" fontSize={22} fill={C.loss}>adjust the trained weights, repeat</text>
+    </svg>
+    <div style={{ ...col, marginTop: 14 }}>
+      <div style={{ ...row, gap: 22, fontSize: 21, letterSpacing: '0.1em', color: C.muted, fontWeight: 600, paddingBottom: 6, borderBottom: `2px solid ${C.rule}` }}>
+        <div style={{ width: 300 }}>WHO TRAINS</div>
+        <div style={{ width: 400 }}>WEIGHTS TRAINED</div>
+        <div style={{ width: 400 }}>ROWS</div>
+        <div style={{ width: 240 }}>LOSS</div>
+        <div>RESULT</div>
+      </div>
+      <TrainRow who="Our head" by="you, in seconds" what={`the head only, ${sci.head.params.toLocaleString('en-US')} numbers; LLM frozen`} rows={`${sci.head.n_train.toLocaleString('en-US')} news items, one question`} loss="cross-entropy" res={<>acc {f2(sci.zs.accuracy)} → <T>{f2(sci.head.cal.accuracy)}</T></>} />
+      <Steps>
+        <Step><TrainRow who="Unsloth" by="you, about 40 minutes on a T4" what="a new head and LoRA adapters" rows="many inputs, each with choice, noul and score questions" loss="not documented" res={<>36% → <T>73%</T></>} /></Step>
+        <Step><TrainRow who="Liquid cookbook" by="you, a few minutes" what="LoRA adapters; the readout is kept" rows="2,694 bank messages, one choice question" loss="next-token loss on one token" res={<>83% → <T>90%</T></>} /></Step>
+        <Step><TrainRow dim who="Jev" by="the vendor, once" what="not published" rows="not published" loss="“RLCD”" res="not published" /></Step>
       </Steps>
     </div>
   </Frame>
@@ -6039,6 +6179,7 @@ const deck: [Page, string][] = [
   [ExamSheets, 'Students know both sheets from entrance exams. The shaded sheet shows our own model’s three probabilities for the email, which Part 3 computes. Come back to this picture in Parts 3, 4 and 5.'],
   [MLExamples, 'Ask which column their last course project was in. Many pipelines send left-column questions to a chat LLM.'],
   [SoftwareCalls, 'Ask for more examples from their own projects, and which column each belongs in.'],
+  [WhatIs, 'Read the sentence aloud and leave it up. The wording follows the definition in Roitman’s guide. The probabilities are our small model’s, computed in Part 3; a trained decision model would give better ones.'],
   [VisionCalls, 'Jev began with text; Roitman’s guide reports image input and a box answer from version 1.14. Liquid d1.2 documents image and audio input. The questions here are our own examples, apart from the circuit board, siren and caller-language ones, which are from Liquid’s pages.'],
   [NewTypes, 'From Liquid’s d1.2 docs and blog, 16 Nov 2026. A number question with a range returns a median and an interval and has no found score. Vendor-reported accuracy only; no public benchmark covers the new types yet.'],
   [ReadValues, 'Example copied from Liquid’s d1.2 docs. The span numbers count characters from 0, and the end is exclusive. The model normalises the number and the date and still reports the text as written.'],
@@ -6132,7 +6273,6 @@ const deck: [Page, string][] = [
   [BrierExpected, 'Ask the class to guess the best report before revealing the last row. Dividing each total by 10 gives the average penalty per email.'],
   [LogScore, 'So ordinary supervised training with cross-entropy already rewards correct probabilities, at least on the training distribution.'],
   [RLCDIdeas, 'Unsloth exposes build_dataset, a trainer, split_holdout and calibrate. Its loss is not something I have verified. Wikipedia notes that RLCD may be ordinary supervised learning with calibration terms.'],
-  [ThreeLevels, 'The 0.246 and 0.081 are quoted in Roitman’s section 9.4 from an evaluation by the Laya authors; I have not read that evaluation. Deußer et al. is the independent benchmark. The two reports disagree about Jev, which is itself a reason to measure.'],
   [HeadWhy, 'The letter readout is zero-shot: nothing was trained for news topics. A head lets us use labelled data without touching the LLM.'],
   [HeadVector, 'This is the same last-position vector as in Part 2, step 4. In notebook 2 it is the final layer’s hidden state at the last token.'],
   [HeadMath, 'The three-number vector and the weights are made up so the sums can be done by hand. In code the head is torch.nn.Linear(896, 4).'],
@@ -6145,6 +6285,8 @@ const deck: [Page, string][] = [
   [UnslothCode, 'API as in Unsloth’s official notebook. I have not run notebook 3 myself; run it once before class.'],
   [UnslothNumbers, 'Numbers from Unsloth’s documentation.'],
   [TwoTrainings, 'The Banking77 message is copied as it appears in the dataset, spelling included. Liquid’s numbers are from the stored outputs of its notebook: 100 test messages, about four and a half minutes of training on an A100. Liquid skips the new head because it would discard the readout d1-3B already has.'],
+  [ThreeLevels, 'The 0.246 and 0.081 are quoted in Roitman’s section 9.4 from an evaluation by the Laya authors; I have not read that evaluation. Deußer et al. is the independent benchmark. The two reports disagree about Jev, which is itself a reason to measure.'],
+  [TrainOnePage, 'This is the slide to return to if a student asks how these models are trained. Unsloth’s guide names no loss; its calibrate call reports accuracy, ECE and loss. Liquid’s recipe is ordinary fine-tuning where the answer is a single option-code token. Jev’s method has a name and no published details.'],
   [Check5, '0.4 squared is 0.16 and 0.6 squared is 0.36.'],
   [Recap5, ''],
   [S6, ''],
@@ -6154,15 +6296,15 @@ const deck: [Page, string][] = [
   [TrainOnce, 'The 30 to 37% and 73% are Unsloth’s figures for Qwen3.5-0.8B on its typed-decisions set. The docs do not say when to fine-tune; the last two rows are our advice.'],
   [Recipe, 'The quoted advice is on Liquid’s model pages. The size of the test set in step 2 is our suggestion, not a documented rule.'],
   [AppEmail, 'The running example, now as a build plan. All three questions go in one request.'],
-  [AppKiln, 'The drawing and the 0.93 are illustrative. Liquid documents image input and box answers; nobody has reported results on satellite tiles, so the training row is our expectation.'],
-  [AppGame, 'The board probabilities are illustrative. Treating a policy as a choice question is our framing; the decision-model vendors do not discuss games.'],
-  [NotFit, 'The list for generative LLMs follows Liquid’s documentation. The other two columns summarise this lecture.'],
   [Thresholds, 'From the IBM video’s refund example.'],
   [CostThreshold, 'Rupee amounts are made up. Derivation: p b minus (1 minus p) c is positive when p is above c over (c plus b).'],
-  [ThreeThresholds, 'All threshold values here are illustrative choices. Ask the class which mistake is worse in each case before revealing the bands.'],
   [ThresholdLive, 'Drag to 0.9 and to 0.5. Ask which threshold a bank would choose and which a news app would.'],
   [Pipeline, 'Kahneman’s picture again: fast most of the time, slow when needed.'],
+  [AppKiln, 'The drawing and the 0.93 are illustrative. Liquid documents image input and box answers; nobody has reported results on satellite tiles, so the training row is our expectation.'],
+  [AppGame, 'The board probabilities are illustrative. Treating a policy as a choice question is our framing; the decision-model vendors do not discuss games.'],
+  [ThreeThresholds, 'All threshold values here are illustrative choices. Ask the class which mistake is worse in each case before revealing the bands.'],
   [PipelineThree, 'Kahneman again: System 1 for every input, System 2 where it is needed. In the kiln case System 2 is a person.'],
+  [NotFit, 'The list for generative LLMs follows Liquid’s documentation. The other two columns summarise this lecture.'],
   [Limits, 'The benchmark also reports that binary probabilities need tuned thresholds: micro-F1 on UNFAIR-ToS rises from 0.50 to 0.75.'],
   [LimitsApps, 'These are our cautions for the three applications, drawn from the benchmark’s limits and from Part 4. The rare-event point is the base-rate effect.'],
   [Check6, 'This is the recipe from earlier in the part, applied.'],
