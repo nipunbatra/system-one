@@ -2815,11 +2815,104 @@ const RealOne: Page = () => (
   </Frame>
 );
 
+const CC = sci.conf_compare as { n: number; read: { accuracy: number; mean_conf: number; ece: number }; written: { accuracy: number; mean_conf: number; ece: number } };
+const LC = sci.letter_counts as number[];
+const LN = LC.reduce((a, b) => a + b, 0);
+
+const Way = ({ n, head, how, cost, gives, color }: { n: string; head: string; how: string; cost: string; gives: string; color: string }) => (
+  <Card color={color} style={{ width: 544, padding: '24px 28px' }}>
+    <div style={{ ...row, gap: 16, alignItems: 'baseline' }}>
+      <div style={{ fontFamily: serif, fontSize: 56, fontWeight: 700, color, lineHeight: 1 }}>{n}</div>
+      <div style={{ fontSize: 36, fontWeight: 700 }}>{head}</div>
+    </div>
+    <div style={{ fontSize: 28, lineHeight: 1.4, margin: '12px 0 14px', height: 160 }}>{how}</div>
+    <div style={{ borderTop: `2px solid ${C.rule}`, padding: '10px 0', fontSize: 25 }}>
+      <span style={{ color: C.muted }}>Cost </span>
+      {cost}
+    </div>
+    <div style={{ borderTop: `2px solid ${C.rule}`, padding: '10px 0', fontSize: 25 }}>
+      <span style={{ color: C.muted }}>Gives </span>
+      {gives}
+    </div>
+  </Card>
+);
+
+const ConfWays: Page = () => (
+  <Frame
+    part={4}
+    title="Where can a confidence come from?"
+    line="We use the first: the largest softmax probability. It is the standard definition in calibration research, and the next slide compares it with the other two on our model."
+  >
+    <div style={{ ...row, gap: 34, alignItems: 'stretch' }}>
+      <Way n="1" head="Read it" color={C.pred} how="Take the probabilities from the softmax. The largest one is the confidence in the answer." cost="one forward pass" gives="any value between 0 and 1" />
+      <Steps>
+        <Step>
+          <Way n="2" head="Ask for it" color={C.s2} how="Have the model write a number with its answer, such as “confidence: 0.9”." cost="more output tokens" gives="a few round values, as text" />
+        </Step>
+        <Step>
+          <Way n="3" head="Sample it" color={C.s1} how="Generate the answer many times and report the share of runs that agree." cost="one generation per sample" gives="a fraction such as 15/20" />
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const CmpRow = ({ name, sub, a, c, e, color }: { name: string; sub: string; a: number; c: number; e: number; color: string }) => (
+  <div style={{ ...row, alignItems: 'center', height: 104, borderTop: `2px solid ${C.rule}` }}>
+    <div style={{ width: 520 }}>
+      <div style={{ fontSize: 34, fontWeight: 700, color }}>{name}</div>
+      <div style={{ fontSize: 23, color: C.muted }}>{sub}</div>
+    </div>
+    <div style={{ width: 250, fontFamily: mono, fontSize: 42, color: C.truth }}>{f2(a)}</div>
+    <div style={{ width: 330, fontFamily: mono, fontSize: 42, color: C.pred }}>{f2(c)}</div>
+    <div style={{ width: 380, fontFamily: mono, fontSize: 30, color: C.soft }}>
+      {f2(c)} − {f2(a)} = <b style={{ color: C.loss }}>{f2(c - a)}</b>
+    </div>
+    <div style={{ fontFamily: mono, fontSize: 42, color: C.loss }}>{f2(e)}</div>
+  </div>
+);
+
+const ConfCompare: Page = () => (
+  <Frame
+    part={4}
+    title="The three sources, measured on our model"
+    line={`On the same ${CC.n} news items, the written confidence is no better calibrated than the read one. Sampling a one-token answer estimates the read probability, at ${LN} times the cost here.`}
+  >
+    <div style={col}>
+      <div style={{ ...row, fontSize: 22, letterSpacing: '0.08em', fontWeight: 600, color: C.muted, height: 44 }}>
+        <div style={{ width: 520 }}>SOURCE OF THE CONFIDENCE</div>
+        <div style={{ width: 250, color: C.truth }}>ACCURACY</div>
+        <div style={{ width: 330, color: C.pred }}>MEAN CONFIDENCE</div>
+        <div style={{ width: 380 }}>OVER-CONFIDENT BY</div>
+        <div style={{ color: C.loss }}>ECE</div>
+      </div>
+      <CmpRow name="1. Read from the softmax" sub="largest of the four probabilities" a={CC.read.accuracy} c={CC.read.mean_conf} e={CC.read.ece} color={C.pred} />
+      <Steps>
+        <Step>
+          <CmpRow name="2. Written by the model" sub="“confidence” field in its JSON answer" a={CC.written.accuracy} c={CC.written.mean_conf} e={CC.written.ece} color={C.s2} />
+        </Step>
+        <Step>
+          <div style={{ borderTop: `2px solid ${C.rule}`, paddingTop: 20 }}>
+            <div style={{ fontSize: 34, fontWeight: 700, color: C.s1 }}>3. Sampled</div>
+            <div style={{ fontFamily: mono, fontSize: 30, lineHeight: 1.6, marginTop: 6 }}>
+              {LN} sampled answers for the email: A {LC[0]}, B {LC[1]}, C {LC[2]} → {f2(LC[0] / LN)}, {f2(LC[1] / LN)}, {f2(LC[2] / LN)}
+              <br />
+              <span style={{ color: C.pred }}>
+                read once from the softmax: {f2(sci.p_team[0])}, {f2(sci.p_team[1])}, {f2(sci.p_team[2])}
+              </span>
+            </div>
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
 const RealSix: Page = () => (
   <Frame
     part={4}
     title="Six of the 1,000 predictions"
-    line="In every row the answer is the topic with the largest of the four probabilities, and the confidence is that largest value. The two wrong answers both come with 0.9997."
+    line="A useful confidence would be lower on the two wrong rows. Here it is near 1 in every row, right or wrong. That is the model’s over-confidence, and the rest of this part measures and fixes it."
   >
     <div style={{ ...col, marginTop: 16 }}>
       <div style={{ ...row, fontSize: 21, letterSpacing: '0.06em', fontWeight: 600, color: C.muted, height: 62, alignItems: 'flex-end', paddingBottom: 8 }}>
@@ -5108,6 +5201,8 @@ const deck: [Page, string][] = [
   [Shapes, 'Curves are illustrative.'],
   [RealSetup, 'Same model as before. AG News is a standard four-topic news dataset. The 500 items kept aside are used later to choose the temperature.'],
   [RealOne, 'Reveal the probability column after the class has guessed the answer from the logits. Confidence means the largest of the four probabilities.'],
+  [ConfWays, 'Guo et al., 2017, define confidence as the largest predicted probability, and ECE is built on it. Parts 2 and 3 already met the other two: the written confidence and the vote count.'],
+  [ConfCompare, 'The written answers come from a different prompt, which is why accuracy differs between the rows. The sampled row draws 200 letters from the same distribution we read, so it can only agree up to sampling noise. Sampling tells you more when the answer is many tokens long.'],
   [RealSix, 'Ask whether the Microsoft item is really Sci/Tech or Business. Labels can be debatable, and the model gives 0.9997 either way.'],
   [RealNumbers, 'AG News, 4 topics, 1,000 test items, Qwen2.5-0.5B-Instruct read from letter logits.'],
   [RealBefore, 'Almost everything sits in the top bin. This is typical of an LLM read zero-shot.'],

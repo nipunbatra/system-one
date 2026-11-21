@@ -232,8 +232,8 @@ def parse(text):
     except Exception:
         return None, "no JSON at all"
 
-kinds, kind_examples, stated, stated_right = Counter(), {}, [], []
-for text, label in zip(written, news["label"]):
+kinds, kind_examples, stated, stated_right, stated_idx = Counter(), {}, [], [], []
+for idx, (text, label) in enumerate(zip(written, news["label"])):
     d, kind = parse(text)
     if d is not None and d.get("topic") not in SHORT:
         kind = "topic not on the list"
@@ -242,7 +242,7 @@ for text, label in zip(written, news["label"]):
     kinds[kind] += 1
     kind_examples.setdefault(kind, text)
     if kind in ("clean JSON", "JSON inside other text"):
-        stated.append(float(d["confidence"])); stated_right.append(int(SHORT.index(d["topic"]) == label))
+        stated.append(float(d["confidence"])); stated_right.append(int(SHORT.index(d["topic"]) == label)); stated_idx.append(idx)
 for kind, n in kinds.most_common():
     print(f"{n:4d}  {kind:32s} e.g. {kind_examples[kind][:70]!r}")
 """),
@@ -375,6 +375,31 @@ for i in sorted(right + wrong):
     e = examples[-1]
     print(f"{conf[i]:.3f}  said {e['pred']:<22} truth {e['label']:<22} {e['text'][:60]!r}")
 """),
+("md", """
+### Three ways to get a confidence, compared
+
+Earlier we asked the model to **write** a confidence for 200 of these same news items. Here are the written numbers next to the
+ones **read** from the logits, on the items where the written answer was usable.
+
+A third way is to **sample** the answer many times and count. For a one-token answer this estimates the very probability we read,
+so we check that on the email: 200 sampled letters against the three probabilities from one forward pass.
+"""),
+("code", """
+idx = torch.tensor(stated_idx)                     # the news items are the first 200 test items, in the same order
+read_conf, read_right = conf[idx], correct[idx]
+conf_compare = {"n": len(stated_idx),
+    "read":    {"accuracy": round(read_right.mean().item(), 4), "mean_conf": round(read_conf.mean().item(), 4),
+                "ece": round(ece(read_conf, read_right), 4)},
+    "written": {"accuracy": round(float(np.mean(stated_right)), 4), "mean_conf": round(float(np.mean(stated)), 4),
+                "ece": round(ece(stated, stated_right), 4)}}
+for k in ("read", "written"):
+    print(f"{k:8s}", conf_compare[k])
+
+torch.manual_seed(0)
+draws = torch.multinomial(p_team, 200, replacement=True)          # sample the answer letter 200 times
+letter_counts = [int((draws == i).sum()) for i in range(3)]
+print("sampled 200 letters:", dict(zip("ABC", letter_counts)), "| read once:", [round(v, 2) for v in p_team.tolist()])
+"""),
 ("md", '''
 ## 7. One number fixes most of it: temperature scaling
 
@@ -430,7 +455,7 @@ results = {
     "written": {"n": len(written), "kinds": kinds.most_common(), "examples": {k: v[:200] for k, v in kind_examples.items()},
                 "usable": len(stated), "accuracy": round(float(np.mean(stated_right)), 4),
                 "mean_stated": round(float(np.mean(stated)), 4), "stated_counts": sorted(Counter(stated).items())},
-    "votes": votes.most_common(), "multi": multi,
+    "votes": votes.most_common(), "multi": multi, "conf_compare": conf_compare, "letter_counts": letter_counts,
     "count": {"options": [int(c) for c in counts], "p": [round(v, 4) for v in p_count.tolist()],
               "median": at(0.5), "interval": [at(0.1), at(0.9)]},
     "agnews": {"n": len(test), "accuracy": round(correct.mean().item(), 4),
