@@ -3560,44 +3560,139 @@ const RLCD: Page = () => (
   </Frame>
 );
 
-const Mail = ({ x, yes }: { x: number; yes: boolean }) => (
-  <g transform={`translate(${x} 0)`}>
-    <rect x={0} y={0} width={120} height={84} rx={8} fill={yes ? C.truth : C.white} stroke={yes ? C.truth : C.muted} strokeWidth={3} />
-    <path d="M6,8 L60,50 L114,8" fill="none" stroke={yes ? C.white : C.muted} strokeWidth={3} />
-    <text x={60} y={124} textAnchor="middle" fontSize={26} fill={yes ? C.truth : C.muted} fontWeight={600}>{yes ? 'yes' : 'no'}</text>
-  </g>
-);
+const Mail = ({ x, yes, known = true }: { x: number; yes: boolean; known?: boolean }) => {
+  const fill = !known ? C.panel : yes ? C.truth : C.white;
+  const edge = !known ? C.muted : yes ? C.truth : C.muted;
+  return (
+    <g transform={`translate(${x} 0)`}>
+      <rect x={0} y={0} width={120} height={84} rx={8} fill={fill} stroke={edge} strokeWidth={3} />
+      <path d="M6,8 L60,50 L114,8" fill="none" stroke={known && yes ? C.white : C.muted} strokeWidth={3} />
+      <text x={60} y={124} textAnchor="middle" fontSize={26} fill={!known ? C.muted : yes ? C.truth : C.muted} fontWeight={600}>
+        {!known ? '?' : yes ? 'yes' : 'no'}
+      </text>
+    </g>
+  );
+};
 
-const TenMails = () => (
+const TenMails = ({ known = true }: { known?: boolean }) => (
   <svg width={1500} height={140} viewBox="0 0 1500 140">
     {Array.from({ length: 10 }, (_, i) => (
-      <Mail key={i} x={10 + i * 150} yes={i < 7} />
+      <Mail key={i} x={10 + i * 150} yes={i < 7} known={known} />
     ))}
   </svg>
+);
+
+const OneAmbiguous: Page = () => (
+  <Frame
+    part={5}
+    title="Start with one email and one question"
+    line="The email does not say what the customer wants done. From the text alone, the best possible answer is a probability, because the text does not settle the question."
+  >
+    <div style={{ ...row, gap: 60, alignItems: 'center', height: '100%' }}>
+      <div style={{ flexShrink: 0 }}>
+        <EmailCard width={700} />
+        <div style={{ fontSize: 34, marginTop: 30 }}>
+          Question: <b>Is the customer asking for a refund?</b>
+        </div>
+      </div>
+      <Steps>
+        <Step>
+          <div style={{ ...col, gap: 22, width: 800 }}>
+            <Card color={C.truth} style={{ padding: '20px 28px' }}>
+              <Label color={C.truth}>The customer may mean</Label>
+              <div style={{ fontSize: 31, marginTop: 6 }}>“Send the extra charge back to my card.” <b>Yes, a refund.</b></div>
+            </Card>
+            <Card style={{ padding: '20px 28px' }}>
+              <Label>Or may mean</Label>
+              <div style={{ fontSize: 31, marginTop: 6 }}>“Count it towards next month and stop charging twice.” <b>No refund.</b></div>
+            </Card>
+            <div style={{ fontSize: 30, color: C.pred }}>The model has to answer with one number, P(yes).</div>
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const TenAlike: Page = () => (
+  <Frame
+    part={5}
+    title="Ten customers send almost the same email"
+    line="A model gives the same output for the same input. These ten emails read the same, so all ten get the same P(yes), whatever number that is."
+  >
+    <div style={{ ...col, gap: 28, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+      <div style={{ fontFamily: serif, fontSize: 38 }}>“{EMAIL}” × 10</div>
+      <TenMails known={false} />
+      <Steps>
+        <Step>
+          <div style={{ ...row, gap: 30, alignItems: 'center', fontFamily: mono, fontSize: 36 }}>
+            <span style={{ color: C.soft }}>same text in</span>
+            <span>→</span>
+            <span style={{ border: `3px solid ${C.s2}`, borderRadius: 10, padding: '8px 22px', color: C.s2 }}>model</span>
+            <span>→</span>
+            <span style={{ color: C.pred }}>same P(yes) = p for all ten</span>
+          </div>
+        </Step>
+        <Step>
+          <div style={{ fontSize: 30, color: C.soft }}>At this point nobody knows which of the ten want a refund, including the model.</div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const TruthLater: Page = () => (
+  <Frame
+    part={5}
+    title="Later, support staff resolve the ten tickets"
+    line="Now we know the correct answer for each email: seven wanted a refund and three did not. These answers arrive after the model has spoken, and training uses them."
+  >
+    <div style={{ ...col, gap: 30, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+      <div style={{ fontSize: 34 }}>
+        The correct answer to <b>“Is the customer asking for a refund?”</b>
+      </div>
+      <TenMails />
+      <Steps>
+        <Step>
+          <div style={{ ...row, gap: 70, fontFamily: mono, fontSize: 40, marginTop: 10 }}>
+            <span style={{ color: C.truth }}>7 yes</span>
+            <span style={{ color: C.muted }}>3 no</span>
+            <span>
+              <span style={{ color: C.truth }}>7</span> / 10 = <b style={{ color: C.truth }}>0.7</b> wanted a refund
+            </span>
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
 );
 
 const HonestyQ: Page = () => (
   <Frame
     part={5}
-    title="Ten emails that look alike to the model"
-    line="The model cannot tell these ten apart, so it gives all of them the same probability. Seven of the customers did want a refund. What number should it give?"
+    title="Which number should the model have said?"
+    line="A calibrated model says 0.7 here, since 7 of the 10 emails it gave that number to were “yes”. The next two slides ask which reward pushes a model towards 0.7."
   >
-    <div style={{ ...col, gap: 30, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-      <div style={{ fontSize: 36 }}>
-        Question for each email: <b>Is the customer asking for a refund?</b>
+    <div style={{ ...col, gap: 26, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+      <div style={{ transform: 'scale(0.8)' }}>
+        <TenMails />
       </div>
-      <TenMails />
+      <div style={{ ...row, gap: 40 }}>
+        <Card style={{ width: 470, textAlign: 'center', padding: '18px 26px' }}>
+          <div style={{ fontFamily: mono, fontSize: 72, color: C.pred }}>0.70</div>
+          <div style={{ fontSize: 27, color: C.soft }}>matches what happened: 7 of 10</div>
+        </Card>
+        <Card style={{ width: 470, textAlign: 'center', padding: '18px 26px' }}>
+          <div style={{ fontFamily: mono, fontSize: 72, color: C.pred }}>0.99</div>
+          <div style={{ fontSize: 27, color: C.soft }}>sounds sure, and 3 of 10 were “no”</div>
+        </Card>
+      </div>
       <Steps>
         <Step>
-          <div style={{ ...row, gap: 50, marginTop: 10 }}>
-            <Card style={{ width: 430, textAlign: 'center', padding: '20px 30px' }}>
-              <div style={{ fontFamily: mono, fontSize: 76, color: C.pred }}>0.70</div>
-              <div style={{ fontSize: 28, color: C.soft }}>matches 7 out of 10</div>
-            </Card>
-            <Card style={{ width: 430, textAlign: 'center', padding: '20px 30px' }}>
-              <div style={{ fontFamily: mono, fontSize: 76, color: C.pred }}>0.99</div>
-              <div style={{ fontSize: 28, color: C.soft }}>sounds sure</div>
-            </Card>
+          <div style={{ fontSize: 30, textAlign: 'center', lineHeight: 1.45 }}>
+            Either way the model’s single best answer is “yes”, because P(yes) is above 0.5.
+            <br />
+            <span style={{ color: C.loss }}>The two models differ only in how sure they claim to be.</span>
           </div>
         </Step>
       </Steps>
@@ -3618,7 +3713,7 @@ const AccReward: Page = () => (
   <Frame
     part={5}
     title="Reward A: one point for each right answer"
-    line="Both reports lead to the answer “yes” on every email, and both score 7 points. This reward cannot teach the model to say 0.7."
+    line="This reward looks only at the answer, and the answer is “yes” whenever P(yes) is above 0.5. Both models score 7 points, so this reward cannot teach a model to say 0.7."
   >
     <div style={{ ...col, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
       <div style={{ transform: 'scale(0.8)', marginBottom: 10 }}>
@@ -4343,7 +4438,10 @@ const deck: [Page, string][] = [
   [RLVRCode, 'A function that returned True for every input would fail the second test and get 0. The reward says nothing about which test failed.'],
   [RLTwo, 'This framing follows the IBM video.'],
   [RLCD, 'Be clear that what follows is our construction with the same goal, not Jev’s method. Wikipedia notes it may be ordinary supervised learning with calibration terms in the loss.'],
-  [HonestyQ, 'Ask the class to vote for 0.70 or 0.99 before moving on. The ten emails stand for all the emails on which the model has the same information.'],
+  [OneAmbiguous, 'Ask the class what they would answer. Most say probably yes, and that word probably is the point.'],
+  [TenAlike, 'Same input, same output. The ten emails stand for every email on which the model has the same information.'],
+  [TruthLater, 'In a real system these labels come from ticket outcomes, such as whether a refund was issued. The 7 and 3 are made up for the example.'],
+  [HonestyQ, 'Ask the class to vote for 0.70 or 0.99 before moving on.'],
   [AccReward, 'Any stated probability above 0.5 gives the answer yes, so the accuracy reward cannot tell 0.70 from 0.99.'],
   [BrierOne, '0.81 / 0.01 = 81.'],
   [BrierExpected, 'Ask the class to guess the best report before revealing the last row. Dividing each total by 10 gives the average penalty per email.'],
