@@ -49,6 +49,9 @@ server and reports any page whose content overflows. It needs Puppeteer; set
 `PUPPETEER_FROM` to a folder whose `node_modules` has it, and `CHROME` to a
 Chrome binary if it is not in the default macOS location.
 
+`node scripts/steps.mjs` opens the deck in presentation mode and presses through every step reveal,
+reporting any slide whose steps appear out of order or have no size.
+
 ## A note on Jev
 
 Jev's architecture, size, training data and the details of RLCD are not
