@@ -2004,42 +2004,98 @@ const Timing: Page = () => (
   </Frame>
 );
 
-const ArchCol = ({ x, name, color, top, topSub, out, outSub, loop, note }: { x: number; name: string; color: string; top: string; topSub: string; out: string; outSub: string; loop?: boolean; note: string }) => (
-  <g transform={`translate(${x} 0)`}>
-    <text x={245} y={36} textAnchor="middle" fontSize={36} fontFamily="Georgia, serif" fontWeight={700} fill={color}>{name}</text>
-    <Box x={95} y={560} w={300} h={70} text="input tokens" size={26} />
-    <Arr x1={245} y1={560} x2={245} y2={520} />
-    <rect x={75} y={370} width={340} height={150} rx={12} fill={C.panel} stroke={C.ink} strokeWidth={3} />
-    <text x={245} y={438} textAnchor="middle" fontSize={30} fontWeight={600} fill={C.ink}>transformer blocks</text>
-    <text x={245} y={478} textAnchor="middle" fontSize={24} fill={C.soft}>{sci.layers} layers · unchanged</text>
-    <Arr x1={245} y1={370} x2={245} y2={330} />
-    <Box x={55} y={220} w={380} h={110} text={top} sub={topSub} color={color} size={28} />
-    <Arr x1={245} y1={220} x2={245} y2={180} />
-    <Box x={55} y={70} w={380} h={110} text={out} sub={outSub} color={color} size={28} />
-    {loop && (
-      <g>
-        <path d="M435,125 L478,125 L478,595 L405,595" fill="none" stroke={C.loss} strokeWidth={4} markerEnd="url(#ah)" />
-        <text transform="translate(506 360) rotate(90)" textAnchor="middle" fontSize={24} fill={C.loss}>append and run again</text>
-      </g>
-    )}
-    <text x={245} y={672} textAnchor="middle" fontSize={24} fill={C.muted}>{note}</text>
-  </g>
+// One drawing used in Part 3 and again in Part 5, so the three designs always look the same.
+type ArchProps = { opts: string[]; written: string; readout: string; head: string; dimFirst?: boolean; notes: [string, string][] };
+
+const Strip = ({ x, y, keep, color }: { x: number; y: number; keep: number; color: string }) => {
+  const n = 38;
+  const w = 380 / n;
+  // the kept cells are spread out, since the letter tokens sit at scattered places in the vocabulary
+  const picks = Array.from({ length: keep }, (_, k) => Math.round(((k + 1) * n) / (keep + 1.4)));
+  return (
+    <g>
+      {Array.from({ length: n }, (_, i) => (
+        <rect key={i} x={x + i * w} y={y} width={w - 1.5} height={46} fill={picks.includes(i) ? color : C.rule} />
+      ))}
+    </g>
+  );
+};
+
+const ArchOne = ({ x, kind, opts, top, sub, notes, dim }: { x: number; kind: 0 | 1 | 2; opts: string[]; top: string; sub: string; notes: [string, string]; dim?: boolean }) => {
+  const color = [C.s2, C.s1, C.pred][kind];
+  const name = ['Chat LLM', 'Letter readout', 'Decision model'][kind];
+  const k = opts.length;
+  return (
+    <g transform={`translate(${x} 0)`} opacity={dim ? 0.35 : 1}>
+      <text x={250} y={34} textAnchor="middle" fontSize={36} fontFamily="Georgia, serif" fontWeight={700} fill={color}>{name}</text>
+      <Box x={60} y={54} w={380} h={92} text={top} sub={sub} color={color} size={27} />
+      <Arr x1={250} y1={196} x2={250} y2={150} />
+      {kind < 2 ? (
+        <g>
+          <Strip x={60} y={200} keep={kind === 1 ? k : 0} color={color} />
+          <text x={250} y={274} textAnchor="middle" fontSize={23} fill={C.soft}>
+            output layer: {sci.vocab.toLocaleString('en-US')} scores{kind === 1 ? `, ${k} kept` : ''}
+          </text>
+        </g>
+      ) : (
+        <g>
+          {opts.map((o, i) => (
+            <g key={o}>
+              <rect x={250 - (k * 92) / 2 + i * 92} y={200} width={86} height={46} rx={6} fill={color} />
+              <text x={250 - (k * 92) / 2 + i * 92 + 43} y={231} textAnchor="middle" fontSize={19} fill={C.white} fontWeight={600}>{o}</text>
+            </g>
+          ))}
+          <text x={250} y={274} textAnchor="middle" fontSize={23} fill={color} fontWeight={600}>decision head: {k} scores, nothing else</text>
+        </g>
+      )}
+      <Arr x1={250} y1={330} x2={250} y2={290} />
+      <rect x={80} y={334} width={340} height={104} rx={12} fill={C.panel} stroke={C.ink} strokeWidth={3} />
+      <text x={250} y={380} textAnchor="middle" fontSize={28} fontWeight={600} fill={C.ink}>transformer blocks</text>
+      <text x={250} y={416} textAnchor="middle" fontSize={22} fill={C.soft}>{sci.layers} layers · the same in all three</text>
+      <Arr x1={250} y1={482} x2={250} y2={442} />
+      <Box x={110} y={486} w={280} h={56} text="input tokens" size={24} />
+      {kind === 0 ? (
+        <g>
+          <path d="M440,100 L486,100 L486,514 L396,514" fill="none" stroke={C.loss} strokeWidth={4} markerEnd="url(#ah)" />
+          <text transform="translate(512 300) rotate(90)" textAnchor="middle" fontSize={22} fill={C.loss}>append the token, run again</text>
+        </g>
+      ) : (
+        <text x={468} y={306} textAnchor="middle" fontSize={22} fill={C.truth} fontWeight={600}>no loop</text>
+      )}
+      <text x={250} y={592} textAnchor="middle" fontSize={24} fontWeight={600} fill={color}>{notes[0]}</text>
+      <text x={250} y={626} textAnchor="middle" fontSize={23} fill={C.soft}>{notes[1]}</text>
+    </g>
+  );
+};
+
+const ArchFig = ({ opts, written, readout, head, dimFirst, notes }: ArchProps) => (
+  <svg width={1700} height={690} viewBox="0 0 1700 690">
+    <Arrows />
+    <ArchOne x={20} kind={0} opts={opts} top="writes text" sub={written} notes={notes[0]} dim={dimFirst} />
+    <line x1={572} y1={10} x2={572} y2={650} stroke={C.rule} strokeWidth={3} />
+    <ArchOne x={590} kind={1} opts={opts} top={`softmax over the ${opts.length} kept`} sub={readout} notes={notes[1]} />
+    <line x1={1128} y1={10} x2={1128} y2={650} stroke={C.rule} strokeWidth={3} />
+    <ArchOne x={1160} kind={2} opts={opts} top={`softmax over the ${opts.length}`} sub={head} notes={notes[2]} />
+  </svg>
 );
 
 const ArchDiff: Page = () => (
   <Frame
     part={3}
     title="What changed inside the model"
-    line="The transformer stack stays as it is. Reading removes the loop, and a trained decision model also swaps the vocabulary-sized output layer for a small head."
+    line={`All three share the transformer blocks. The readout keeps 3 of the output layer’s ${sci.vocab.toLocaleString('en-US')} scores and trains nothing. A decision model replaces that layer with a small trained head.`}
   >
-    <svg width={1700} height={690} viewBox="0 0 1700 690">
-      <Arrows />
-      <ArchCol x={0} name="Chat LLM" color={C.s2} top="output layer" topSub={`${sci.vocab.toLocaleString('en-US')} scores`} out="pick one token" outSub="then repeat" loop note="one pass per output token" />
-      <line x1={560} y1={10} x2={560} y2={680} stroke={C.rule} strokeWidth={3} />
-      <ArchCol x={590} name="Letter readout" color={C.s1} top="output layer" topSub={`${sci.vocab.toLocaleString('en-US')} scores`} out="keep the option letters" outSub="softmax over 3 scores" note="one pass · this part" />
-      <line x1={1120} y1={10} x2={1120} y2={680} stroke={C.rule} strokeWidth={3} />
-      <ArchCol x={1150} name="Decision model" color={C.pred} top="decision head" topSub="a few scores per question" out="probabilities" outSub="for every question at once" note="one pass · built in Part 5" />
-    </svg>
+    <ArchFig
+      opts={['billing', 'technical', 'sales']}
+      written={'"team": "billing"'}
+      readout={`${f2(sci.p_team[0])} · ${f2(sci.p_team[1])} · ${f2(sci.p_team[2])}`}
+      head="one probability per option"
+      notes={[
+        [`${sci.passes} passes for one answer`, 'trained to write the next token'],
+        ['1 pass · nothing new is trained', 'we only choose which scores to read'],
+        ['1 pass · the head is trained', 'built in Part 5'],
+      ]}
+    />
   </Frame>
 );
 
@@ -4228,22 +4284,21 @@ const HeadDemo: Page = () => (
 const HeadFigure: Page = () => (
   <Frame
     part={5}
-    title="Two output layers on the same last vector"
-    line={`The LLM’s own output layer scores all ${sci.vocab.toLocaleString('en-US')} tokens. The head scores only our four topics with ${sci.head.params.toLocaleString('en-US')} parameters, and it is the only part we train.`}
+    title="The same three designs, now for the news question"
+    line={`In Part 4 we used the middle design and got accuracy ${f2(sci.zs.accuracy)}. Now we build the right one: a head with 4 outputs and ${sci.head.params.toLocaleString('en-US')} parameters, the only part we train.`}
   >
-    <svg width={1700} height={690} viewBox="0 0 1700 690">
-      <Arrows />
-      <Box x={20} y={250} w={300} h={130} text="news + question" sub="one prompt" />
-      <Arr x1={320} y1={315} x2={400} y2={315} />
-      <Box x={410} y={250} w={300} h={130} text="LLM, frozen" sub={`${sci.params_M} M parameters`} color={C.s2} />
-      <Arr x1={710} y1={315} x2={790} y2={315} />
-      <Box x={800} y={250} w={300} h={130} text="last vector" sub={`${sci.hidden} numbers`} color={C.pred} />
-      <Arr x1={1100} y1={290} x2={1230} y2={150} />
-      <Arr x1={1100} y1={340} x2={1230} y2={480} />
-      <Box x={1240} y={80} w={430} h={130} text="LLM output layer" sub={`${sci.vocab.toLocaleString('en-US')} scores · Part 3 read 4 of them`} color={C.muted} />
-      <Box x={1240} y={420} w={430} h={130} text="decision head" sub={`4 scores · ${sci.head.params.toLocaleString('en-US')} parameters · trained`} color={C.s1} />
-      <text x={1455} y={600} textAnchor="middle" fontSize={28} fill={C.soft}>{sci.hidden} × 4 weights + 4 biases = {sci.head.params.toLocaleString('en-US')}</text>
-    </svg>
+    <ArchFig
+      dimFirst
+      opts={['World', 'Sports', 'Business', 'Sci/Tech']}
+      written="the topic, as text"
+      readout={`accuracy ${f2(sci.zs.accuracy)} · confidence ${f2(sci.zs.mean_conf)}`}
+      head="one probability per topic"
+      notes={[
+        ['not used here', 'we do not need text'],
+        ['Part 4 · nothing trained', `4 of ${sci.vocab.toLocaleString('en-US')} scores are read`],
+        [`${sci.hidden} × 4 + 4 = ${sci.head.params.toLocaleString('en-US')} parameters`, 'trained on 2,000 labelled news items'],
+      ]}
+    />
   </Frame>
 );
 
@@ -5181,7 +5236,7 @@ const deck: [Page, string][] = [
   [Readout, 'Subtracting the largest logit is the standard trick to avoid huge exponentials. A real case of softmax over three numbers.'],
   [DecideCode, 'Notebook 1, section 4. Mention that option order can shift the numbers; it is an exercise in the notebook.'],
   [Timing, 'The comparison is for one question. A decision model answers all questions in the same pass.'],
-  [ArchDiff, 'We never removed the decoder: a decoder-only transformer is still the reader. What is gone is decoding into text. How Jev is built inside is not published.'],
+  [ArchDiff, 'The grey strip stands for the 151,936 scores; the coloured cells are the ones kept. We never removed the decoder: a decoder-only transformer is still the reader. What is gone is decoding into text. How Jev is built inside is not published.'],
   [Honest, 'The small model is undecided between billing and technical, and its written JSON picked billing. An untrained model; the point is that the doubt is now visible.'],
   [Types, 'noul is the yes/no type name in Jev’s API. Its origin is not explained in the public material.'],
   [ScoreCalc, 'The model is confidently wrong about urgency. Keep this in mind for calibration. Liquid’s pages define score in two ways, the weighted level and the median level; we use the weighted one.'],
@@ -5237,7 +5292,7 @@ const deck: [Page, string][] = [
   [HeadWhy, 'The letter readout is zero-shot: nothing was trained for news topics. A head lets us use labelled data without touching the LLM.'],
   [HeadVector, 'This is the same last-position vector as in Part 2, step 4. In notebook 2 it is the final layer’s hidden state at the last token.'],
   [HeadMath, 'The three-number vector and the weights are made up so the sums can be done by hand. In code the head is torch.nn.Linear(896, 4).'],
-  [HeadFigure, 'Recall the encoder slide: we are using a decoder’s last vector the way an encoder model uses its output vector.'],
+  [HeadFigure, 'Same drawing as in Part 3, with four topics. The left design is dimmed because we are not writing text here.'],
   [HeadTwoPhases, 'Notebook 2 also standardises each of the 896 columns of H before training. 500 more items are held out to fit the temperature.'],
   [HeadCode, 'Notebook 2. Features are standardised first. Training takes a few seconds.'],
   [HeadResults, '2,000 training items. The Brier-trained head gives nearly the same numbers; it is in the notebook.'],
