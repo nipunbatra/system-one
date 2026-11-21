@@ -8,6 +8,8 @@ import {
 } from '@open-slide/core';
 import { type CSSProperties, type ReactNode, useState } from 'react';
 import sci from './assets/science.json';
+import kahnemanPhoto from './assets/kahneman.jpg';
+import bookCover from './assets/thinking-fast-and-slow.jpg';
 
 export const design: DesignSystem = {
   palette: { bg: '#faf7f2', text: '#1f1b16', accent: '#c44536' },
@@ -551,7 +553,7 @@ const S1: Page = () => (
   <SectionPage
     n={1}
     goal="People answer some questions instantly and work through others. Which kind does software ask most often?"
-    how="Two multiplication problems, Kahneman’s two systems, and then the kinds of questions ordinary programs ask."
+    how="Two multiplication problems, Kahneman’s two systems, examples from machine learning, and the questions programs ask with their answer types."
   />
 );
 
@@ -589,7 +591,7 @@ const SysCard = ({ name, color, how, a, b, c }: { name: string; color: string; h
 );
 
 const TwoSystems: Page = () => (
-  <Frame part={1} title="Kahneman’s two systems" line="Daniel Kahneman named these two modes System 1 and System 2. We use System 1 for most of what we do in a day.">
+  <Frame part={1} title="The two systems in everyday tasks" line="We use System 1 for most of what we do in a day. System 2 takes over when a task needs steps.">
     <div style={{ ...row, gap: 60, height: '100%', alignItems: 'center' }}>
       <SysCard
         name="System 1"
@@ -611,26 +613,335 @@ const TwoSystems: Page = () => (
   </Frame>
 );
 
-const Call = ({ q, a }: { q: string; a: string }) => (
-  <Card style={{ padding: '24px 30px' }}>
-    <div style={{ fontSize: 34, fontWeight: 600 }}>{q}</div>
-    <div style={{ fontFamily: mono, fontSize: 28, color: C.s1, marginTop: 10 }}>{a}</div>
+const IBM_VIDEO = 'https://www.youtube.com/watch?v=YGgNBcIgI4s';
+
+const Kahneman: Page = () => (
+  <Frame
+    part={1}
+    title="Kahneman’s two systems"
+    line="Daniel Kahneman named the two modes System 1 and System 2. The IBM video linked here applies the idea to AI models."
+  >
+    <div style={{ ...row, gap: 70, alignItems: 'center', height: '100%' }}>
+      <div style={{ ...col, gap: 12 }}>
+        <div style={{ ...row, gap: 30, alignItems: 'flex-end' }}>
+          <img src={kahnemanPhoto} alt="Daniel Kahneman" style={{ height: 440, borderRadius: 'var(--osd-radius)' }} />
+          <img src={bookCover} alt="Cover of Thinking, Fast and Slow" style={{ height: 440, borderRadius: 6, border: `2px solid ${C.rule}` }} />
+        </div>
+        <div style={{ fontSize: 20, color: C.muted }}>
+          Photo: nrkbeta, CC BY-SA 2.0, via Wikimedia Commons · Book cover © its publisher
+        </div>
+      </div>
+      <div style={{ ...col, gap: 26, flex: 1 }}>
+        <div>
+          <div style={{ fontFamily: serif, fontSize: 50, fontWeight: 700 }}>Daniel Kahneman</div>
+          <div style={{ fontSize: 30, color: C.soft, lineHeight: 1.4 }}>
+            Psychologist, 1934 to 2024. Nobel Memorial Prize in Economic Sciences, 2002.
+          </div>
+        </div>
+        <div style={{ fontSize: 34, lineHeight: 1.45 }}>
+          His 2011 book <i>Thinking, Fast and Slow</i> describes two modes of thought.
+        </div>
+        <Steps>
+          <Step>
+            <div style={{ fontSize: 34, lineHeight: 1.6 }}>
+              <div>
+                <b style={{ color: C.s1 }}>System 1</b> is fast and automatic.
+              </div>
+              <div>
+                <b style={{ color: C.s2 }}>System 2</b> is slow and deliberate.
+              </div>
+            </div>
+          </Step>
+          <Step>
+            <a
+              href={IBM_VIDEO}
+              target="_blank"
+              rel="noreferrer"
+              style={{ display: 'block', background: C.panel, borderRadius: 'var(--osd-radius)', padding: '18px 26px', textDecoration: 'none', color: C.ink }}
+            >
+              <div style={{ fontSize: 22, letterSpacing: '0.12em', fontWeight: 600, color: 'var(--osd-accent)' }}>WATCH · IBM TECHNOLOGY</div>
+              <div style={{ fontSize: 28, marginTop: 6 }}>Martin Keen, “What Is Jev? The AI Model That Doesn’t Generate Text”</div>
+              <div style={{ fontFamily: mono, fontSize: 24, color: C.s2, marginTop: 6 }}>youtube.com/watch?v=YGgNBcIgI4s</div>
+            </a>
+          </Step>
+        </Steps>
+      </div>
+    </div>
+  </Frame>
+);
+
+const MLList = ({ name, how, color, items }: { name: string; how: string; color: string; items: string[] }) => (
+  <Card color={color} style={{ flex: 1, padding: '30px 40px' }}>
+    <div style={{ ...row, alignItems: 'baseline', gap: 24 }}>
+      <div style={{ fontFamily: serif, fontSize: 52, fontWeight: 700, color }}>{name}</div>
+      <div style={{ fontSize: 28, color: C.soft }}>{how}</div>
+    </div>
+    <div style={{ fontSize: 31, lineHeight: 1.3, marginTop: 20 }}>
+      {items.map((t) => (
+        <div key={t} style={{ padding: '13px 0', borderTop: `2px solid ${C.rule}` }}>
+          {t}
+        </div>
+      ))}
+    </div>
   </Card>
+);
+
+const MLExamples: Page = () => (
+  <Frame
+    part={1}
+    title="The same split shows up in machine learning"
+    line="A classifier answers the questions on the left in one pass. The questions on the right need a model that writes out its steps."
+  >
+    <div style={{ ...row, gap: 50, alignItems: 'stretch', marginTop: 10 }}>
+      <MLList
+        name="System 1"
+        how="one look, answer from a fixed list"
+        color={C.s1}
+        items={[
+          'Is this chest X-ray normal?',
+          'Which digit is in this image?',
+          'Is this transaction fraudulent?',
+          'Does this passage answer the query?',
+          'Should the agent call a tool now?',
+        ]}
+      />
+      <Steps>
+        <Step>
+          <MLList
+            name="System 2"
+            how="several steps, written out"
+            color={C.s2}
+            items={[
+              'Why did validation loss rise after epoch 12?',
+              'Derive the gradient of this layer.',
+              'Write a data loader for this file format.',
+              'Plan an ablation study for this model.',
+              'Prove that this loss is convex.',
+            ]}
+          />
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const TypeChip = ({ t, small }: { t: string; small?: boolean }) => (
+  <span
+    style={{
+      fontFamily: mono,
+      fontSize: small ? 22 : 30,
+      fontWeight: 700,
+      color: C.white,
+      background: C.s1,
+      borderRadius: 8,
+      padding: small ? '3px 12px' : '5px 18px',
+      whiteSpace: 'nowrap',
+    }}
+  >
+    {t}
+  </span>
+);
+
+const ModIcon = ({ kind }: { kind: 'image' | 'audio' }) => (
+  <svg width={34} height={26} viewBox="0 0 34 26" style={{ flexShrink: 0 }}>
+    {kind === 'image' ? (
+      <g fill="none" stroke={C.s2} strokeWidth={2.5}>
+        <rect x={2} y={2} width={30} height={22} rx={3} />
+        <path d="M4,21 L13,11 L19,17 L24,13 L31,21" />
+        <circle cx={24} cy={8} r={2.2} fill={C.s2} stroke="none" />
+      </g>
+    ) : (
+      <g stroke={C.truth} strokeWidth={3} strokeLinecap="round">
+        <line x1={5} y1={10} x2={5} y2={16} />
+        <line x1={11} y1={5} x2={11} y2={21} />
+        <line x1={17} y1={9} x2={17} y2={17} />
+        <line x1={23} y1={3} x2={23} y2={23} />
+        <line x1={29} y1={10} x2={29} y2={16} />
+      </g>
+    )}
+  </svg>
+);
+
+type QItem = { q: string; a?: string; kind?: 'image' | 'audio' };
+
+const QCol = ({ type, means, items }: { type: string; means: string; items: QItem[] }) => (
+  <div style={{ ...col, gap: 20, width: 546, flexShrink: 0 }}>
+    <div style={{ ...row, gap: 18, alignItems: 'center', height: 60 }}>
+      <TypeChip t={type} />
+      <div style={{ fontSize: 27, color: C.soft }}>{means}</div>
+    </div>
+    {items.map((it) => (
+      <Card key={it.q} style={{ padding: '20px 26px', height: 168 }}>
+        <div style={{ ...row, gap: 14, alignItems: 'flex-start' }}>
+          {it.kind && (
+            <div style={{ marginTop: 7 }}>
+              <ModIcon kind={it.kind} />
+            </div>
+          )}
+          <div style={{ fontSize: 31, fontWeight: 600, lineHeight: 1.25 }}>{it.q}</div>
+        </div>
+        {it.a && <div style={{ fontFamily: mono, fontSize: 25, color: C.s1, marginTop: 10 }}>{it.a}</div>}
+      </Card>
+    ))}
+  </div>
 );
 
 const SoftwareCalls: Page = () => (
   <Frame
     part={1}
-    title="Most questions that software asks are quick decisions"
-    line="Each question has a short list of possible answers, and the software asks it thousands of times a day."
+    title="Quick decisions in software, by answer type"
+    line="Three answer types cover these questions. noul is the name decision-model APIs use for a yes or no question."
   >
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 34, marginTop: 30 }}>
-      <Call q="Is this message spam?" a="yes · no" />
-      <Call q="Which team gets this ticket?" a="billing · technical · sales" />
-      <Call q="Is this prompt a jailbreak?" a="yes · no" />
-      <Call q="How positive is this review?" a="1 · 2 · 3 · 4 · 5" />
-      <Call q="Does this log line need a person?" a="yes · no" />
-      <Call q="Which language is this?" a="hi · gu · en · ta · …" />
+    <div style={{ ...row, gap: 30, alignItems: 'flex-start' }}>
+      <QCol
+        type="noul"
+        means="yes or no"
+        items={[
+          { q: 'Is this message spam?' },
+          { q: 'Is this prompt a jailbreak?' },
+          { q: 'Does this log line need a person to look at it?' },
+        ]}
+      />
+      <Steps>
+        <Step>
+          <QCol
+            type="choice"
+            means="one option from a list"
+            items={[
+              { q: 'Which team gets this ticket?', a: 'billing · technical · sales' },
+              { q: 'Which language is this?', a: 'hi · gu · en · ta · …' },
+              { q: 'Which tool should the agent call?', a: 'search · calculator · none' },
+            ]}
+          />
+        </Step>
+        <Step>
+          <QCol
+            type="score"
+            means="a level on an ordered scale"
+            items={[
+              { q: 'How positive is this review?', a: '1 · 2 · 3 · 4 · 5' },
+              { q: 'How urgent is this email?', a: 'not urgent · soon · today' },
+              { q: 'How relevant is this passage to the query?', a: '0 · 1 · 2 · 3' },
+            ]}
+          />
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const VisionCalls: Page = () => (
+  <Frame
+    part={1}
+    title="The same three types on images and audio"
+    line="Recent decision models, such as Liquid’s d1.2, accept images and audio along with text. The answer types do not change."
+  >
+    <div style={{ ...row, gap: 30, alignItems: 'flex-start' }}>
+      <QCol
+        type="noul"
+        means="yes or no"
+        items={[
+          { q: 'Is there a brick kiln in this satellite tile?', kind: 'image' },
+          { q: 'Does this circuit board have a visible defect?', kind: 'image' },
+          { q: 'Is there a siren in the background?', kind: 'audio' },
+        ]}
+      />
+      <Steps>
+        <Step>
+          <QCol
+            type="choice"
+            means="one option from a list"
+            items={[
+              { q: 'Which disease is on this leaf?', a: 'healthy · rust · blight', kind: 'image' },
+              { q: 'What kind of document is this scan?', a: 'invoice · receipt · ID · other', kind: 'image' },
+              { q: 'Which language does the caller speak?', a: 'hi · gu · en · ta · …', kind: 'audio' },
+            ]}
+          />
+        </Step>
+        <Step>
+          <QCol
+            type="score"
+            means="a level on an ordered scale"
+            items={[
+              { q: 'How hazy is the sky in this photo?', a: 'clear · light · heavy', kind: 'image' },
+              { q: 'How damaged is this road surface?', a: 'none · minor · major', kind: 'image' },
+              { q: 'How clear is the speech in this clip?', a: 'poor · fair · good', kind: 'audio' },
+            ]}
+          />
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const NewRow = ({ types, q, back }: { types: string[]; q: string; back: string }) => (
+  <div style={{ ...row, gap: 22, alignItems: 'center', minHeight: 106, borderTop: `2px solid ${C.rule}` }}>
+    <div style={{ width: 230, display: 'flex', flexWrap: 'wrap', gap: 8, flexShrink: 0 }}>
+      {types.map((t) => (
+        <TypeChip key={t} t={t} small />
+      ))}
+    </div>
+    <div style={{ width: 440, fontSize: 29, fontWeight: 600, lineHeight: 1.25, flexShrink: 0 }}>{q}</div>
+    <div style={{ flex: 1, fontSize: 29, lineHeight: 1.25, color: C.soft }}>{back}</div>
+  </div>
+);
+
+const Person = ({ x, glasses }: { x: number; glasses?: boolean }) => (
+  <g>
+    <path d={`M${x - 85},390 C${x - 85},235 ${x + 85},235 ${x + 85},390 Z`} fill={C.rule} stroke={C.panel} strokeWidth={4} />
+    <circle cx={x} cy={185} r={58} fill={C.rule} />
+    {glasses && (
+      <g fill="none" stroke={C.ink} strokeWidth={3}>
+        <circle cx={x - 17} cy={176} r={12} />
+        <circle cx={x + 17} cy={176} r={12} />
+        <line x1={x - 5} y1={176} x2={x + 5} y2={176} />
+      </g>
+    )}
+  </g>
+);
+
+const NewTypes: Page = () => (
+  <Frame
+    part={1}
+    title="Newer models answer with more than a probability"
+    line="Liquid’s d1.2 models (November 2026) add these answer types. Accuracy on the new types is reported only by the vendor so far."
+  >
+    <div style={{ ...row, gap: 40, alignItems: 'flex-start' }}>
+      <div style={{ ...col, flex: 1 }}>
+        <div style={{ ...row, gap: 22, fontSize: 22, letterSpacing: '0.1em', fontWeight: 600, color: C.muted, height: 44 }}>
+          <div style={{ width: 230 }}>TYPE</div>
+          <div style={{ width: 440 }}>EXAMPLE QUESTION</div>
+          <div>WHAT COMES BACK</div>
+        </div>
+        <NewRow types={['text', 'number', 'date']} q="What is the invoice total?" back="the value, and the characters it was read from" />
+        <NewRow types={['spans']} q="Find every phone number in this message." back="each passage with its position, and a count" />
+        <NewRow types={['box', 'boxes']} q="Where is the person wearing round glasses?" back="a rectangle, as fractions of the picture" />
+        <NewRow types={['number', 'range']} q="How many people are in this photo?" back="a median and a p10 to p90 interval" />
+        <NewRow types={['choice', 'multiple']} q="Which of these topics does the ticket mention?" back="every option with probability of at least 0.5" />
+        <div style={{ fontSize: 26, color: C.muted, borderTop: `2px solid ${C.rule}`, paddingTop: 16 }}>
+          Value, span and box answers carry a “found” score. Below 0.5 the model answers “not found”.
+        </div>
+      </div>
+      <Steps>
+        <Step>
+          <div style={{ width: 520 }}>
+            <svg width={520} height={390} viewBox="0 0 520 390" style={{ borderRadius: 'var(--osd-radius)', background: C.panel, display: 'block' }}>
+              <Person x={132} glasses />
+              <Person x={262} />
+              <Person x={392} />
+              <rect x={110} y={147} width={44} height={57} fill="none" stroke={C.pred} strokeWidth={4} />
+            </svg>
+            <div style={{ fontFamily: mono, fontSize: 22, color: C.pred, marginTop: 12, lineHeight: 1.4 }}>
+              box: top 0.378, bottom 0.522,
+              <br />
+              left 0.212, right 0.296 · found 0.939
+            </div>
+            <div style={{ fontSize: 21, color: C.muted, marginTop: 6 }}>
+              numbers from the example in Liquid’s docs; the drawing is ours
+            </div>
+          </div>
+        </Step>
+      </Steps>
     </div>
   </Frame>
 );
@@ -2547,10 +2858,11 @@ const Src = ({ children }: { children: ReactNode }) => (
 const Sources: Page = () => (
   <Frame part={0} title="Sources">
     <div style={{ ...col, marginTop: 6 }}>
-      <Src>Martin Keen, “What Is Jev? The AI Model That Doesn’t Generate Text”, IBM Technology, 2026 (the email example, RLHF / RLVR / RLCD framing)</Src>
+      <Src>Martin Keen, “What Is Jev? The AI Model That Doesn’t Generate Text”, IBM Technology, 2026 (the email example, RLHF / RLVR / RLCD framing) · <a href={IBM_VIDEO} target="_blank" rel="noreferrer" style={{ color: C.s2 }}>youtube.com/watch?v=YGgNBcIgI4s</a></Src>
       <Src>Daniel Kahneman, Thinking, Fast and Slow, 2011</Src>
       <Src>Deußer, Ramamurthy, Sparrenberg, Sifa, “Evaluating and Benchmarking the System One Model Jev”, arXiv 2609.37647</Src>
       <Src>Unsloth, “Train your own Decision Model with Unsloth”, docs and notebook, 2026</Src>
+      <Src>Liquid AI, “d1.2: State-of-the-Art Omnimodal Decision Models”, blog and docs, November 2026 (answer types, image and audio input)</Src>
       <Src>Guo, Pleiss, Sun, Weinberger, “On Calibration of Modern Neural Networks”, ICML 2017 (ECE, temperature scaling)</Src>
       <Src>Brier, “Verification of forecasts expressed in terms of probability”, 1950</Src>
       <Src>Jev facts: Wikipedia “Jev (AI model)” and the benchmark paper, as of November 2026</Src>
@@ -2567,8 +2879,12 @@ const deck: [Page, string][] = [
   [RouteMap, 'Six parts. Parts 2 and 4 carry the most material.'],
   [S1, undefined as unknown as string],
   [TwoSums, 'Let the class shout the first. Wait on the second before revealing.'],
-  [TwoSystems, 'Kahneman, Thinking, Fast and Slow. Credit the IBM video for using this framing for AI models.'],
-  [SoftwareCalls, 'Ask for more examples from their own projects.'],
+  [Kahneman, 'The link opens the IBM Technology video by Martin Keen, which this lecture follows for the framing and the email example.'],
+  [TwoSystems, 'Ask the class for one more example of each.'],
+  [MLExamples, 'Ask which column their last course project was in. Many pipelines send left-column questions to a chat LLM.'],
+  [SoftwareCalls, 'Ask for more examples from their own projects, and which column each belongs in.'],
+  [VisionCalls, 'Jev is documented for text. Liquid d1.2 documents image and audio input. The questions here are our own examples, apart from the circuit board, siren and caller-language ones, which are from Liquid’s pages.'],
+  [NewTypes, 'From Liquid’s d1.2 docs and blog, 16 Nov 2026. A number question with a range returns a median and an interval and has no found score. Vendor-reported accuracy only; no public benchmark covers the new types yet.'],
   [S2, ''],
   [Tokens, 'These are the real tokens and ids from the Qwen2.5 tokenizer. Notice the leading spaces are part of the tokens.'],
   [Embed, 'The vector values drawn are illustrative; the table size is real.'],

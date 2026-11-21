@@ -2,7 +2,7 @@
 
 A 60 to 80 minute lecture on decision models such as Jev: models that read a
 state, answer a typed question, and return calibrated probabilities without
-generating text. The lecture has a 73-slide deck and three notebooks.
+generating text. The lecture has a 77-slide deck and three notebooks.
 
 Audience: students who have studied machine learning and a little deep
 learning, and have not looked inside an LLM.
@@ -54,3 +54,9 @@ Chrome binary if it is not in the default macOS location.
 Jev's architecture, size, training data and the details of RLCD are not
 published. The deck says what is public, and the notebooks build an open
 reproduction of the idea with small open models.
+
+## Credits
+
+- The framing and the support-email example follow Martin Keen's IBM Technology video, [What Is Jev? The AI Model That Doesn't Generate Text](https://www.youtube.com/watch?v=YGgNBcIgI4s).
+- Photo of Daniel Kahneman: nrkbeta, [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0/), via [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Daniel_Kahneman_(3283955327)_(cropped).jpg).
+- The cover of *Thinking, Fast and Slow* is a low-resolution image shown to identify the book; copyright belongs to its publisher.
