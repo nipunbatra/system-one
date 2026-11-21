@@ -428,8 +428,8 @@ const Cover: Page = () => (
         Deciding without writing
       </h1>
       <p style={{ fontSize: 42, lineHeight: 1.4, color: C.soft, margin: 0 }}>
-        How an LLM produces an answer, why most software only needs a calibrated decision, and how models like Jev
-        give one in a single pass.
+        How an LLM writes an answer, and how decision models such as Jev skip the writing and return calibrated
+        probabilities in one forward pass.
       </p>
     </div>
     <svg style={{ position: 'absolute', right: 110, top: 250 }} width={420} height={560} viewBox="0 0 420 560">
@@ -462,7 +462,7 @@ const QCard = ({ q, type, opts }: { q: string; type: string; opts: string }) => 
 );
 
 const Email: Page = () => (
-  <Frame part={0} title="One email reaches a support desk" line="Before anyone replies, a program has to answer three questions about this email.">
+  <Frame part={0} title="Running example: a support email" line="The support software has to answer three questions about this email before anyone replies.">
     <div style={{ ...row, gap: 90, alignItems: 'center', height: '100%' }}>
       <EmailCard />
       <div style={{ ...col, gap: 26, flex: 1 }}>
@@ -483,7 +483,7 @@ const Email: Page = () => (
 );
 
 const Needs: Page = () => (
-  <Frame part={0} title="What the program needs back" line="The program needs an answer from a fixed list, and a number saying how far to trust it.">
+  <Frame part={0} title="What the software needs from the model" line="It needs one answer from a fixed list, along with a probability that says how much to trust that answer.">
     <div style={{ ...row, gap: 60, height: '100%', alignItems: 'center' }}>
       <Card style={{ flex: 1 }} color={C.s2}>
         <Label color={C.s2}>A chatbot writes</Label>
@@ -533,13 +533,13 @@ const RouteItem = ({ n, title, what }: { n: number; title: string; what: string 
 );
 
 const RouteMap: Page = () => (
-  <Frame part={0} title="The route for today">
+  <Frame part={0} title="Plan for today">
     <div style={{ ...col, gap: 8, marginTop: 10 }}>
       <RouteItem n={1} title={PARTS[0]} what="fast judgement and slow reasoning" />
       <RouteItem n={2} title={PARTS[1]} what="tokens, attention, logits, one token at a time" />
-      <RouteItem n={3} title={PARTS[2]} what="the answer is already in the first distribution" />
+      <RouteItem n={3} title={PARTS[2]} what="getting the answer from one forward pass" />
       <RouteItem n={4} title={PARTS[3]} what="when can a probability be trusted?" />
-      <RouteItem n={5} title={PARTS[4]} what="rewards that make honesty the best policy" />
+      <RouteItem n={5} title={PARTS[4]} what="losses that reward correct probabilities" />
       <RouteItem n={6} title={PARTS[5]} what="thresholds, guardrails, pipelines, limits" />
     </div>
   </Frame>
@@ -551,7 +551,7 @@ const S1: Page = () => (
   <SectionPage
     n={1}
     goal="People answer some questions instantly and work through others. Which kind does software ask most often?"
-    how="Two sums, Kahneman’s two systems, then a look at the questions inside ordinary programs."
+    how="Two multiplication problems, Kahneman’s two systems, and then the kinds of questions ordinary programs ask."
   />
 );
 
@@ -568,7 +568,7 @@ const Sum = ({ q, a, color, tag }: { q: string; a: string; color: string; tag: s
 );
 
 const TwoSums: Page = () => (
-  <Frame part={1} title="Answer these two as fast as you can" line="The first answer arrived by itself. The second needed steps, or a pen.">
+  <Frame part={1} title="Answer these two as fast as you can" line="You knew the first answer without working it out. The second one needed a few steps.">
     <div style={{ ...row, justifyContent: 'space-around', alignItems: 'center', height: '100%' }}>
       <Sum q="2 × 2 =" a="4" color={C.s1} tag="you just knew" />
       <Sum q="17 × 24 =" a="408" color={C.s2} tag="17 × 20 + 17 × 4 = 340 + 68" />
@@ -589,7 +589,7 @@ const SysCard = ({ name, color, how, a, b, c }: { name: string; color: string; h
 );
 
 const TwoSystems: Page = () => (
-  <Frame part={1} title="Two systems in one head" line="Daniel Kahneman’s names for the two modes. Most of a day runs on System 1.">
+  <Frame part={1} title="Kahneman’s two systems" line="Daniel Kahneman named these two modes System 1 and System 2. We use System 1 for most of what we do in a day.">
     <div style={{ ...row, gap: 60, height: '100%', alignItems: 'center' }}>
       <SysCard
         name="System 1"
@@ -621,8 +621,8 @@ const Call = ({ q, a }: { q: string; a: string }) => (
 const SoftwareCalls: Page = () => (
   <Frame
     part={1}
-    title="Most questions inside software are quick calls"
-    line="Each one has a short list of answers and has to be made thousands of times a day."
+    title="Most questions that software asks are quick decisions"
+    line="Each question has a short list of possible answers, and the software asks it thousands of times a day."
   >
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 34, marginTop: 30 }}>
       <Call q="Is this message spam?" a="yes · no" />
@@ -640,8 +640,8 @@ const SoftwareCalls: Page = () => (
 const S2: Page = () => (
   <SectionPage
     n={2}
-    goal="Today these calls go to an LLM. What does it actually do to produce an answer, and what does that cost?"
-    how="Follow our email through a small real model: tokens, vectors, attention, one distribution, then a loop."
+    goal="Today most of these questions are sent to an LLM. How does it produce an answer, and what does that cost?"
+    how="We follow the email through a small open model, from tokens to vectors to attention, and end with the generation loop."
   />
 );
 
@@ -649,7 +649,7 @@ const Tokens: Page = () => (
   <Frame
     part={2}
     title="Step 1: text becomes tokens"
-    line={`The model never sees letters. It sees ${sci.tokens.length} whole numbers, each an entry in a vocabulary of ${sci.vocab.toLocaleString('en-US')} tokens.`}
+    line={`The model does not read letters. It gets ${sci.tokens.length} integers, each the id of a token in a vocabulary of ${sci.vocab.toLocaleString('en-US')} tokens.`}
   >
     <div style={{ ...col, gap: 60, alignItems: 'center', justifyContent: 'center', height: '100%' }}>
       <div style={{ fontFamily: serif, fontSize: 52 }}>“{EMAIL}”</div>
@@ -721,8 +721,8 @@ const AttArc = ({ from, to, w }: { from: number; to: number; w: number }) => {
 const Attention: Page = () => (
   <Frame
     part={2}
-    title="Step 3: every token looks back at the ones before it"
-    line="Self-attention rebuilds each token’s vector as a weighted mix of the earlier tokens. What “it” means depends on “charged twice”."
+    title="Step 3: each token attends to the tokens before it"
+    line="Self-attention replaces each token’s vector with a weighted mix of the earlier tokens. Here “it” takes most of its meaning from “charged twice”."
   >
     <svg width={1700} height={690} viewBox="0 0 1700 690">
       <AttArc from={9} to={2} w={0.42} />
@@ -752,7 +752,7 @@ const Stack: Page = () => (
   <Frame
     part={2}
     title={`Step 4: repeat ${sci.layers} times`}
-    line="Each block is attention followed by a small network. We care about one output: the vector at the last position."
+    line="Each block is attention followed by a small network. For our purpose, the output that matters is the vector at the last position."
   >
     <svg width={1700} height={690} viewBox="0 0 1700 690">
       <Arrows />
@@ -788,8 +788,8 @@ const EDArc = ({ x1, x2, y, color }: { x1: number; x2: number; y: number; color:
 const EncDec: Page = () => (
   <Frame
     part={2}
-    title="Two ways to wire the attention"
-    line="Chat models are decoders. That choice is why they write, and why they write one token at a time."
+    title="Encoders and decoders: what a token can see"
+    line="Chat models are decoders, so their output is the next token. This is why they write text one token at a time."
   >
     <svg width={1700} height={690} viewBox="0 0 1700 690">
       <Arrows />
@@ -832,7 +832,7 @@ const Logits: Page = () => (
   <Frame
     part={2}
     title="Step 5: one score for every token in the vocabulary"
-    line={`These raw scores are called logits. There are ${sci.vocab.toLocaleString('en-US')} of them, and they can be any size, positive or negative.`}
+    line={`These raw scores are called logits. There are ${sci.vocab.toLocaleString('en-US')} of them, and each can be any real number.`}
   >
     <svg width={1700} height={690} viewBox="0 0 1700 690">
       <Arrows />
@@ -866,7 +866,7 @@ const Softmax: Page = () => (
   <Frame
     part={2}
     title="Step 6: softmax turns scores into probabilities"
-    line="Exponentiate so everything is positive, then divide by the total so it sums to 1. Bigger logit, bigger share."
+    line="Exponentiating makes every score positive, and dividing by the total makes them sum to 1. A larger logit gets a larger probability."
   >
     <div style={{ ...row, gap: 30, alignItems: 'center', height: '100%' }}>
       <div style={{ width: 420 }}>
@@ -929,7 +929,7 @@ const NT = ({ i, dim }: { i: number; dim?: boolean }) => (
 const NextToken: Page = () => (
   <Frame
     part={2}
-    title="What our model wants to say next"
+    title="The model’s next-token distribution for our prompt"
     line="One forward pass over the “which team?” prompt gives this distribution. These are the six most likely next tokens."
   >
     <div style={{ ...col, gap: 12, justifyContent: 'center', height: '100%' }}>
@@ -950,7 +950,7 @@ const Loop: Page = () => (
   <Frame
     part={2}
     title="Step 7: pick a token, append it, run everything again"
-    line="A full answer is this loop, once per token. Ten tokens of output means ten forward passes."
+    line="To write a full answer the model runs this loop once per token, so ten output tokens need ten forward passes."
   >
     <svg width={1700} height={690} viewBox="0 0 1700 690">
       <Arrows />
@@ -969,7 +969,7 @@ const Loop: Page = () => (
 );
 
 const LoopCode: Page = () => (
-  <Frame part={2} title="The loop in code" line="This is the whole of text generation. Everything else in a chatbot is built around these lines.">
+  <Frame part={2} title="The loop in code" line="Text generation is this loop. A chatbot wraps a chat template and a sampling rule around it.">
     <div style={{ ...col, justifyContent: 'center', height: '100%' }}>
       <Code
         size={32}
@@ -992,7 +992,7 @@ const Written: Page = () => (
   <Frame
     part={2}
     title="Our model writes its answer to the email"
-    line={`${sci.n_generated} tokens of JSON took ${sci.passes} forward passes, the last one to decide to stop.`}
+    line={`The ${sci.n_generated} tokens of JSON needed ${sci.passes} forward passes. The extra pass is the one where the model picks its end token.`}
   >
     <div style={{ ...row, gap: 70, alignItems: 'center', height: '100%' }}>
       <div style={{ flex: 1 }}>
@@ -1027,7 +1027,7 @@ const CoT: Page = () => (
   <Frame
     part={2}
     title="Reasoning models write even more before they answer"
-    line="Chain of thought is the closest an LLM gets to System 2: slow, step by step, every step paid for in tokens."
+    line="Chain of thought is how an LLM does System 2 work. It reasons in steps, and every step is more tokens to generate."
   >
     <div style={{ ...col, gap: 50, justifyContent: 'center', height: '100%' }}>
       <div style={{ ...row, gap: 40, alignItems: 'center' }}>
@@ -1063,8 +1063,8 @@ const Cost = ({ n, head, body }: { n: string; head: string; body: string }) => (
 const ThreeCosts: Page = () => (
   <Frame
     part={2}
-    title="For a quick call, writing has three costs"
-    line="None of these matter for an essay. All three matter when the same call runs on every row of a table."
+    title="For a quick decision, writing text has three costs"
+    line="These costs are small when the model writes one essay. They add up when the same question is asked for every row of a table."
   >
     <div style={{ ...row, gap: 40, alignItems: 'stretch', marginTop: 40 }}>
       <Steps>
@@ -1075,7 +1075,7 @@ const ThreeCosts: Page = () => (
           <Cost n="2" head="Loose output" body="Free text can break the JSON or name a team that is not on the list." />
         </Step>
         <Step>
-          <Cost n="3" head="No measured doubt" body="We get one answer. How sure the model was stays inside it." />
+          <Cost n="3" head="No confidence" body="We get one answer and no number for how sure the model was." />
         </Step>
       </Steps>
     </div>
@@ -1090,12 +1090,12 @@ const RecapItem = ({ children }: { children: ReactNode }) => (
 );
 
 const Recap2: Page = () => (
-  <Frame part={2} title="Where we are" line="Next: for a quick call, the loop turns out to be unnecessary.">
+  <Frame part={2} title="Where we are" line="Next: for a quick decision we can skip the loop.">
     <div style={{ ...col, gap: 34, marginTop: 50 }}>
       <RecapItem>Text becomes tokens, tokens become vectors, attention mixes them.</RecapItem>
       <RecapItem>One forward pass ends in one distribution over the next token.</RecapItem>
       <RecapItem>Writing an answer repeats that pass once per token.</RecapItem>
-      <RecapItem>A written answer carries no measure of how sure the model was.</RecapItem>
+      <RecapItem>A written answer does not tell us how sure the model was.</RecapItem>
     </div>
   </Frame>
 );
@@ -1113,8 +1113,8 @@ const S3: Page = () => (
 const LookAgain: Page = () => (
   <Frame
     part={3}
-    title="Look again at the very first distribution"
-    line="Before a single token was written, the model had already split its belief between A and B."
+    title="Look again at the first distribution"
+    line="Before it wrote any token, the model had already given A and B nearly equal probability."
   >
     <div style={{ ...col, gap: 12, justifyContent: 'center', height: '100%' }}>
       <NT i={0} />
@@ -1140,7 +1140,7 @@ const Readout: Page = () => (
   <Frame
     part={3}
     title="Keep the option letters, renormalise"
-    line="Softmax again, but over three logits. Subtracting the largest first changes nothing and keeps the numbers small."
+    line="This is the same softmax, applied to three logits. Subtracting the largest logit first does not change the result and keeps the numbers small."
   >
     <div style={{ ...row, gap: 20, alignItems: 'center', justifyContent: 'center', height: '100%' }}>
       <div style={col}>
@@ -1189,7 +1189,7 @@ const DecideCode: Page = () => (
   <Frame
     part={3}
     title="Reading a decision, in code"
-    line="There is no loop and nothing is generated. One pass in, one probability per option out."
+    line="The function has no loop and generates no text. One forward pass returns one probability per option."
   >
     <div style={{ ...col, justifyContent: 'center', height: '100%' }}>
       <Code
@@ -1225,8 +1225,8 @@ const TimeBar = ({ label, ms, passes, color }: { label: string; ms: number; pass
 const Timing: Page = () => (
   <Frame
     part={3}
-    title="Writing against reading, on the same model"
-    line={`About ${(sci.ms_generate / sci.ms_one_pass).toFixed(1)} times faster here, with a tiny model and a short answer. The gap grows with every token the writer needs.`}
+    title="Writing versus reading on the same model"
+    line={`Reading is about ${(sci.ms_generate / sci.ms_one_pass).toFixed(1)} times faster here, even with a tiny model and a short answer. Longer written answers widen the gap.`}
   >
     <div style={{ ...col, justifyContent: 'center', height: '100%' }}>
       <TimeBar label="write the JSON" ms={sci.ms_generate} passes={`${sci.passes} passes`} color={C.s2} />
@@ -1245,8 +1245,8 @@ const Timing: Page = () => (
 const Honest: Page = () => (
   <Frame
     part={3}
-    title="Reading also shows what writing hid"
-    line="The written answer looked certain. The probabilities show a coin flip between two teams. Now the program can tell."
+    title="The probabilities show doubt that the text hid"
+    line="The written answer looked certain, but the probabilities are almost equal for billing and technical. A program can see that and act on it."
   >
     <div style={{ ...row, gap: 70, alignItems: 'center', height: '100%' }}>
       <Card color={C.s2} style={{ width: 620 }}>
@@ -1290,8 +1290,8 @@ const Mini = ({ label, p }: { label: string; p: number }) => (
 const Types: Page = () => (
   <Frame
     part={3}
-    title="Three kinds of question, one readout"
-    line="These are the three question types of Jev-style decision models. The numbers are our small model’s answers for the email."
+    title="Three question types, all read the same way"
+    line="Jev and similar decision models support these three question types. The numbers are our small model’s answers for the email."
   >
     <div style={{ ...row, gap: 34, alignItems: 'stretch', marginTop: 20 }}>
       <TypeCard name="choice" what="one option from a list: a probability for each">
@@ -1322,7 +1322,7 @@ const ScoreCalc: Page = () => (
   <Frame
     part={3}
     title="A score is the probability-weighted level"
-    line="Levels are numbered 0, 1, 2. Our untrained model calls this email “not urgent”, which is a poor answer. Part 5 fixes that with training."
+    line="The levels are numbered 0, 1 and 2. Our untrained model rates this email “not urgent”, which is a poor answer. Part 5 shows how training improves such answers."
   >
     <div style={{ ...col, gap: 50, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
       <div style={{ fontFamily: mono, fontSize: 40, color: C.soft }}>
@@ -1347,7 +1347,7 @@ const Request: Page = () => (
   <Frame
     part={3}
     title="One request: a state and its questions"
-    line="All the questions travel together and all the answers come back together, because nothing has to be written in between."
+    line="All the questions go in one request and all the answers come back in one response, since the model writes nothing in between."
   >
     <div style={{ ...row, gap: 50, alignItems: 'center', height: '100%' }}>
       <div style={{ flex: 1 }}>
@@ -1385,7 +1385,7 @@ const Jev: Page = () => (
   <Frame
     part={3}
     title="Jev: what is public and what is not"
-    line="We read letter logits because it is simple and open. How Jev computes its probabilities has not been published."
+    line="We read letter logits because the method is simple and works on any open model. TypeSafe has not published how Jev computes its probabilities."
   >
     <div style={{ ...row, gap: 60, marginTop: 10 }}>
       <div style={{ flex: 1 }}>
@@ -1411,11 +1411,11 @@ const Jev: Page = () => (
 );
 
 const Recap3: Page = () => (
-  <Frame part={3} title="Where we are" line="Next: a probability is only useful if it means what it says. How do we check?">
+  <Frame part={3} title="Where we are" line="Next: we can use a probability only if it matches how often the model is right. How do we check that?">
     <div style={{ ...col, gap: 34, marginTop: 50 }}>
       <RecapItem>For a question with listed answers, one forward pass is enough.</RecapItem>
       <RecapItem>Keep the option logits, apply softmax, get a probability per option.</RecapItem>
-      <RecapItem>Choice, noul and score are the same readout.</RecapItem>
+      <RecapItem>Choice, noul and score questions are all read this way.</RecapItem>
       <RecapItem>Our model said technical with {f2(sci.p_team[1])}. Should a program believe that number?</RecapItem>
     </div>
   </Frame>
@@ -1479,7 +1479,7 @@ const S4: Page = () => (
   <SectionPage
     n={4}
     goal="The model says 0.8. What would have to be true for us to act on that number?"
-    how="A weather forecaster, ten predictions binned by hand, one picture and one number, then our real model."
+    how="A weather forecaster first, then ten predictions binned by hand, the reliability diagram, ECE, and finally our own model."
   />
 );
 
@@ -1499,7 +1499,7 @@ const Forecaster: Page = () => (
   <Frame
     part={4}
     title="A forecaster says “80% chance of rain” on ten days"
-    line="It rained on 8 of the 10. Her 80% meant 80%. That is what calibrated means."
+    line="It rained on 8 of the 10 days, which matches the 80% she said. A forecaster like this is called calibrated."
   >
     <div style={{ position: 'relative', width: 1700, height: 690 }}>
       <svg width={1700} height={690} viewBox="0 0 1700 690" style={{ position: 'absolute', inset: 0 }}>
@@ -1525,7 +1525,7 @@ const Forecaster: Page = () => (
 );
 
 const Definition: Page = () => (
-  <Frame part={4} title="Calibration, stated once" line="This is a statement about a group of predictions. A single prediction cannot be calibrated or miscalibrated.">
+  <Frame part={4} title="Calibration: the definition" line="The definition applies to a group of predictions. We cannot say whether a single prediction is calibrated.">
     <div style={{ ...col, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
       <p style={{ fontFamily: serif, fontSize: 68, lineHeight: 1.35, textAlign: 'center', maxWidth: 1500, margin: 0 }}>
         Among all the answers given with <span style={{ color: C.pred }}>probability p</span>, a{' '}
@@ -1565,7 +1565,7 @@ const ToyTable: Page = () => (
   <Frame
     part={4}
     title="Ten predictions from a model"
-    line="Made-up numbers, small enough to check by hand. Each prediction has a confidence and an outcome."
+    line="These numbers are made up, and few enough to check by hand. Each prediction has a confidence and an outcome."
   >
     <div style={{ ...col, justifyContent: 'center', height: '100%', gap: 30 }}>
       <div style={{ ...row, alignItems: 'center' }}>
@@ -1596,7 +1596,7 @@ const ToyBins: Page = () => (
   <Frame
     part={4}
     title="Group them by confidence, then compare"
-    line="In each bin: the average confidence (their sum over their count) against the fraction the model got right."
+    line="For each bin we compare the average confidence (the sum divided by the count) with the fraction the model got right."
   >
     <div style={{ ...row, gap: 26, alignItems: 'flex-start', marginTop: 60 }}>
       <BinCard range="0.4 to 0.6" conf="1.00 / 2 = 0.50" acc="1 / 2 = 0.50" gap="0.00">
@@ -1628,7 +1628,7 @@ const ToyDiagram: Page = () => (
   <Frame
     part={4}
     title="The reliability diagram"
-    line="One dot per bin, bigger for more predictions. On the dashed line the model is calibrated. Red is the gap."
+    line="Each dot is one bin, and a bigger dot means more predictions. A calibrated model sits on the dashed line. The red bars show the gap."
   >
     <div style={{ ...row, gap: 80, alignItems: 'center', justifyContent: 'center', height: '100%' }}>
       <Reliability bins={TOYBINS} size={480} />
@@ -1652,7 +1652,7 @@ const EceFormula: Page = () => (
   <Frame
     part={4}
     title="One number: expected calibration error"
-    line="ECE is the average gap, where each bin counts in proportion to how many predictions fall in it. Zero is perfect."
+    line="ECE is the average gap, with each bin weighted by its share of the predictions. A perfectly calibrated model scores 0."
   >
     <div style={{ ...col, gap: 56, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
       <Eq size={60}>
@@ -1723,8 +1723,8 @@ const Shape = ({ over }: { over: boolean }) => {
 const Shapes: Page = () => (
   <Frame
     part={4}
-    title="Two ways to be wrong about yourself"
-    line="Illustrative curves. Below the line the model claims more than it delivers. Above the line it is better than it admits."
+    title="Overconfident and underconfident models"
+    line="These curves are illustrative. Below the line the model’s confidence is higher than its accuracy, and above the line it is lower."
   >
     <div style={{ ...row, gap: 120, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
       <div style={{ textAlign: 'center' }}>
@@ -1748,8 +1748,8 @@ const Shapes: Page = () => (
 const RealNumbers: Page = () => (
   <Frame
     part={4}
-    title="Now our real model, on 1,000 news items"
-    line={`Four topics, one forward pass each, probabilities read from the letter logits. It is right ${pct(sci.zs.accuracy)} of the time and believes it is right ${pct(sci.zs.mean_conf)} of the time.`}
+    title="Our model on 1,000 news items"
+    line={`Four topics, one forward pass per item, probabilities read from the letter logits. The model is right ${pct(sci.zs.accuracy)} of the time, but its average confidence is ${pct(sci.zs.mean_conf)}.`}
   >
     <div style={{ ...row, gap: 160, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
       <Big value={f2(sci.zs.accuracy)} label="accuracy" color={C.truth} />
@@ -1765,7 +1765,7 @@ const RealNumbers: Page = () => (
 const RealBefore: Page = () => (
   <Frame
     part={4}
-    title="Its reliability diagram"
+    title="The reliability diagram for our model"
     line={`${sci.zs.bins[9].n} of the 1,000 answers come with confidence above 0.9, and only ${pct(sci.zs.bins[9].acc as number)} of those are right. ECE is ${f2(sci.zs.ece)}.`}
   >
     <div style={{ ...row, gap: 90, alignItems: 'center', justifyContent: 'center', height: '100%' }}>
@@ -1792,7 +1792,7 @@ const Temperature: Page = () => {
   return (
     <Frame
       part={4}
-      title="A fix with one number: temperature"
+      title="Temperature scaling: a fix with one parameter"
       line="Divide every logit by T before the softmax. T above 1 flattens the distribution; the order of the options never changes."
     >
       <div style={{ ...row, gap: 70, alignItems: 'center', height: '100%' }}>
@@ -1853,7 +1853,7 @@ const NotAccuracy: Page = () => (
   <Frame
     part={4}
     title="Calibration and accuracy are different things"
-    line="Temperature made the model honest about its mistakes. It did not remove a single mistake. For that we need training."
+    line="Temperature scaling corrected the model’s confidence but left every wrong answer wrong. To get more answers right we have to train."
   >
     <div style={{ ...col, alignItems: 'center', justifyContent: 'center', height: '100%' }}>
       <div style={row}>
@@ -1879,12 +1879,12 @@ const NotAccuracy: Page = () => (
 );
 
 const Recap4: Page = () => (
-  <Frame part={4} title="Where we are" line="Next: can training itself produce a model that is both more accurate and calibrated?">
+  <Frame part={4} title="Where we are" line="Next: can training give us a model that is both more accurate and calibrated?">
     <div style={{ ...col, gap: 34, marginTop: 50 }}>
       <RecapItem>Calibrated: among answers given with probability p, a fraction p are right.</RecapItem>
       <RecapItem>Reliability diagram: confidence against accuracy, bin by bin.</RecapItem>
       <RecapItem>ECE: the average gap, weighted by bin size.</RecapItem>
-      <RecapItem>Temperature repairs confidence after training and leaves accuracy alone.</RecapItem>
+      <RecapItem>Temperature scaling fixes confidence after training and does not change accuracy.</RecapItem>
     </div>
   </Frame>
 );
@@ -1895,7 +1895,7 @@ const S5: Page = () => (
   <SectionPage
     n={5}
     goal="How do we train a model so that its probabilities come out right, instead of repairing them afterwards?"
-    how="How chat models are trained, what each reward pays for, a reward that pays for honesty, then a head we train ourselves."
+    how="How chat models are trained, what each reward measures, a loss that rewards correct probabilities, and a head we train ourselves."
   />
 );
 
@@ -1903,7 +1903,7 @@ const TrainPipeline: Page = () => (
   <Frame
     part={5}
     title="How a chat model is trained"
-    line="Pre-training teaches language. Post-training shapes behaviour, and it uses reinforcement learning: try, get a reward, adjust."
+    line="Pre-training teaches the model language. Post-training shapes its behaviour with reinforcement learning: the model answers, gets a reward, and is updated."
   >
     <svg width={1700} height={690} viewBox="0 0 1700 690">
       <Arrows />
@@ -1912,7 +1912,7 @@ const TrainPipeline: Page = () => (
       <Box x={730} y={200} w={520} h={170} text="Post-training" sub="reinforcement learning on tasks" color={C.s1} size={40} />
       <Arr x1={1250} y1={285} x2={1390} y2={285} />
       <Box x={1400} y={200} w={260} h={170} text="chatbot" size={36} />
-      <text x={990} y={470} textAnchor="middle" fontSize={34} fill={C.soft}>The question for this part: what does the reward pay for?</text>
+      <text x={990} y={470} textAnchor="middle" fontSize={34} fill={C.soft}>The question for this part: what does the reward measure?</text>
     </svg>
   </Frame>
 );
@@ -1921,9 +1921,9 @@ const RLCard = ({ name, full, pays, side, color }: { name: string; full: string;
   <Card color={color} style={{ width: 825, padding: '32px 38px' }}>
     <div style={{ fontFamily: serif, fontSize: 68, fontWeight: 700, color }}>{name}</div>
     <div style={{ fontSize: 28, color: C.muted, marginBottom: 26 }}>{full}</div>
-    <Label>The reward pays for</Label>
+    <Label>The reward is given for</Label>
     <div style={{ fontSize: 34, lineHeight: 1.4, margin: '8px 0 24px' }}>{pays}</div>
-    <Label color={C.loss}>What it does not pay for</Label>
+    <Label color={C.loss}>What it ignores</Label>
     <div style={{ fontSize: 34, lineHeight: 1.4, marginTop: 8, color: C.soft }}>{side}</div>
   </Card>
 );
@@ -1932,14 +1932,14 @@ const RLTwo: Page = () => (
   <Frame
     part={5}
     title="Two rewards used today"
-    line="Neither reward mentions probabilities. A model trained this way has no reason to know how sure it should be."
+    line="Neither reward looks at probabilities, so a model trained this way is never taught how sure it should be."
   >
     <div style={{ ...row, gap: 50, alignItems: 'stretch', marginTop: 16 }}>
       <RLCard
         name="RLHF"
         full="reinforcement learning from human feedback"
         pays="the answer people prefer out of two"
-        side="doubt. Confident answers read better, so the model learns to sound sure"
+        side="doubt. People prefer confident answers, so the model learns to sound sure"
         color={C.s2}
       />
       <Steps>
@@ -1948,7 +1948,7 @@ const RLTwo: Page = () => (
             name="RLVR"
             full="reinforcement learning with verifiable rewards"
             pays="a final answer that passes a check, such as unit tests"
-            side="knowing how likely the answer was to be right"
+            side="how likely the answer was to be right"
             color={C.s2}
           />
         </Step>
@@ -1961,7 +1961,7 @@ const RLCD: Page = () => (
   <Frame
     part={5}
     title="RLCD: reinforcement learning for calibrated decisions"
-    line="RLCD is the name TypeSafe gives Jev’s training. Only the goal is public, so the next slides build a reward with that goal ourselves."
+    line="RLCD is TypeSafe’s name for how Jev is trained. They have published only the goal, so in the next slides we build our own reward with the same goal."
   >
     <div style={{ ...row, gap: 60, alignItems: 'center', height: '100%' }}>
       <Card color={C.s1} style={{ flex: 1, padding: '36px 40px' }}>
@@ -1988,13 +1988,13 @@ const RLCD: Page = () => (
 const HonestyQ: Page = () => (
   <Frame
     part={5}
-    title="Right 70% of the time. What should the model say?"
-    line="If the reward only checks the answer, 0.7 and 0.99 earn the same. Nothing pushes the model towards the true number."
+    title="A model is right 70% of the time. What should it report?"
+    line="If the reward only checks the answer, reporting 0.7 and reporting 0.99 earn the same, so training never moves the model towards 0.7."
   >
     <div style={{ ...row, gap: 60, alignItems: 'center', justifyContent: 'center', height: '100%' }}>
       <Card style={{ width: 400, textAlign: 'center' }}>
         <div style={{ fontFamily: mono, fontSize: 84, color: C.pred }}>0.70</div>
-        <div style={{ fontSize: 30, color: C.soft }}>the honest report</div>
+        <div style={{ fontSize: 30, color: C.soft }}>the correct report</div>
       </Card>
       <Card style={{ width: 400, textAlign: 'center' }}>
         <div style={{ fontFamily: mono, fontSize: 84, color: C.pred }}>0.99</div>
@@ -2017,7 +2017,7 @@ const BrierOne: Page = () => (
   <Frame
     part={5}
     title="The Brier score penalises the stated probability"
-    line="y is 1 if the answer was right and 0 if not. Lower is better. Being sure and wrong costs 81 times more than being sure and right."
+    line="Here y is 1 if the answer was right and 0 if not, and lower is better. A wrong answer at 0.9 costs 81 times more than a right answer at 0.9."
   >
     <div style={{ ...col, gap: 60, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
       <Eq size={76}>
@@ -2083,8 +2083,8 @@ const BrierCurve = () => {
 const BrierExpected: Page = () => (
   <Frame
     part={5}
-    title="With this loss, honesty is the best policy"
-    line="Right 70% of the time: expected loss = 0.7 × (loss if right) + 0.3 × (loss if wrong). Rules with this property are called proper scoring rules."
+    title="The Brier score is lowest at the true probability"
+    line="Expected loss = 0.7 × (loss if right) + 0.3 × (loss if wrong). A loss that is lowest at the true probability is called a proper scoring rule."
   >
     <div style={{ ...row, gap: 30, alignItems: 'center', height: '100%' }}>
       <div style={col}>
@@ -2114,7 +2114,7 @@ const LogScore: Page = () => (
   <Frame
     part={5}
     title="You already use a proper scoring rule"
-    line="Cross-entropy, the usual classification loss, is the log score. Train a classifier head with it and it is being paid for honest probabilities."
+    line="Cross-entropy, the usual classification loss, is the log score. A classifier head trained with it is rewarded for reporting correct probabilities."
   >
     <div style={{ ...col, gap: 60, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
       <Eq size={76}>
@@ -2200,8 +2200,8 @@ const ResRow = ({ name, acc, e, color = C.ink }: { name: string; acc: number; e:
 const HeadResults: Page = () => (
   <Frame
     part={5}
-    title="What training bought, on the same 1,000 test items"
-    line={`A ${sci.head.params.toLocaleString('en-US')}-parameter head trained for seconds is more accurate and far better calibrated than reading the LLM’s letters.`}
+    title="Results after training, on the same 1,000 test items"
+    line={`The ${sci.head.params.toLocaleString('en-US')}-parameter head trains in a few seconds. It is more accurate and much better calibrated than reading the LLM’s letter logits.`}
   >
     <div style={{ ...col, justifyContent: 'center', height: '100%' }}>
       <div style={{ ...row, height: 60, fontSize: 28, color: C.muted }}>
@@ -2226,7 +2226,7 @@ const UnslothRow: Page = () => (
   <Frame
     part={5}
     title="The general version: Unsloth’s decision models"
-    line="Same idea, with any list of questions per input. Each training row is a state, its questions, and the gold answers."
+    line="Unsloth applies the same idea to any list of questions per input. Each training row has a state, its questions and the correct answers."
   >
     <div style={{ ...row, gap: 50, alignItems: 'center', height: '100%' }}>
       <div style={{ flex: 1 }}>
@@ -2259,7 +2259,7 @@ const UnslothCode: Page = () => (
   <Frame
     part={5}
     title="Train, calibrate, decide"
-    line="LoRA adapters on the LLM plus a decision head. Calibration runs on rows held out of training, as ours did. Notebook 3 is this recipe."
+    line="The model is an LLM with LoRA adapters and a decision head. As in our notebook, calibration uses rows held out of training. Notebook 3 runs this recipe."
   >
     <div style={{ ...col, justifyContent: 'center', height: '100%' }}>
       <Code
@@ -2302,7 +2302,7 @@ const UnslothNumbers: Page = () => (
   <Frame
     part={5}
     title="Unsloth’s reported accuracy for Qwen3.5-0.8B"
-    line="Their own runs, not reproduced by us: about 4 GB of GPU memory and 42 minutes. Before training the new head is close to guessing."
+    line="These are Unsloth’s numbers and we have not reproduced them. They report about 4 GB of GPU memory and 42 minutes. Before training, the new head is close to guessing."
   >
     <div style={{ ...col, justifyContent: 'center', height: '100%', gap: 20 }}>
       <UBar name="typed-decisions" a={0.36} b={0.73} />
@@ -2313,9 +2313,9 @@ const UnslothNumbers: Page = () => (
 );
 
 const Recap5: Page = () => (
-  <Frame part={5} title="Where we are" line="Next: what a program does with a probability it can trust.">
+  <Frame part={5} title="Where we are" line="Next: how a program uses a probability it can trust.">
     <div style={{ ...col, gap: 34, marginTop: 50 }}>
-      <RecapItem>RLHF and RLVR pay for good answers. Neither pays for knowing how sure to be.</RecapItem>
+      <RecapItem>RLHF and RLVR reward good answers. Neither rewards a correct estimate of confidence.</RecapItem>
       <RecapItem>A proper scoring rule is lowest when the stated probability is the true one.</RecapItem>
       <RecapItem>Cross-entropy and the Brier score are both proper.</RecapItem>
       <RecapItem>
@@ -2339,8 +2339,8 @@ const S6: Page = () => (
 const Thresholds: Page = () => (
   <Frame
     part={6}
-    title="A probability becomes an action through thresholds"
-    line="The 0.9 and 0.1 are ours to choose. The costlier a wrong automatic action, the further apart we set them."
+    title="Thresholds turn a probability into an action"
+    line="We choose the 0.9 and the 0.1. If a wrong automatic action is costly, we set them further apart."
   >
     <svg width={1700} height={690} viewBox="0 0 1700 690">
       <text x={130} y={40} fontSize={30} fill={C.pred}>P(refund request)</text>
@@ -2425,8 +2425,8 @@ const ThresholdLive: Page = () => {
 const Pipeline: Page = () => (
   <Frame
     part={6}
-    title="Fast and slow, working together"
-    line="The decision model sorts the email, the LLM writes the reply, the decision model checks it. Slow thinking runs only where it is needed."
+    title="A decision model and an LLM in one pipeline"
+    line="The decision model routes the email, the LLM writes the reply, and the decision model checks the reply. The LLM runs only for the step that needs writing."
   >
     <svg width={1700} height={690} viewBox="0 0 1700 690">
       <Arrows />
@@ -2459,13 +2459,13 @@ const Limit = ({ head, body }: { head: string; body: string }) => (
 const Limits: Page = () => (
   <Frame
     part={6}
-    title="Where it breaks: an independent benchmark of Jev"
-    line="Deußer et al., 2026: 37 datasets, zero-shot. Jev beat a 27-billion-parameter open LLM on 27 of them, and these caveats came with it."
+    title="Limits: an independent benchmark of Jev"
+    line="Deußer et al., 2026, tested Jev zero-shot on 37 datasets. It beat a 27-billion-parameter open LLM on 27 of them, and the paper reports these limits."
   >
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, marginTop: 10 }}>
-      <Limit head="Default thresholds can fail" body="Prompt-injection detection: perfect precision, 50% recall, until the threshold is tuned." />
+      <Limit head="Default thresholds can fail" body="Prompt-injection detection had perfect precision but 50% recall until the threshold was tuned." />
       <Limit head="No reasons" body="It returns probabilities and never shows intermediate steps." />
-      <Limit head="Arithmetic belongs in code" body="The vendor’s own advice: do sums and counting outside the model." />
+      <Limit head="Arithmetic belongs in code" body="The vendor advises doing sums and counting outside the model." />
       <Limit head="Unknown training data" body="The authors cannot rule out that benchmark items were seen in training." />
     </div>
   </Frame>
@@ -2475,7 +2475,7 @@ const Jevons: Page = () => (
   <Frame
     part={6}
     title="Why the name: Jevons, 1865"
-    line="When a judgement call costs almost nothing, it gets made in places where an LLM is too slow or too expensive today."
+    line="When a decision costs almost nothing, people will use it in places where an LLM is too slow or too expensive today."
   >
     <div style={{ ...row, gap: 60, alignItems: 'center', height: '100%' }}>
       <Card style={{ flex: 1 }}>
@@ -2499,7 +2499,7 @@ const Jevons: Page = () => (
 );
 
 const Summary: Page = () => (
-  <Frame part={0} title="The whole lecture in one picture">
+  <Frame part={0} title="Summary of the lecture">
     <svg width={1700} height={690} viewBox="0 0 1700 690">
       <Arrows />
       <Box x={20} y={30} w={300} h={130} text="state + questions" sub="email, 3 questions" />
@@ -2513,7 +2513,7 @@ const Summary: Page = () => (
       <Box x={1480} y={30} w={210} h={130} text="probabilities" color={C.pred} size={28} />
       <Arr x1={1585} y1={160} x2={1585} y2={250} />
       <Box x={1380} y={260} w={310} h={130} text="thresholds" sub="act · ask a person · skip" />
-      <Box x={410} y={360} w={690} h={130} text="trained with a proper scoring rule" sub="log score or Brier: lowest when the probability is honest" color={C.loss} />
+      <Box x={410} y={360} w={690} h={130} text="trained with a proper scoring rule" sub="log score or Brier: lowest at the true probability" color={C.loss} />
       <Arr x1={950} y1={360} x2={950} y2={170} color={C.loss} />
       <Box x={410} y={550} w={690} h={110} text="checked with a reliability diagram and ECE" color={C.truth} />
       <path d="M1100,605 L1585,605 L1585,402" fill="none" stroke={C.soft} strokeWidth={3} markerEnd="url(#ah)" />
@@ -2617,7 +2617,7 @@ const deck: [Page, string][] = [
   [HonestyQ, 'Any stated probability above 0.5 picks the same answer, so the accuracy reward cannot tell them apart.'],
   [BrierOne, '0.81 / 0.01 = 81.'],
   [BrierExpected, 'Ask the class to guess the best report before revealing the last row.'],
-  [LogScore, 'So ordinary supervised training with cross-entropy already rewards honest probabilities, on the training distribution.'],
+  [LogScore, 'So ordinary supervised training with cross-entropy already rewards correct probabilities, at least on the training distribution.'],
   [HeadFigure, 'Recall the encoder slide: we are using a decoder’s last vector the way an encoder model uses its output vector.'],
   [HeadCode, 'Notebook 2. Features are standardised first. Training takes a few seconds.'],
   [HeadResults, '2,000 training items. The Brier-trained head gives nearly the same numbers; it is in the notebook.'],
