@@ -1873,16 +1873,7 @@ const RecapItem = ({ children }: { children: ReactNode }) => (
   </div>
 );
 
-const Recap2: Page = () => (
-  <Frame part={2} title="Where we are" line="Next: for a quick decision we can skip the loop.">
-    <div style={{ ...col, gap: 34, marginTop: 50 }}>
-      <RecapItem>Text becomes tokens, tokens become vectors, attention mixes them.</RecapItem>
-      <RecapItem>One forward pass ends in one distribution over the next token.</RecapItem>
-      <RecapItem>Writing an answer repeats that pass once per token.</RecapItem>
-      <RecapItem>Writing costs time, can break the format, and gives no usable confidence.</RecapItem>
-    </div>
-  </Frame>
-);
+// (the recaps are defined together below)
 
 // ---------------------------------------------------------------- part 3
 
@@ -2437,17 +2428,6 @@ const Jev: Page = () => (
   </Frame>
 );
 
-const Recap3: Page = () => (
-  <Frame part={3} title="Where we are" line="Next: we can use a probability only if it matches how often the model is right. How do we check that?">
-    <div style={{ ...col, gap: 34, marginTop: 50 }}>
-      <RecapItem>For a question with listed answers, one forward pass is enough.</RecapItem>
-      <RecapItem>Keep the option logits, apply softmax, get a probability per option.</RecapItem>
-      <RecapItem>Choice, noul and score questions are all read this way.</RecapItem>
-      <RecapItem>Inside the model the blocks stay the same. The loop goes, and a small head can replace the output layer.</RecapItem>
-      <RecapItem>Our model said technical with {f2(sci.p_team[1])}. Should a program believe that number?</RecapItem>
-    </div>
-  </Frame>
-);
 
 // ---------------------------------------------------------------- part 4
 
@@ -3430,17 +3410,6 @@ const NotAccuracy: Page = () => (
   </Frame>
 );
 
-const Recap4: Page = () => (
-  <Frame part={4} title="Where we are" line="Next: can training give us a model that is both more accurate and calibrated?">
-    <div style={{ ...col, gap: 34, marginTop: 50 }}>
-      <RecapItem>Calibrated: among answers given with probability p, a fraction p are right.</RecapItem>
-      <RecapItem>Reliability diagram: confidence against accuracy, bin by bin.</RecapItem>
-      <RecapItem>ECE: the average gap, weighted by bin size.</RecapItem>
-      <RecapItem>Confidence is the largest softmax probability. Writing it or sampling it did no better.</RecapItem>
-      <RecapItem>Temperature scaling fixes confidence after training and does not change accuracy.</RecapItem>
-    </div>
-  </Frame>
-);
 
 // ---------------------------------------------------------------- part 5
 
@@ -4563,18 +4532,6 @@ const UnslothNumbers: Page = () => (
   </Frame>
 );
 
-const Recap5: Page = () => (
-  <Frame part={5} title="Where we are" line="Next: how to build this for a new problem of your own, and where it breaks.">
-    <div style={{ ...col, gap: 34, marginTop: 50 }}>
-      <RecapItem>A chat model is trained in three stages. RLHF and RLVR reward good answers, and neither rewards a correct confidence.</RecapItem>
-      <RecapItem>A proper scoring rule is lowest when the stated probability is the true one.</RecapItem>
-      <RecapItem>Cross-entropy and the Brier score are both proper.</RecapItem>
-      <RecapItem>
-        Training a head raised accuracy from {f2(sci.zs.accuracy)} to {f2(sci.head.raw.accuracy)}, and its ECE is {f2(sci.head.cal.ece)} after a small temperature.
-      </RecapItem>
-    </div>
-  </Frame>
-);
 
 // ---------------------------------------------------------------- part 6
 
@@ -6048,6 +6005,79 @@ const TrainOnePage: Page = () => (
   </Frame>
 );
 
+// ---------------------------------------------------------------- takeaways
+
+const Take = ({ part, head, next, children }: { part: number; head: ReactNode; next?: string; children: ReactNode }) => (
+  <Frame part={part} title={`Takeaways from Part ${part}`} line={next}>
+    <div style={{ ...col, gap: 30, marginTop: 6 }}>
+      <div style={{ background: '#fbeee9', borderLeft: '10px solid var(--osd-accent)', borderRadius: 'var(--osd-radius)', padding: '26px 36px' }}>
+        <div style={{ fontSize: 22, letterSpacing: '0.14em', fontWeight: 700, color: 'var(--osd-accent)' }}>THE ONE THING TO REMEMBER</div>
+        <div style={{ fontFamily: serif, fontSize: 44, lineHeight: 1.3, marginTop: 10 }}>{head}</div>
+      </div>
+      <div style={{ ...col, gap: 20 }}>{children}</div>
+    </div>
+  </Frame>
+);
+const TI = ({ children }: { children: ReactNode }) => (
+  <div style={{ ...row, gap: 22, alignItems: 'baseline', fontSize: 33, lineHeight: 1.4 }}>
+    <div style={{ width: 14, height: 14, borderRadius: 7, background: 'var(--osd-accent)', flexShrink: 0 }} />
+    <div>{children}</div>
+  </div>
+);
+
+const Recap1: Page = () => (
+  <Take part={1} head="Most questions that software asks have a fixed set of answers. A decision model answers them with a probability, and writes no text." next="Next: today these questions go to an LLM. How does it answer, and what does that cost?">
+    <TI>System 1 is fast and automatic, System 2 is slow and works in steps. A chat LLM is a System 2 tool.</TI>
+    <TI>Three answer types cover most calls: noul (yes or no), choice (one from a list) and score (a level on a scale).</TI>
+    <TI>Newer models also return values, spans, boxes and counts, on text, images and audio.</TI>
+  </Take>
+);
+
+const Recap2: Page = () => (
+  <Take part={2} head="An LLM answers by running the whole model once for every token it writes." next="Next: for a quick decision we can skip the loop.">
+    <TI>Text becomes tokens, tokens become vectors, and attention mixes them through {sci.layers} blocks.</TI>
+    <TI>One forward pass ends in one probability distribution over the next token.</TI>
+    <TI>Our {sci.n_generated}-token JSON answer took {sci.passes} passes and {sci.ms_generate} ms.</TI>
+    <TI>Writing costs time, can break the format, and gives no usable confidence.</TI>
+  </Take>
+);
+
+const Recap3: Page = () => (
+  <Take part={3} head="The answer is already in the first forward pass. Read the probabilities of the options and skip the writing." next="Next: we can use a probability only if it matches how often the model is right. How do we check that?">
+    <TI>Keep the option logits, apply softmax, and get one probability per option: {f2(sci.p_team[0])}, {f2(sci.p_team[1])}, {f2(sci.p_team[2])} for our email.</TI>
+    <TI>Choice, noul and score are all read this way, in {sci.ms_one_pass} ms against {sci.ms_generate} ms for writing.</TI>
+    <TI>Inside, the blocks stay. The loop goes, and the output layer is read selectively or replaced by a small head.</TI>
+    <TI>Reading shows doubt that a written answer hides.</TI>
+  </Take>
+);
+
+const Recap4: Page = () => (
+  <Take part={4} head="A probability is useful only if it matches how often the model is right. Measure that, then repair it." next="Next: can training give us a model that is both more accurate and calibrated?">
+    <TI>Calibrated: among answers given with probability p, a fraction p are right.</TI>
+    <TI>The reliability diagram plots confidence against accuracy. ECE is the average gap between them.</TI>
+    <TI>Our model: accuracy {f2(sci.zs.accuracy)}, confidence {f2(sci.zs.mean_conf)}, ECE {f2(sci.zs.ece)}. With T = {sci.zs.T.toFixed(1)}, ECE {f2(sci.zs.ece_T)}.</TI>
+    <TI>Temperature changes the confidence and never the answer, so accuracy stays the same.</TI>
+  </Take>
+);
+
+const Recap5: Page = () => (
+  <Take part={5} head="Train on labelled rows with a loss that looks at the stated probability. The model then learns the answer and how sure to be." next="Next: how to build this for a new problem of your own, and where it breaks.">
+    <TI>RLHF and RLVR reward good answers. Neither rewards a correct confidence.</TI>
+    <TI>A proper scoring rule, such as Brier or cross-entropy, is lowest when the stated probability is the true one.</TI>
+    <TI>What gets trained: a small head, often with LoRA adapters, or the letter readout the model already has.</TI>
+    <TI>Our {sci.head.params.toLocaleString('en-US')}-number head: accuracy {f2(sci.zs.accuracy)} to {f2(sci.head.raw.accuracy)}, ECE {f2(sci.head.cal.ece)} after a small temperature.</TI>
+  </Take>
+);
+
+const Recap6: Page = () => (
+  <Take part={6} head="Try a general decision model first and measure it on your own labelled data. Calibrate, and train only if the accuracy is short." next="Next: why the first of these models is named after an economist.">
+    <TI>One model answers any question written into the request. Training happens once, on many kinds of question.</TI>
+    <TI>Thresholds come from costs: act when p is above cost / (cost + benefit).</TI>
+    <TI>Run the decision model on every input, and the LLM, person or search only on the unsure ones.</TI>
+    <TI>Calibration drifts when the inputs change, so repeat the check on fresh labelled data.</TI>
+  </Take>
+);
+
 // ---------------------------------------------------------------- the picture, and sources
 
 const Tag = ({ x, y, n }: { x: number; y: number; n: number }) => (
@@ -6134,7 +6164,7 @@ const NB = ({ n, name, what, where }: { n: string; name: string; what: string; w
 );
 
 const Notebooks: Page = () => (
-  <Frame part={0} title="Three notebooks" line="Slides that have a notebook cell behind them carry a “Run it” link at the bottom left. Every measured number in these slides comes from notebooks 1 and 2.">
+  <Frame part={0} title="Three notebooks" line={<>Slides with a notebook cell behind them carry a “Run it” link at the bottom left. A five-page cheatsheet of the whole lecture is at <a href="https://nipunbatra.github.io/system-one/cheatsheet.pdf" target="_blank" rel="noreferrer" style={{ color: C.s2 }}>nipunbatra.github.io/system-one/cheatsheet.pdf</a>.</>}>
     <div style={{ ...row, gap: 34, alignItems: 'stretch', marginTop: 20 }}>
       <NB n="1" name="Read, don’t write" what="Tokens, the generation loop, reading option probabilities, ECE, temperature, thresholds." where="Colab, CPU or T4 · about 2 minutes on T4" />
       <NB n="2" name="Train a decision head" what="Proper scoring rules, a linear head on a frozen LLM, calibration on held-out rows." where="Colab, CPU or T4 · about 2 minutes on T4" />
@@ -6185,6 +6215,7 @@ const deck: [Page, string][] = [
   [ReadValues, 'Example copied from Liquid’s d1.2 docs. The span numbers count characters from 0, and the end is exclusive. The model normalises the number and the date and still reports the text as written.'],
   [MoreExamples, 'All three from Liquid’s docs. In the multi-select answer the probabilities do not sum to 1, because each option is its own yes or no. The docs describe the interval as p10 to p90.'],
   [Check1, 'Let the class answer each row before revealing it.'],
+  [Recap1, 'Read the top sentence aloud and pause.'],
   [S2, ''],
   [Tokens, 'These are the real tokens and ids from the Qwen2.5 tokenizer. Notice the leading spaces are part of the tokens.'],
   [Embed, 'The vector values drawn are illustrative; the table size is real.'],
@@ -6308,6 +6339,7 @@ const deck: [Page, string][] = [
   [Limits, 'The benchmark also reports that binary probabilities need tuned thresholds: micro-F1 on UNFAIR-ToS rises from 0.50 to 0.75.'],
   [LimitsApps, 'These are our cautions for the three applications, drawn from the benchmark’s limits and from Part 4. The rare-event point is the base-rate effect.'],
   [Check6, 'This is the recipe from earlier in the part, applied.'],
+  [Recap6, 'The last takeaway. The summary picture follows after the note on the name.'],
   [Jevons, 'William Stanley Jevons, The Coal Question, 1865.'],
   [Summary, 'Walk the picture left to right, then the two boxes below.'],
   [Notebooks, 'Notebook 3 needs a GPU and takes much longer; show its saved outputs.'],

@@ -34,6 +34,7 @@ jobs:
           cp dist/index.html dist/s/system-one/index.html
           cp dist/index.html dist/404.html
           cp site/index.html dist/index.html
+          cp site/cheatsheet.pdf site/cheatsheet.html dist/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
