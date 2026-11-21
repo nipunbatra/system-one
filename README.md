@@ -2,7 +2,7 @@
 
 A 60 to 80 minute lecture on decision models such as Jev: models that read a
 state, answer a typed question, and return calibrated probabilities without
-generating text. The lecture has a 124-slide deck and three notebooks.
+generating text. The lecture has a 144-slide deck and three notebooks.
 
 Audience: students who have studied machine learning and a little deep
 learning, and have not looked inside an LLM.
@@ -51,6 +51,15 @@ Chrome binary if it is not in the default macOS location.
 
 `node scripts/steps.mjs` opens the deck in presentation mode and presses through every step reveal,
 reporting any slide whose steps appear out of order or have no size.
+
+## Further reading
+
+The deck cites these on the slides that use them, and lists them on its last page.
+
+- Roitman, [The Hitchhiker's Guide to System 1 Models](https://arxiv.org/abs/2610.33775), 2026: the five families, head designs, cascades.
+- Unsloth, [Train your own Decision Model](https://unsloth.ai/docs/basics/train-your-own-decision-model-with-unsloth): the recipe notebook 3 follows.
+- Liquid AI cookbook, [fine-tuning a decision model with SFT](https://github.com/Liquid4All/cookbook/blob/main/finetuning/notebooks/sft_for_decision_models_with_unsloth.ipynb).
+- Karpathy, [Deep Dive into LLMs like ChatGPT](https://www.youtube.com/watch?v=7xTGNNLPyMI); Huyen, [RLHF](https://huyenchip.com/2023/05/02/rlhf.html); scikit-learn, [Probability calibration](https://scikit-learn.org/stable/modules/calibration.html).
 
 ## A note on Jev
 

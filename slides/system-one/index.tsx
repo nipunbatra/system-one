@@ -84,16 +84,36 @@ const Route = ({ part }: { part: number }) => (
   </div>
 );
 
+const NB_FILES = ['01_read_dont_write', '02_train_a_decision_head', '03_unsloth_decision_model'];
+const nbUrl = (n: number) =>
+  `https://colab.research.google.com/github/nipunbatra/system-one/blob/main/notebooks/${NB_FILES[n - 1]}.ipynb`;
+
+// The small line under the story line: where a slide's content comes from, and which notebook runs it.
+const Foot = ({ src, nb }: { src?: ReactNode; nb?: number }) => (
+  <div style={{ position: 'absolute', left: 110, right: 280, bottom: 16, height: 30, display: 'flex', gap: 26, alignItems: 'center', fontSize: 21, color: C.muted, whiteSpace: 'nowrap' }}>
+    {nb && (
+      <a href={nbUrl(nb)} target="_blank" rel="noreferrer" style={{ color: C.s1, fontWeight: 600, textDecoration: 'none', border: `2px solid ${C.s1}`, borderRadius: 8, padding: '1px 12px' }}>
+        Run it: notebook {nb} ↗
+      </a>
+    )}
+    {src && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>Source: {src}</span>}
+  </div>
+);
+
 const Frame = ({
   part,
   title,
   line,
   children,
+  src,
+  nb,
 }: {
   part: number;
   title: ReactNode;
   line?: ReactNode;
   children?: ReactNode;
+  src?: ReactNode;
+  nb?: number;
 }) => (
   <div style={fill}>
     <div
@@ -147,6 +167,7 @@ const Frame = ({
         <span>{line}</span>
       </div>
     )}
+    {(src || nb) && <Foot src={src} nb={nb} />}
     <PageNo />
   </div>
 );
@@ -921,6 +942,7 @@ const Person = ({ x, glasses }: { x: number; glasses?: boolean }) => (
 const NewTypes: Page = () => (
   <Frame
     part={1}
+    src="Liquid AI, d1.2 documentation and blog, November 2026"
     title="Newer models answer with more than a probability"
     line="Liquid’s d1.2 models (November 2026) add these answer types. Accuracy on the new types is reported only by the vendor so far."
   >
@@ -1001,6 +1023,7 @@ const ValRow = ({ type, q, a, from, found, color }: { type: string; q: string; a
 const ReadValues: Page = () => (
   <Frame
     part={1}
+    src="example from Liquid AI’s d1.2 documentation"
     title="Example: reading values from an invoice"
     line="Each answer comes with the characters it was read from, so a program can check it against the document. A question with no answer in the text returns “not found”."
   >
@@ -1073,6 +1096,7 @@ const ExCard = ({ types, q, children }: { types: string[]; q: string; children: 
 const MoreExamples: Page = () => (
   <Frame
     part={1}
+    src="examples from Liquid AI’s d1.2 documentation"
     title="Examples: passages, several options, a count"
     line="All three are from Liquid’s d1.2 documentation. The third shows a count for a group photograph, given as a median with an interval that holds 80% of the probability."
   >
@@ -1140,6 +1164,7 @@ const S2: Page = () => (
 const Tokens: Page = () => (
   <Frame
     part={2}
+    nb={1}
     title="Step 1: text becomes tokens"
     line={`The model does not read letters. It gets ${sci.tokens.length} integers, each the id of a token in a vocabulary of ${sci.vocab.toLocaleString('en-US')} tokens.`}
   >
@@ -1217,6 +1242,7 @@ const AttArc = ({ from, to, w }: { from: number; to: number; w: number }) => {
 const Attention: Page = () => (
   <Frame
     part={2}
+    src="for an animated version: 3Blue1Brown, “Transformers, the tech behind LLMs” · Alammar, “The Illustrated Transformer”"
     title="Step 3: each token attends to the tokens before it"
     line="Self-attention replaces each token’s vector with a weighted mix of the earlier tokens. Here “it” takes most of its meaning from “charged twice”."
   >
@@ -1428,6 +1454,7 @@ const NT = ({ i, dim }: { i: number; dim?: boolean }) => (
 const NextToken: Page = () => (
   <Frame
     part={2}
+    nb={1}
     title="The model’s next-token distribution for our prompt"
     line="One forward pass over the “which team?” prompt gives this distribution. These are the six most likely next tokens."
   >
@@ -1468,7 +1495,7 @@ const Loop: Page = () => (
 );
 
 const LoopCode: Page = () => (
-  <Frame part={2} title="The loop in code" line="Text generation is this loop. A chatbot wraps a chat template and a sampling rule around it.">
+  <Frame part={2} nb={1} title="The loop in code" line="Text generation is this loop. A chatbot wraps a chat template and a sampling rule around it.">
     <div style={{ ...col, justifyContent: 'center', height: '100%' }}>
       <Code
         size={32}
@@ -1493,6 +1520,7 @@ const show = (t: string) => t.replace(/ /g, '␣').replace(/\n/g, '⏎');
 const Written: Page = () => (
   <Frame
     part={2}
+    nb={1}
     title="Our model writes its answer to the email"
     line={`Each box is one forward pass. The ${sci.n_generated} tokens of JSON needed ${sci.passes} passes, because the last pass is the one where the model picks its end token.`}
   >
@@ -1686,6 +1714,7 @@ const KindRow = ({ k, color }: { k: string; color: string }) => (
 const LooseOutput: Page = () => (
   <Frame
     part={2}
+    nb={1}
     title="Cost 2: the text does not always parse"
     line={`We asked for JSON with a topic and a confidence for ${W.n} news items. ${kindN('clean JSON')} answers parsed as they were, ${kindN('JSON inside other text')} needed digging out, and ${W.n - W.usable} could not be used.`}
   >
@@ -1766,6 +1795,7 @@ const StatedConf: Page = () => {
   return (
     <Frame
       part={2}
+      nb={1}
       title="Cost 3: ask the model to write its confidence?"
       line={`On the ${W.usable} usable answers it never wrote less than ${W.stated_counts[0][0]}, and it was right ${pct(W.accuracy)} of the time. A written confidence is just more generated text.`}
     >
@@ -1798,6 +1828,7 @@ const StatedConf: Page = () => {
 const Voting: Page = () => (
   <Frame
     part={2}
+    nb={1}
     title="Cost 3: or sample the answer many times?"
     line={`Counting votes gives a rough probability, ${VOTES[0][1]}/${N_VOTES} = ${f2(VOTES[0][1] / N_VOTES)} for ${VOTES[0][0]} here. It costs ${N_VOTES} generations for one question.`}
   >
@@ -1856,7 +1887,7 @@ const S3: Page = () => (
   <SectionPage
     n={3}
     goal="If the question has a fixed list of answers, do we need the model to write anything at all?"
-    how="Go back to the first distribution, keep only the options and read their probabilities. Then see what changed inside the model, and what a request and a response look like."
+    how="Go back to the first distribution, keep only the options and read their probabilities. That is the shaded bubble sheet from Part 1. Then see what changed inside the model, and what a request and a response look like."
   />
 );
 
@@ -1894,6 +1925,7 @@ const RCell = ({ children, w, color = C.ink, left }: { children: ReactNode; w: n
 const Readout: Page = () => (
   <Frame
     part={3}
+    nb={1}
     title="Keep the option letters, renormalise"
     line="This is the same softmax, applied to three logits. Subtracting the largest logit first does not change the result and keeps the numbers small."
   >
@@ -1943,6 +1975,7 @@ const Readout: Page = () => (
 const DecideCode: Page = () => (
   <Frame
     part={3}
+    nb={1}
     title="Reading a decision, in code"
     line="The function has no loop and generates no text. One forward pass returns one probability per option."
   >
@@ -1980,6 +2013,7 @@ const TimeBar = ({ label, ms, passes, color }: { label: string; ms: number; pass
 const Timing: Page = () => (
   <Frame
     part={3}
+    nb={1}
     title="Writing versus reading on the same model"
     line={`Reading is about ${(sci.ms_generate / sci.ms_one_pass).toFixed(1)} times faster here, even with a tiny model and a short answer. Longer written answers widen the gap.`}
   >
@@ -2203,6 +2237,7 @@ const ScoreCalc: Page = () => (
 const Request: Page = () => (
   <Frame
     part={3}
+    src="field names as in the Jev and Unsloth request format"
     title="One request: a state and its questions"
     line="All the questions go in one request and all the answers come back in one response, since the model writes nothing in between."
   >
@@ -2234,6 +2269,7 @@ const Request: Page = () => (
 const Response: Page = () => (
   <Frame
     part={3}
+    src="field names as in the Jev and Liquid documentation"
     title="One response: an answer for every question"
     line="The response has no generated text. Each question gets its typed answer and the probabilities behind it, and the count of output tokens is zero."
   >
@@ -2280,6 +2316,7 @@ const MULTI = sci.multi as unknown as [string, number][];
 const MoreTypes: Page = () => (
   <Frame
     part={3}
+    nb={1}
     title="The same readout covers some newer answer types"
     line={`Multi-select is one yes or no question per option. A number is a choice over candidate values. Our untrained model gets the count wrong: the email says twice.`}
   >
@@ -2333,7 +2370,7 @@ const MoreTypes: Page = () => (
 );
 
 const ModelRow = ({ name, by, access, what }: { name: string; by: string; access: string; what: string }) => (
-  <div style={{ ...row, gap: 24, fontSize: 29, lineHeight: 1.3, padding: '15px 0', borderBottom: `2px solid ${C.rule}`, alignItems: 'baseline' }}>
+  <div style={{ ...row, gap: 24, fontSize: 29, lineHeight: 1.3, padding: '12px 0', borderBottom: `2px solid ${C.rule}`, alignItems: 'baseline' }}>
     <div style={{ width: 330, fontWeight: 700, flexShrink: 0 }}>{name}</div>
     <div style={{ width: 210, color: C.soft, flexShrink: 0 }}>{by}</div>
     <div style={{ width: 330, color: C.s1, flexShrink: 0 }}>{access}</div>
@@ -2346,21 +2383,25 @@ const Jev: Page = () => (
     part={3}
     title="Jev came first, and more decision models have followed"
     line="Jev’s architecture, size and training method are unpublished. We read letter logits from an open model so that every step can be inspected."
+    src="vendor pages and docs · Roitman, 2026, section 6, for Laya, System One Gemma and the last line · few of these have independent tests"
   >
-    <div style={{ ...col, marginTop: 4 }}>
-      <ModelRow name="Jev" by="TypeSafe AI" access="hosted · September 2026" what="noul, choice and score on text; $0.042 per million input tokens" />
+    <div style={{ ...col, marginTop: 0 }}>
+      <ModelRow name="Jev" by="TypeSafe AI" access="hosted · September 2026" what="noul, choice, score; $0.042 per million input tokens" />
       <Steps>
         <Step>
           <ModelRow name="d1.2 and d1.2-ultra" by="Liquid AI" access="hosted · November 2026" what="text, images and audio; five more answer types" />
-          <ModelRow name="d1-2B and d1-omni" by="Liquid AI" access="open weights" what="the earlier d1 models, which can be run locally" />
+          <ModelRow name="d1-2B, d1-3B, d1-omni" by="Liquid AI" access="open weights" what="the earlier d1 models, which run locally" />
         </Step>
         <Step>
-          <ModelRow name="FastDecisionModel" by="Unsloth" access="train your own" what="LoRA and a decision head on an open LLM; Part 5 and notebook 3" />
+          <ModelRow name="Laya" by="open source" access="open weights · Apache 2.0" what="421 M parameters; about 33 ms on one GPU" />
+          <ModelRow name="System One Gemma" by="open source" access="open weights · Apache 2.0" what="270 M; Gemma 3 converted by the three edits" />
         </Step>
         <Step>
-          <div style={{ fontSize: 27, lineHeight: 1.45, color: C.soft, marginTop: 22 }}>
-            Also named in November 2026 roundups, and not checked by us: Perplexity Decider, OpenAI’s Decisions API, Microsoft Decision-1,
-            AWS Strands Decider and Cloudflare Clef. Artificial Analysis publishes a Decision Index that ranks these models.
+          <ModelRow name="FastDecisionModel" by="Unsloth" access="train your own" what="LoRA and a head on an open LLM; notebook 3" />
+        </Step>
+        <Step>
+          <div style={{ fontSize: 26, lineHeight: 1.45, color: C.soft, marginTop: 18 }}>
+            Also listed in Roitman’s guide: THX-01, Tachyone, OpenJev-RLCD, Cloudflare Clef, OpenAI’s Decisions API and Microsoft-Decision-1.
           </div>
         </Step>
       </Steps>
@@ -2484,7 +2525,7 @@ const Forecaster: Page = () => (
 );
 
 const Definition: Page = () => (
-  <Frame part={4} title="Calibration: the definition" line="The definition applies to a group of predictions. We cannot say whether a single prediction is calibrated.">
+  <Frame part={4} src="Guo et al., 2017 · scikit-learn user guide, “Probability calibration”" title="Calibration: the definition" line="The definition applies to a group of predictions. We cannot say whether a single prediction is calibrated.">
     <div style={{ ...col, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
       <p style={{ fontFamily: serif, fontSize: 68, lineHeight: 1.35, textAlign: 'center', maxWidth: 1500, margin: 0 }}>
         Among all the answers given with <span style={{ color: C.pred }}>probability p</span>, a{' '}
@@ -2632,6 +2673,7 @@ const EceRow = ({ range, n, acc, conf, gap, term }: { range: string; n: number; 
 const EceFormula: Page = () => (
   <Frame
     part={4}
+    src="Guo et al., “On Calibration of Modern Neural Networks”, 2017"
     title="One number: expected calibration error"
     line="ECE is the average gap, with each bin weighted by its share of the predictions. A perfectly calibrated model scores 0."
   >
@@ -2678,6 +2720,7 @@ const EceFormula: Page = () => (
 const EceCode: Page = () => (
   <Frame
     part={4}
+    nb={1}
     title="ECE in a few lines of Python"
     line="conf is each prediction’s top probability; correct is 1 or 0. On our ten predictions with these three bins it returns 0.16."
   >
@@ -2772,6 +2815,7 @@ const Setup = ({ head, big, children }: { head: string; big: string; children: R
 const RealSetup: Page = () => (
   <Frame
     part={4}
+    nb={1}
     title="Now a real test: the model, the data, the question"
     line="We use the same small model as in Parts 2 and 3, on a public dataset where every item has a known correct answer."
   >
@@ -2897,6 +2941,7 @@ const Way = ({ n, head, how, cost, gives, color }: { n: string; head: string; ho
 const ConfWays: Page = () => (
   <Frame
     part={4}
+    src="read: Guo et al., 2017 · ask: Tian et al., 2023 · sample: self-consistency, as reviewed in Roitman, 2026, section 9.5"
     title="Is the softmax the wrong place to get a confidence?"
     line="So far we read it: the largest softmax probability, the standard definition in calibration research. Would another source be better calibrated? The next slide measures all three."
   >
@@ -2932,6 +2977,7 @@ const CmpRow = ({ name, sub, a, c, e, color }: { name: string; sub: string; a: n
 const ConfCompare: Page = () => (
   <Frame
     part={4}
+    nb={1}
     title="The three sources, measured on our model"
     line={`On the same ${CC.n} news items, the written confidence is no better calibrated than the read one. Sampling a one-token answer estimates the read probability, at ${LN} times the cost here.`}
   >
@@ -3038,6 +3084,7 @@ const TOPTERM = (TOPBIN.n / sci.zs.n) * Math.abs(TOPBIN.acc - TOPBIN.conf);
 const RealBefore: Page = () => (
   <Frame
     part={4}
+    nb={1}
     title="The reliability diagram for our model"
     line={`${TOPBIN.n} of the 1,000 answers come with confidence above 0.9, and only ${pct(TOPBIN.acc)} of those are right. That one bin accounts for most of the ECE.`}
   >
@@ -3131,6 +3178,7 @@ const TempWorked: Page = () => {
   return (
     <Frame
       part={4}
+      src="temperature scaling: Guo et al., 2017"
       title="Temperature: divide every logit by T, then softmax"
       line="With T = 2 the gaps between logits are halved. The top option falls from 0.66 to 0.50 and is still the top option."
     >
@@ -3228,6 +3276,7 @@ const ChooseT: Page = () => {
   return (
     <Frame
       part={4}
+      nb={1}
       title="Choosing T: try many values on held-out items"
       line={`Log loss is the average of −log(probability given to the correct topic). On 500 held-out items it is lowest at T = ${sci.zs.T.toFixed(1)}. The 1,000 test items are never used to pick T.`}
     >
@@ -3303,6 +3352,7 @@ const SameItem: Page = () => {
 const RealAfter: Page = () => (
   <Frame
     part={4}
+    nb={1}
     title={`All 1,000 test items, before and after T = ${sci.zs.T.toFixed(1)}`}
     line={`ECE falls from ${f2(sci.zs.ece)} to ${f2(sci.zs.ece_T)}. Accuracy stays at ${f2(sci.zs.accuracy)}, because dividing by T never changes which option is on top.`}
   >
@@ -3394,6 +3444,7 @@ const Stage = ({ n, name, color, data, goal, scale }: { n: string; name: string;
 const TrainPipeline: Page = () => (
   <Frame
     part={5}
+    src="for the long version: Karpathy, “Deep Dive into LLMs like ChatGPT”, 2025 · Huyen, “RLHF”, 2023"
     title="A chat model is trained in three stages"
     line="Each stage uses less data than the one before and moves the model closer to the behaviour we want. The question for this part: what does each objective reward?"
   >
@@ -3422,6 +3473,7 @@ const NTRow = ({ ctx, next }: { ctx: string; next: string }) => (
 const PreTrain: Page = () => (
   <Frame
     part={5}
+    src="token counts from the GPT-3 paper, Meta’s Llama 3 announcement and the Qwen2.5 report"
     title="Stage 1, pre-training: predict the next token"
     line="Every position in every document is a training example, and the text itself supplies the correct answer. No person labels anything."
   >
@@ -3495,6 +3547,7 @@ const BaseModel: Page = () => (
 const SFT: Page = () => (
   <Frame
     part={5}
+    src="dataset sizes as in Huyen, “RLHF”, 2023, and the dataset cards"
     title="Stage 2, supervised fine-tuning on instruction pairs"
     line="This stage is also called instruction tuning. The loss is the same next-token loss, counted only on the response, so the model learns to answer in the format shown."
   >
@@ -3556,6 +3609,7 @@ const Window = ({ title, children, width }: { title: string; children: ReactNode
 const RLHFPage: Page = () => (
   <Frame
     part={5}
+    src="Ouyang et al., 2022 (InstructGPT) · Huyen, 2023: raters rank the answers and agree about 73% of the time"
     title="Stage 3, RLHF: what the human rater sees"
     line="A rater reads one prompt and two answers from the model, and clicks the better one. Thousands of such clicks are the training data for this stage."
   >
@@ -3598,6 +3652,7 @@ const RLHFPage: Page = () => (
 const RLHFLoop: Page = () => (
   <Frame
     part={5}
+    src="Ouyang et al., “Training language models to follow instructions with human feedback”, 2022"
     title="Stage 3, RLHF: from clicks to an updated model"
     line="The objective in words: write answers that a model of human preference scores highly. InstructGPT (2022) used about 33,000 ranked prompts and the PPO algorithm."
   >
@@ -3705,6 +3760,7 @@ const RLCard = ({ name, full, pays, side, color }: { name: string; full: string;
 const RLTwo: Page = () => (
   <Frame
     part={5}
+    src="framing from Keen, IBM Technology, 2026 · over-confidence after RLHF measured by Leng et al., 2025"
     title="What the two rewards measure, and what they ignore"
     line="Neither reward looks at probabilities, so a model trained this way is never taught how sure it should be."
   >
@@ -3734,6 +3790,7 @@ const RLTwo: Page = () => (
 const RLCD: Page = () => (
   <Frame
     part={5}
+    src="Keen, IBM Technology, 2026 · Roitman, 2026, section 6.2"
     title="RLCD: reinforcement learning for calibrated decisions"
     line="RLCD is TypeSafe’s name for how Jev is trained. They have published only the goal, so in the next slides we build our own reward with the same goal."
   >
@@ -3939,6 +3996,7 @@ const AccReward: Page = () => (
 const BrierOne: Page = () => (
   <Frame
     part={5}
+    src="Brier, 1950"
     title="Reward B: a penalty that looks at the stated probability"
     line="This is the Brier score for one email. y is 1 if the customer did want a refund and 0 if not, and a lower penalty is better. Being sure and wrong costs 81 times more."
   >
@@ -4006,6 +4064,8 @@ const BrierCurve = () => {
 const BrierExpected: Page = () => (
   <Frame
     part={5}
+    src="the same example, per email, is in Roitman, 2026, section 2.3: 0.21 at 0.7 and 0.25 at 0.9"
+    nb={2}
     title="Add the penalty over the ten emails"
     line="Seven emails are “yes” and three are “no”. The total penalty is lowest when the model says 0.7. A penalty with this property is called a proper scoring rule."
   >
@@ -4036,6 +4096,7 @@ const BrierExpected: Page = () => (
 const LogScore: Page = () => (
   <Frame
     part={5}
+    nb={2}
     title="Cross-entropy is also a proper scoring rule"
     line="Cross-entropy, the usual classification loss, is the log score. A classifier head trained with it is rewarded for reporting correct probabilities."
   >
@@ -4084,6 +4145,7 @@ const Idea = ({ n, head, children }: { n: string; head: string; children: ReactN
 const RLCDIdeas: Page = () => (
   <Frame
     part={5}
+    src="Unsloth, “Train your own Decision Model”, 2026 · Roitman, 2026, sections 6.2 and 9.4"
     title="How a reward for calibrated decisions can be built"
     line="This is our reading of what such training needs, and Unsloth’s trainer follows similar steps. Whether Jev’s RLCD works this way has not been published."
   >
@@ -4229,6 +4291,7 @@ const HeadMath: Page = () => (
 const HeadTwoPhases: Page = () => (
   <Frame
     part={5}
+    nb={2}
     title="Training happens in two phases"
     line={`The slow part runs once: ${sci.head.n_train.toLocaleString('en-US')} forward passes of the frozen LLM, with each last vector saved. After that the head trains on the saved vectors in seconds.`}
   >
@@ -4258,6 +4321,7 @@ const DEMO = sci.head.demo as unknown as { text: string; probs: Record<string, n
 const HeadDemo: Page = () => (
   <Frame
     part={5}
+    nb={2}
     title="The trained head on three new headlines"
     line="These headlines were written for this lecture and are in none of the datasets. Each prediction is one forward pass of the frozen LLM followed by the head."
   >
@@ -4307,6 +4371,7 @@ const HeadFigure: Page = () => (
 const HeadCode: Page = () => (
   <Frame
     part={5}
+    nb={2}
     title="The head and its training loop"
     line={`H holds one ${sci.hidden}-number vector per news item (${sci.head.n_train.toLocaleString('en-US')} items), y the correct topic. The LLM ran once per item and is not touched again.`}
   >
@@ -4345,6 +4410,7 @@ const ResRow = ({ name, acc, e, color = C.ink }: { name: string; acc: number; e:
 const HeadResults: Page = () => (
   <Frame
     part={5}
+    nb={2}
     title="Results after training, on the same 1,000 test items"
     line={`The ${sci.head.params.toLocaleString('en-US')}-parameter head trains in a few seconds. It is more accurate and much better calibrated than reading the LLM’s letter logits.`}
   >
@@ -4370,6 +4436,8 @@ const HeadResults: Page = () => (
 const UnslothRow: Page = () => (
   <Frame
     part={5}
+    src="Unsloth, “Train your own Decision Model with Unsloth”, 2026"
+    nb={3}
     title="The general version: Unsloth’s decision models"
     line="Unsloth applies the same idea to any list of questions per input. Each training row has a state, its questions and the correct answers."
   >
@@ -4403,6 +4471,8 @@ const UnslothRow: Page = () => (
 const UnslothCode: Page = () => (
   <Frame
     part={5}
+    src="Unsloth, “Train your own Decision Model with Unsloth”, 2026"
+    nb={3}
     title="Train, calibrate, decide"
     line="The model is an LLM with LoRA adapters and a decision head. As in our notebook, calibration uses rows held out of training. Notebook 3 runs this recipe."
   >
@@ -4446,6 +4516,7 @@ const UBar = ({ name, a, b }: { name: string; a: number; b: number }) => (
 const UnslothNumbers: Page = () => (
   <Frame
     part={5}
+    src="benchmark table in Unsloth’s guide, 2026"
     title="Unsloth’s reported accuracy for Qwen3.5-0.8B"
     line="These are Unsloth’s numbers and we have not reproduced them. They report about 4 GB of GPU memory and 42 minutes. Before training, the new head is close to guessing."
   >
@@ -4557,6 +4628,7 @@ const Group = ({ x, w, answer, how }: { x: number; w: number; answer: string; ho
 const OnePrompt: Page = () => (
   <Frame
     part={6}
+    src="Unsloth’s description of its head · Roitman, 2026, section 6.1"
     title="One prompt, one pass, a score for every option"
     line="The state and all the questions go in together. The same transformer blocks read them once, and a shared head gives each option a score, turned into probabilities within its own question."
   >
@@ -4606,6 +4678,7 @@ const Phase = ({ when, what, detail, color }: { when: string; what: string; deta
 const TrainOnce: Page = () => (
   <Frame
     part={6}
+    src="accuracy figures from Unsloth’s guide, 2026"
     title="What gets trained, and how often"
     line="Training happens once, on a mix of many questions of every type. Unsloth reports that a new head starts near chance, 30 to 37%, and reaches 73% after that training."
   >
@@ -4637,6 +4710,7 @@ const StepCard = ({ n, head, body }: { n: string; head: string; body: string }) 
 const Recipe: Page = () => (
   <Frame
     part={6}
+    src="threshold advice from Liquid AI’s model pages · Roitman, 2026, section 10.7"
     title="A recipe for your own problem"
     line="Steps 2 to 5 are our advice. The vendors’ pages say one thing on this: calibrate any decision threshold on data from your own use."
   >
@@ -5025,6 +5099,7 @@ const ThresholdLive: Page = () => {
   return (
     <Frame
       part={6}
+      nb={2}
       title="Choose the threshold, read off the error rate"
       line="This is the measurement the recipe asks for, done on our trained head and the 1,000 news items. A higher threshold sends more items to a person and makes the automatic path safer."
     >
@@ -5072,6 +5147,7 @@ const ThresholdLive: Page = () => {
 const Pipeline: Page = () => (
   <Frame
     part={6}
+    src="confidence-gated cascades: Roitman, 2026, section 13"
     title="Application 1 as a pipeline: a decision model and an LLM"
     line="The decision model routes the email, the LLM writes the reply, and the decision model checks the reply. The LLM runs only for the step that needs writing."
   >
@@ -5106,6 +5182,7 @@ const Limit = ({ head, body }: { head: string; body: string }) => (
 const Limits: Page = () => (
   <Frame
     part={6}
+    src="Deußer et al., arXiv 2609.37647, 2026"
     title="Limits reported by an independent benchmark of Jev"
     line="Deußer et al., 2026, tested Jev zero-shot on 37 datasets. It beat a 27-billion-parameter open LLM on 27 of them, and the paper reports these limits."
   >
@@ -5121,6 +5198,7 @@ const Limits: Page = () => (
 const Jevons: Page = () => (
   <Frame
     part={6}
+    src="Jevons, The Coal Question, 1865 · price from Jev’s listing"
     title="Why the name: Jevons, 1865"
     line="When a decision costs almost nothing, people will use it in places where an LLM is too slow or too expensive today."
   >
@@ -5155,26 +5233,751 @@ const Jevons: Page = () => (
   </Frame>
 );
 
+// ---------------------------------------------------------------- everyday pictures, taxonomy, check-yourself
+
+// One row of exam bubbles. With p, each bubble is shaded by area in proportion to its probability.
+const Bubbles = ({ opts, p, pick }: { opts: string[]; p?: number[]; pick?: number }) => (
+  <svg width={150 * opts.length} height={190} viewBox={`0 0 ${150 * opts.length} 190`}>
+    {opts.map((o, i) => (
+      <g key={o} transform={`translate(${i * 150} 0)`}>
+        <circle cx={75} cy={56} r={46} fill={pick === i ? C.s1 : C.white} stroke={C.s1} strokeWidth={4} />
+        {p && <circle cx={75} cy={56} r={Math.max(3, 46 * Math.sqrt(p[i]))} fill={C.s1} />}
+        <text x={75} y={140} textAnchor="middle" fontSize={27} fill={C.ink}>{o}</text>
+        {p && <text x={75} y={178} textAnchor="middle" fontSize={28} fontFamily={mono} fill={C.pred}>{f2(p[i])}</text>}
+      </g>
+    ))}
+  </svg>
+);
+
+const TEAMS = ['billing', 'technical', 'sales'];
+
+const ExamSheets: Page = () => (
+  <Frame
+    part={1}
+    title="An exam with two kinds of answer sheet"
+    line="A chat LLM writes in the booklet for every question. A decision model fills the bubble sheet, and shades each bubble by how sure it is."
+  >
+    <div style={{ ...row, gap: 30, alignItems: 'stretch', marginTop: 50 }}>
+      <Card color={C.s2} style={{ width: 520, flexShrink: 0, padding: '26px 30px' }}>
+        <Label color={C.s2}>Answer booklet</Label>
+        <div style={{ fontSize: 30, lineHeight: 1.35, margin: '14px 0 18px', height: 84 }}>“Explain why this customer is unhappy.”</div>
+        <svg width={440} height={190} viewBox="0 0 440 190">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <g key={i}>
+              <line x1={0} y1={30 + i * 36} x2={440} y2={30 + i * 36} stroke={C.rule} strokeWidth={2} />
+              <path d={`M4,${22 + i * 36} q14,-12 28,0 t28,0 t28,0 t28,0 t28,0 t28,0 t28,0 t28,0 t28,0 t28,0 t28,0 t28,0${i === 4 ? '' : ' t28,0 t28,0'}`} fill="none" stroke={C.s2} strokeWidth={3} />
+            </g>
+          ))}
+        </svg>
+        <div style={{ fontSize: 27, lineHeight: 1.4, color: C.soft, marginTop: 14 }}>Written word by word. Someone has to read all of it.</div>
+      </Card>
+      <Card color={C.s1} style={{ width: 520, flexShrink: 0, padding: '26px 30px' }}>
+        <Label color={C.s1}>Bubble sheet</Label>
+        <div style={{ fontSize: 30, lineHeight: 1.35, margin: '14px 0 18px', height: 84 }}>“Which team should handle this email?”</div>
+        <Bubbles opts={TEAMS} pick={1} />
+        <div style={{ fontSize: 27, lineHeight: 1.4, color: C.soft, marginTop: 14 }}>One mark from a fixed list. A machine reads it at once.</div>
+      </Card>
+      <Steps>
+        <Step>
+          <Card color={C.s1} style={{ width: 520, flexShrink: 0, padding: '26px 30px', height: '100%', boxSizing: 'border-box' }}>
+            <Label color={C.s1}>The same sheet, shaded</Label>
+            <div style={{ fontSize: 30, lineHeight: 1.35, margin: '14px 0 18px', height: 84 }}>Shade each bubble by how sure you are.</div>
+            <Bubbles opts={TEAMS} p={sci.p_team} />
+            <div style={{ fontSize: 27, lineHeight: 1.4, color: C.soft, marginTop: 14 }}>This is what a decision model returns.</div>
+          </Card>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const Check = ({ part, q, children, line }: { part: number; q: ReactNode; children: ReactNode; line?: string }) => (
+  <Frame part={part} title="Check yourself" line={line}>
+    <div style={{ ...col, gap: 34, marginTop: 40 }}>
+      <Card color={'var(--osd-accent)'} style={{ padding: '26px 34px' }}>
+        <div style={{ fontFamily: serif, fontSize: 42, lineHeight: 1.3 }}>{q}</div>
+      </Card>
+      {children}
+    </div>
+  </Frame>
+);
+
+const Ans = ({ children }: { children: ReactNode }) => (
+  <div style={{ fontFamily: mono, fontSize: 34, lineHeight: 1.5, paddingLeft: 34, borderLeft: `6px solid ${C.truth}` }}>{children}</div>
+);
+const P = ({ children }: { children: ReactNode }) => <span style={{ color: C.pred }}>{children}</span>;
+const T = ({ children }: { children: ReactNode }) => <span style={{ color: C.truth }}>{children}</span>;
+const L = ({ children }: { children: ReactNode }) => <span style={{ color: C.loss, fontWeight: 700 }}>{children}</span>;
+
+const TypeQ = ({ q, t, why }: { q: string; t: string; why: string }) => (
+  <div style={{ ...row, gap: 26, alignItems: 'center', fontSize: 31, padding: '13px 0', borderBottom: `2px solid ${C.rule}` }}>
+    <div style={{ width: 760, flexShrink: 0 }}>{q}</div>
+    <div style={{ width: 230, flexShrink: 0 }}>{t === 'LLM' ? <span style={{ color: C.s2, fontWeight: 700 }}>needs an LLM</span> : <TypeChip t={t} />}</div>
+    <div style={{ flex: 1, color: C.soft, fontSize: 27 }}>{why}</div>
+  </div>
+);
+
+const Check1: Page = () => (
+  <Check part={1} q="Which answer type fits each question, or does it need a model that writes?" line="If the answer comes from a list, a scale, or a yes or no, it is a System 1 call.">
+    <div style={{ ...col }}>
+      <Steps>
+        <Step><TypeQ q="Is this chest X-ray normal?" t="noul" why="yes or no" /></Step>
+        <Step><TypeQ q="Which of our 40 intents is this message?" t="choice" why="one option from a list" /></Step>
+        <Step><TypeQ q="How bad is the crack in this wall?" t="score" why="none, minor, major: an ordered scale" /></Step>
+        <Step><TypeQ q="Write a reply that apologises for the double charge." t="LLM" why="the answer is free text" /></Step>
+      </Steps>
+    </div>
+  </Check>
+);
+
+const Check2: Page = () => (
+  <Check part={2} q="A reasoning model writes 300 thinking tokens and then a 40-token answer. How many forward passes is that?" line="Every written token is one more pass through the whole model. Part 3 gets the answer in one.">
+    <Steps>
+      <Step><Ans>300 thinking + 40 answer + 1 stop = <L>341 passes</L></Ans></Step>
+      <Step><Ans>at about {Math.round(sci.ms_generate / sci.passes)} ms per pass on our laptop: 341 × {Math.round(sci.ms_generate / sci.passes)} ms = {((341 * Math.round(sci.ms_generate / sci.passes)) / 1000).toFixed(2)} s for one email</Ans></Step>
+    </Steps>
+  </Check>
+);
+
+const Check3: Page = () => (
+  <Check part={3} q="The letter logits are A 2.0, B 2.0, C 0.0. What are the three probabilities, and what should the program do?" line="Reading the probabilities shows the tie. A written answer would have picked one of the two and hidden it.">
+    <Steps>
+      <Step><Ans>e<sup>2.0</sup> = 7.39 &nbsp; e<sup>2.0</sup> = 7.39 &nbsp; e<sup>0.0</sup> = 1.00 &nbsp; total = 15.78</Ans></Step>
+      <Step><Ans>7.39 / 15.78 = <P>0.47</P> &nbsp; 7.39 / 15.78 = <P>0.47</P> &nbsp; 1.00 / 15.78 = <P>0.06</P></Ans></Step>
+      <Step><Ans>A and B are tied, so the program should <T>ask a person</T> or a slower model.</Ans></Step>
+    </Steps>
+  </Check>
+);
+
+const Check4: Page = () => (
+  <Check part={4} q="A model gives 50 answers with confidence 0.9 and gets 30 of them right. Is it calibrated? What would a temperature do?" line="Temperature moves the confidence towards the accuracy. It cannot make a wrong answer right.">
+    <Steps>
+      <Step><Ans>accuracy in this bin = 30 / 50 = <T>0.60</T> &nbsp; confidence = <P>0.90</P></Ans></Step>
+      <Step><Ans>gap = | 0.60 − 0.90 | = <L>0.30</L>, so the model is over-confident</Ans></Step>
+      <Step><Ans>T above 1 lowers the 0.90. The 30 right answers stay 30.</Ans></Step>
+    </Steps>
+  </Check>
+);
+
+const Check5: Page = () => (
+  <Check part={5} q="Seven of the ten emails were “yes”. What is the total Brier penalty for a model that says 0.6? Is that better than saying 0.7?" line="Any report other than the true rate, 0.7, costs more. This is what makes the score proper.">
+    <Steps>
+      <Step><Ans>7 × (0.6 − 1)² + 3 × (0.6 − 0)² = 7 × 0.16 + 3 × 0.36</Ans></Step>
+      <Step><Ans>= 1.12 + 1.08 = <L>2.20</L></Ans></Step>
+      <Step><Ans>saying 0.7 costs 7 × 0.09 + 3 × 0.49 = <L>2.10</L>, which is lower</Ans></Step>
+    </Steps>
+  </Check>
+);
+
+const Check6: Page = () => (
+  <Check part={6} q="On your 200 labelled satellite tiles a general decision model has accuracy 0.62 and ECE 0.04. Do you calibrate it or train it?" line="Calibration repairs the confidence. Only training, or a better model, repairs the answers.">
+    <Steps>
+      <Step><Ans>ECE 0.04: the confidence already matches the accuracy, so a temperature has little left to fix</Ans></Step>
+      <Step><Ans>accuracy 0.62 is the problem, and calibration never changes accuracy</Ans></Step>
+      <Step><Ans><T>Train</T>: fine-tune on labelled tiles, then check calibration again on tiles kept aside</Ans></Step>
+    </Steps>
+  </Check>
+);
+
+// ---------------------------------------------------------------- part 3 additions
+
+const ReadOnce: Page = () => (
+  <Frame
+    part={3}
+    title="Ask a hundred times, or read once"
+    line="Counting written answers estimates the probability. Reading the logits gives that probability directly, in one pass."
+    src="the comparison follows Roitman, 2026, section 2.3 · the 100 samples are an illustration, the 0.74 is our reading"
+    nb={1}
+  >
+    <div style={{ ...row, gap: 40, alignItems: 'stretch' }}>
+      <Card color={C.s2} style={{ width: 800, flexShrink: 0, padding: '24px 32px' }}>
+        <Label color={C.s2}>Ask and count</Label>
+        <div style={{ ...row, gap: 34, alignItems: 'center', marginTop: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(20, 16px)', gap: 5 }}>
+            {Array.from({ length: 100 }, (_, i) => (
+              <div key={i} style={{ width: 16, height: 30, borderRadius: 3, background: i < 74 ? C.s2 : C.rule }} />
+            ))}
+          </div>
+          <div style={{ fontSize: 28, lineHeight: 1.45 }}>
+            “Is the customer asking for a refund?”
+            <div style={{ fontFamily: mono, marginTop: 8 }}>74 of 100 say yes = <P>0.74</P></div>
+            <div style={{ color: C.loss, marginTop: 8 }}>100 generations</div>
+          </div>
+        </div>
+      </Card>
+      <Card color={C.s1} style={{ flex: 1, padding: '24px 32px' }}>
+        <Label color={C.s1}>Read once</Label>
+        <div style={{ ...row, gap: 20, alignItems: 'center', marginTop: 34 }}>
+          <div style={{ fontSize: 30 }}>yes</div>
+          <div style={{ width: 420, height: 40, background: C.panel, borderRadius: 6 }}>
+            <div style={{ width: 420 * sci.p_refund_yes, height: 40, background: C.pred, borderRadius: 6 }} />
+          </div>
+          <div style={{ fontFamily: mono, fontSize: 32, color: C.pred }}>{f2(sci.p_refund_yes)}</div>
+        </div>
+        <div style={{ fontSize: 28, color: C.truth, marginTop: 30 }}>1 forward pass</div>
+      </Card>
+    </div>
+    <Steps>
+      <Step>
+        <div style={{ marginTop: 30, fontSize: 30, color: C.soft }}>How many written answers do we need for the count to be within ±0.10 of the true probability, 95% of the time?</div>
+      </Step>
+      <Step>
+        <div style={{ marginTop: 14, fontFamily: mono, fontSize: 33, lineHeight: 1.6 }}>
+          n = 1.96² × 0.5 × 0.5 / 0.10² = 3.84 × 0.25 / 0.01 = 96.04 → <L>97 answers</L>
+          <br />
+          for ±0.05: 3.84 × 0.25 / 0.0025 = 384.16 → <L>385 answers</L>
+        </div>
+      </Step>
+    </Steps>
+  </Frame>
+);
+
+const Mini3 = ({ items }: { items: [string, string?][] }) => (
+  <div style={{ ...row, gap: 8, alignItems: 'center', height: 74, flexWrap: 'nowrap' }}>
+    {items.map(([t, c], i) =>
+      t === '→' ? (
+        <span key={i} style={{ fontSize: 24, color: C.muted }}>→</span>
+      ) : (
+        <span key={i} style={{ fontSize: 20, fontWeight: 600, padding: '7px 9px', borderRadius: 7, border: `2px solid ${c ?? C.ink}`, color: c ?? C.ink, background: C.white, whiteSpace: 'nowrap' }}>{t}</span>
+      ),
+    )}
+  </div>
+);
+
+const Fam = ({ n, name, items, out, ex, size, here }: { n: string; name: string; items: [string, string?][]; out: string; ex: string; size: string; here?: boolean }) => (
+  <Card color={here ? C.s1 : C.rule} style={{ width: 324, flexShrink: 0, padding: '20px 20px', boxSizing: 'border-box', background: here ? '#fdf3e4' : C.white }}>
+    <div style={{ ...row, alignItems: 'baseline', gap: 12 }}>
+      <span style={{ fontFamily: serif, fontSize: 44, fontWeight: 700, color: here ? C.s1 : C.muted }}>{n}</span>
+      {here && <span style={{ fontSize: 20, fontWeight: 700, color: C.s1, letterSpacing: '0.08em' }}>THIS LECTURE</span>}
+    </div>
+    <div style={{ fontFamily: serif, fontSize: 32, fontWeight: 700, lineHeight: 1.15, height: 78, marginTop: 4 }}>{name}</div>
+    <Mini3 items={items} />
+    <div style={{ fontSize: 25, lineHeight: 1.35, height: 108, marginTop: 10 }}>{out}</div>
+    <div style={{ fontSize: 23, lineHeight: 1.35, color: C.soft, height: 100 }}>{ex}</div>
+    <div style={{ fontFamily: mono, fontSize: 20, color: C.muted }}>{size}</div>
+  </Card>
+);
+
+const Taxonomy: Page = () => (
+  <Frame
+    part={3}
+    title="Five families of models that decide in one pass"
+    line="Decision models such as Jev are the third family. You have met the first as a BERT classifier, and the second is the judge inside RLHF in Part 5."
+    src="families, latencies and sizes as listed in Roitman, “The Hitchhiker’s Guide to System 1 Models”, arXiv 2610.33775, section 3"
+  >
+    <div style={{ ...row, gap: 20, alignItems: 'stretch' }}>
+      <Fam n="I" name="Encoder classifiers" items={[['encoder', C.truth], ['→'], ['head'], ['→'], ['label', C.pred]]} out="One label from a fixed set, fixed when the model was trained." ex="BERT, DeBERTa: spam, sentiment, intent" size="5–50 ms · 0.1–0.6 B" />
+      <Steps>
+        <Step><Fam n="II" name="Reward models" items={[['LLM', C.s2], ['→'], ['head'], ['→'], ['0.82', C.pred]]} out="One score for a prompt and its answer." ex="the judge that RLHF trains against" size="10–100 ms · 0.3–70 B" /></Step>
+        <Step><Fam here n="III" name="Decision engines" items={[['reader', C.s1], ['→'], ['3 typed heads', C.s1]]} out="Typed answers to questions written in the request." ex="Jev, Laya, Liquid d1, System One Gemma" size="10–70 ms · 0.15–27 B" /></Step>
+        <Step><Fam n="IV" name="Contrastive models" items={[['state'], ['action'], ['→'], ['match', C.pred]]} out="How well an input matches each stored action." ex="CLM-8B; dense search and routing" size="5–30 ms · 0.3–8 B" /></Step>
+        <Step><Fam n="V" name="Extraction models" items={[['text'], ['→'], ['span', C.truth]]} out="A value copied from the input: a span, a number, a box." ex="newer and less studied" size="1–10 ms · 0.15–1 B" /></Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const EditBand = ({ y, n, head, body }: { y: number; n: string; head: string; body: string }) => (
+  <g>
+    <circle cx={34} cy={y + 46} r={30} fill={C.s1} />
+    <text x={34} y={y + 58} textAnchor="middle" fontSize={34} fontWeight={700} fill={C.white}>{n}</text>
+    <text x={90} y={y + 44} fontSize={36} fontWeight={700} fill={C.ink}>{head}</text>
+    <text x={90} y={y + 90} fontSize={27} fill={C.soft}>{body}</text>
+  </g>
+);
+
+const Toks4 = ({ color, arcs, label }: { color: string; arcs: [number, number][]; label: string }) => (
+  <g>
+    {arcs.map(([x1, x2]) => (
+      <EDArc key={x1} x1={x1} x2={x2} y={110} color={color} />
+    ))}
+    {['I', 'was', 'charged', 'twice'].map((t, i) => (
+      <g key={t}>
+        <rect x={10 + i * 78} y={114} width={70} height={44} rx={7} fill={i === 2 ? C.panel : C.white} stroke={i === 2 ? C.ink : C.rule} strokeWidth={2} />
+        <text x={45 + i * 78} y={143} textAnchor="middle" fontSize={17} fontFamily={mono}>{t}</text>
+      </g>
+    ))}
+    <text x={165} y={190} textAnchor="middle" fontSize={22} fill={color}>{label}</text>
+  </g>
+);
+
+const Convert: Page = () => (
+  <Frame
+    part={3}
+    title="Turning a chat model into a decision model: three edits"
+    line="The transformer blocks are kept. What goes is the vocabulary output layer and the rule that a token may look only to its left."
+    src="recipe of System One Gemma (Gemma 3, 270 M parameters), as described in Roitman, 2026, section 6.5"
+    nb={2}
+  >
+    <div style={{ position: 'relative', width: 1700, height: 690 }}>
+      <svg width={1700} height={220} viewBox="0 0 1700 220" style={{ position: 'absolute', left: 0, top: 0 }}>
+        <EditBand y={0} n="1" head="Remove the output layer" body="It gave 151,936 scores, one per token. We need a few." />
+        <g transform="translate(900 10)">
+          <Strip x={0} y={20} keep={0} color={C.s1} />
+          <line x1={-10} y1={74} x2={390} y2={12} stroke={C.loss} strokeWidth={5} />
+          <text x={420} y={54} fontSize={26} fill={C.loss}>151,936 scores, removed</text>
+        </g>
+      </svg>
+      <Steps>
+        <Step>
+          <svg width={1700} height={230} viewBox="0 0 1700 230" style={{ position: 'absolute', left: 0, top: 215 }}>
+            <Arrows />
+            <EditBand y={40} n="2" head="Let every token see both sides" body="Nothing is written, so there is no future text to hide." />
+            <g transform="translate(900 20)">
+              <Toks4 color={C.s2} arcs={[[45, 185], [115, 195]]} label="before: left only" />
+              <text x={368} y={140} textAnchor="middle" fontSize={34} fill={C.muted}>→</text>
+              <g transform="translate(410 0)">
+                <Toks4 color={C.truth} arcs={[[45, 185], [115, 195], [279, 205]]} label="after: both sides" />
+              </g>
+            </g>
+          </svg>
+        </Step>
+        <Step>
+          <svg width={1700} height={220} viewBox="0 0 1700 220" style={{ position: 'absolute', left: 0, top: 470 }}>
+            <EditBand y={20} n="3" head="Attach a small head, then train" body="The head is new. LoRA adapts the blocks a little." />
+            <g transform="translate(900 24)">
+              {TEAMS.map((o, i) => (
+                <g key={o}>
+                  <rect x={i * 150} y={10} width={136} height={56} rx={8} fill={C.s1} />
+                  <text x={i * 150 + 68} y={47} textAnchor="middle" fontSize={24} fontWeight={600} fill={C.white}>{o}</text>
+                </g>
+              ))}
+              <text x={470} y={47} fontSize={26} fill={C.s1} fontWeight={600}>a score per option</text>
+              <text x={0} y={116} fontSize={25} fill={C.soft}>Our notebook 2 does edits 1 and 3 and leaves attention as it is.</text>
+            </g>
+          </svg>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+// ---------------------------------------------------------------- part 4 additions
+
+const Said = ({ ok }: { ok: boolean }) => (
+  <div style={{ ...col, alignItems: 'center', gap: 6 }}>
+    <div style={{ fontSize: 20, fontWeight: 700, color: C.pred, border: `2px solid ${C.pred}`, borderRadius: 14, padding: '4px 8px', background: C.white }}>100%</div>
+    <div style={{ width: 34, height: 34, borderRadius: 17, background: ok ? C.truth : C.white, border: `3px solid ${ok ? C.truth : C.muted}`, color: ok ? C.white : C.muted, fontSize: 20, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{ok ? '✓' : '✕'}</div>
+  </div>
+);
+
+const DiscountFriend: Page = () => (
+  <Frame
+    part={4}
+    title="You already recalibrate people"
+    line="You keep your friend’s answer and tone down the certainty. Temperature scaling does this to a model with one number, learnt from its track record."
+  >
+    <div style={{ ...row, gap: 34, alignItems: 'stretch', marginTop: 6 }}>
+      <Card style={{ width: 940, flexShrink: 0, padding: '26px 32px' }}>
+        <Label>A friend who is always certain</Label>
+        <div style={{ ...row, gap: 14, marginTop: 20 }}>
+          {[1, 1, 1, 0, 1, 1, 1, 1, 0, 1].map((ok, i) => (
+            <Said key={i} ok={ok === 1} />
+          ))}
+        </div>
+        <div style={{ fontFamily: mono, fontSize: 31, marginTop: 24 }}>
+          says <P>100%</P> every time · right <T>8 of 10</T>
+        </div>
+        <Steps>
+          <Step>
+            <div style={{ fontSize: 30, lineHeight: 1.4, marginTop: 18 }}>
+              Next time they say “100%”, you take the answer and hear <b style={{ color: C.pred }}>about 80%</b>.
+            </div>
+          </Step>
+        </Steps>
+      </Card>
+      <Steps>
+        <Step>
+          <Card color={C.pred} style={{ flex: 1, padding: '26px 32px' }}>
+            <Label color={C.pred}>Our model is this friend</Label>
+            <div style={{ fontFamily: mono, fontSize: 31, lineHeight: 1.7, marginTop: 16 }}>
+              says <P>{f2(sci.zs.mean_conf)}</P> on average
+              <br />
+              right <T>{f2(sci.zs.accuracy)}</T> of the time
+            </div>
+            <div style={{ fontSize: 28, lineHeight: 1.45, color: C.soft, marginTop: 16 }}>
+              Same answer, lower confidence: that is all a temperature does. The next slides work out how.
+            </div>
+          </Card>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const LitRow = ({ name, color, a, b }: { name: string; color: string; a: ReactNode; b: ReactNode }) => (
+  <div style={{ ...row, gap: 30, padding: '16px 0', borderBottom: `2px solid ${C.rule}`, fontSize: 27, lineHeight: 1.4 }}>
+    <div style={{ width: 250, flexShrink: 0, fontSize: 31, fontWeight: 700, color }}>{name}</div>
+    <div style={{ width: 690, flexShrink: 0 }}>{a}</div>
+    <div style={{ flex: 1, color: C.soft }}>{b}</div>
+  </div>
+);
+
+const LitConf: Page = () => (
+  <Frame
+    part={4}
+    title="What other studies found about the three sources"
+    line="The studies differ because the models differ. A large chat model can state a fair confidence and our 0.5 B model cannot, so measure on your own model and data."
+    src="Tian et al., “Just Ask for Calibration”, EMNLP 2023 · Leng et al., “Taming Overconfidence in LLMs”, 2025 · Roitman, 2026, section 9.5"
+  >
+    <div style={{ ...col, marginTop: 4 }}>
+      <div style={{ ...row, gap: 30, fontSize: 22, letterSpacing: '0.1em', color: C.muted, fontWeight: 600, paddingBottom: 8, borderBottom: `2px solid ${C.rule}` }}>
+        <div style={{ width: 250 }}>SOURCE</div>
+        <div style={{ width: 690 }}>WHAT WAS FOUND</div>
+        <div>THE CATCH</div>
+      </div>
+      <LitRow name="1. Read it" color={C.pred} a="Works well for classification, and costs one pass." b="Training with human preference pushes it towards over-confidence (Leng et al.). Hosted chat models often do not expose logits." />
+      <Steps>
+        <Step>
+          <LitRow name="2. Ask for it" color={C.s2} a="On ChatGPT, GPT-4 and Claude, the written confidence was better calibrated than counting samples, often halving ECE (Tian et al.)." b="Sensitive to the wording of the prompt. On our small model it was worse: ECE 0.18 against 0.14." />
+        </Step>
+        <Step>
+          <LitRow name="3. Sample it" color={C.s1} a="Better calibrated than asking, in the studies Roitman’s guide reviews." b="Costs one generation per sample: 97 for ±0.10." />
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const RepRow = ({ name, f, k, when, first }: { name: string; f: string; k: string; when: string; first?: boolean }) => (
+  <div style={{ ...row, gap: 30, padding: '20px 18px', borderBottom: `2px solid ${C.rule}`, fontSize: 28, lineHeight: 1.4, alignItems: 'center', background: first ? '#f3ecfb' : 'transparent' }}>
+    <div style={{ width: 300, flexShrink: 0, fontSize: 33, fontWeight: 700 }}>{name}</div>
+    <div style={{ width: 380, flexShrink: 0, fontFamily: mono, color: C.pred }}>{f}</div>
+    <div style={{ width: 250, flexShrink: 0 }}>{k}</div>
+    <div style={{ flex: 1, color: C.soft }}>{when}</div>
+  </div>
+);
+
+const ThreeRepairs: Page = () => (
+  <Frame
+    part={4}
+    title="Temperature is the simplest of three repairs"
+    line="Start with a temperature: one number is hard to overfit. Move to the others only if the reliability diagram still bends after it."
+    src="scikit-learn user guide, “Probability calibration” · Guo et al., 2017 · Roitman, 2026, sections 2.3 and 9.6"
+  >
+    <div style={{ ...col, marginTop: 10 }}>
+      <RepRow first name="Temperature" f="softmax(z / T)" k="1 number" when="The model is over-confident or under-confident everywhere. Ours: T = 3.3." />
+      <Steps>
+        <Step><RepRow name="Platt scaling" f="sigmoid(a·z + b)" k="2 numbers" when="The diagram is shifted or tilted. Suits small held-out sets." /></Step>
+        <Step><RepRow name="Isotonic regression" f="a fitted staircase" k="one per step" when="The diagram bends in several places, and there are more than about 1,000 held-out items." /></Step>
+        <Step>
+          <div style={{ fontSize: 30, lineHeight: 1.45, marginTop: 30 }}>
+            All three keep the held-out items separate from the test items. On a new kind of input, 50 to 200 labelled examples are usually enough to fit T again.
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+// ---------------------------------------------------------------- part 5 additions
+
+const Marking: Page = () => (
+  <Frame
+    part={5}
+    title="A marking scheme decides how students answer"
+    line="Change the marks and the same student answers differently. A reward does this to a model, so we look for the reward that makes honesty the best policy."
+  >
+    <div style={{ ...row, gap: 36, alignItems: 'stretch', marginTop: 6 }}>
+      <Card style={{ width: 960, flexShrink: 0, padding: '26px 32px' }}>
+        <Label>An entrance exam, four options per question</Label>
+        <div style={{ fontFamily: mono, fontSize: 34, marginTop: 14 }}>
+          right <T>+4</T> · wrong <L>−1</L> · blank 0
+        </div>
+        <Steps>
+          <Step>
+            <div style={{ fontSize: 28, color: C.soft, marginTop: 22 }}>You are 30% sure of option B. Mark it?</div>
+            <div style={{ fontFamily: mono, fontSize: 28, marginTop: 6 }}>0.3 × 4 − 0.7 × 1 = 1.2 − 0.7 = <T>+0.5</T> → mark it</div>
+          </Step>
+          <Step>
+            <div style={{ fontSize: 28, color: C.soft, marginTop: 20 }}>You are 10% sure. Mark it?</div>
+            <div style={{ fontFamily: mono, fontSize: 28, marginTop: 6 }}>0.1 × 4 − 0.9 × 1 = 0.4 − 0.9 = <L>−0.5</L> → leave blank</div>
+          </Step>
+          <Step>
+            <div style={{ fontFamily: mono, fontSize: 28, marginTop: 22 }}>break-even: 4p − (1 − p) = 0 → p = 0.2</div>
+          </Step>
+        </Steps>
+      </Card>
+      <Steps>
+        <Step>
+          <Card color={C.s1} style={{ flex: 1, padding: '26px 32px' }}>
+            <Label color={C.s1}>The same idea in training</Label>
+            <div style={{ ...col, gap: 14, fontSize: 29, marginTop: 18 }}>
+              <div style={{ ...row, justifyContent: 'space-between', borderBottom: `2px solid ${C.rule}`, paddingBottom: 12 }}><span>student</span><b>model</b></div>
+              <div style={{ ...row, justifyContent: 'space-between', borderBottom: `2px solid ${C.rule}`, paddingBottom: 12 }}><span>marking scheme</span><b>reward</b></div>
+              <div style={{ ...row, justifyContent: 'space-between' }}><span>how sure they claim to be</span><b style={{ color: C.pred }}>stated probability</b></div>
+            </div>
+            <div style={{ fontSize: 27, lineHeight: 1.45, color: C.soft, marginTop: 22 }}>Next: two marking schemes for a stated probability, tried on the ten emails.</div>
+          </Card>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const Level = ({ n, head, body, ok }: { n: string; head: string; body: string; ok?: boolean }) => (
+  <div style={{ ...row, gap: 24, alignItems: 'center', padding: '20px 26px', background: C.white, border: `2px solid ${ok ? C.truth : C.rule}`, borderRadius: 'var(--osd-radius)' }}>
+    <div style={{ fontFamily: serif, fontSize: 56, fontWeight: 700, color: ok ? C.truth : C.muted, width: 50 }}>{n}</div>
+    <div>
+      <div style={{ fontSize: 33, fontWeight: 700 }}>{head}</div>
+      <div style={{ fontSize: 26, lineHeight: 1.4, color: C.soft, marginTop: 4 }}>{body}</div>
+    </div>
+  </div>
+);
+
+const ThreeLevels: Page = () => (
+  <Frame
+    part={5}
+    title="A proper score is the right incentive, not a guarantee"
+    line="A proper score settles only the first level. A trained decision model still gets the Part 4 check, on your own data."
+    src="the three levels follow Roitman, 2026, section 6.1 · numbers as reported in its section 9.4 and in Deußer et al., 2026"
+  >
+    <div style={{ ...row, gap: 36, alignItems: 'flex-start', marginTop: 4 }}>
+      <div style={{ ...col, gap: 18, width: 980, flexShrink: 0 }}>
+        <Level ok n="1" head="The objective" body="With a proper score, reporting the true probability is the best the model can do. Part 5 gives us this." />
+        <Steps>
+          <Step><Level n="2" head="The trained model" body="A small model, too little training, noisy labels or rare classes can all leave it short of that best." /></Step>
+          <Step><div style={{ marginTop: 18 }}><Level n="3" head="The model in use" body="New inputs differ from the training data, and calibration measured last year says little about them." /></div></Step>
+        </Steps>
+      </div>
+      <Steps>
+        <Step>
+          <Card style={{ flex: 1, padding: '24px 30px' }}>
+            <Label>Reported for trained decision models</Label>
+            <div style={{ fontSize: 27, lineHeight: 1.45, marginTop: 14 }}>
+              Deußer et al. found Jev’s choice probabilities well calibrated on their benchmark.
+            </div>
+            <div style={{ fontSize: 27, lineHeight: 1.45, marginTop: 14 }}>
+              Another evaluation, quoted in Roitman’s guide, measured
+            </div>
+            <div style={{ fontFamily: mono, fontSize: 30, lineHeight: 1.6, marginTop: 8 }}>
+              Jev &nbsp;ECE <L>0.246</L>
+              <br />
+              Laya ECE <L>0.081</L> <span style={{ fontSize: 22, color: C.muted }}>after temperature</span>
+            </div>
+            <div style={{ fontSize: 25, color: C.soft, marginTop: 12 }}>Our head: {f2(sci.head.cal.ece)} on news it was trained for.</div>
+          </Card>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const TwoTrainings: Page = () => (
+  <Frame
+    part={5}
+    title="Two ways to train a decision model"
+    line="Both end in one pass and a probability per option. Liquid keeps the readout its model already has, and Unsloth adds a new head to an ordinary LLM."
+    src="Liquid AI cookbook, “How to Fine-Tune a Decision Model with Unsloth” · Unsloth, “Train your own Decision Model”, 2026"
+    nb={3}
+  >
+    <div style={{ ...row, gap: 34, alignItems: 'stretch' }}>
+      <Card color={C.s1} style={{ width: 833, flexShrink: 0, boxSizing: 'border-box', padding: '22px 28px', overflow: 'hidden' }}>
+        <div style={{ fontFamily: serif, fontSize: 36, fontWeight: 700, color: C.s1 }}>Train the letter readout</div>
+        <div style={{ fontSize: 24, color: C.soft, margin: '4px 0 12px' }}>Liquid’s recipe for d1-3B · the middle design in our figure</div>
+        <Code
+          plain
+          size={22}
+          code={`Whats the process of tranfering money into an account?
+QUESTION: Which intent does this message express?
+Options:
+00 reverted card payment?
+01 card acceptance
+...
+Reply with the option code only.
+assistant: 36`}
+          hl={[7]}
+        />
+        <div style={{ fontSize: 26, lineHeight: 1.4, marginTop: 12 }}>The target is one token, the code of the correct option.</div>
+        <Steps>
+          <Step>
+            <div style={{ fontFamily: mono, fontSize: 27, marginTop: 8 }}>Banking77, 77 intents: <T>83% → 90%</T></div>
+          </Step>
+        </Steps>
+      </Card>
+      <Card color={C.s1} style={{ width: 833, flexShrink: 0, boxSizing: 'border-box', padding: '22px 28px', overflow: 'hidden' }}>
+        <div style={{ fontFamily: serif, fontSize: 36, fontWeight: 700, color: C.s1 }}>Add a new head and train it</div>
+        <div style={{ fontSize: 24, color: C.soft, margin: '4px 0 12px' }}>Unsloth’s FastDecisionModel · the right design in our figure</div>
+        <Code
+          size={22}
+          code={`{"state": "Hi, I was charged twice ...",
+ "questions": {"team": {"type": "choice"},
+               "refund": {"type": "noul"},
+               "urgency": {"type": "score"}},
+ "gold": {"team": "billing", "refund": true,
+          "urgency": 2}}`}
+          hl={[4, 5]}
+        />
+        <div style={{ fontSize: 26, lineHeight: 1.4, marginTop: 12 }}>The target is the correct answer to every question. The head starts untrained.</div>
+        <Steps>
+          <Step>
+            <div style={{ fontFamily: mono, fontSize: 27, marginTop: 8 }}>typed-decisions, Qwen3.5-0.8B: <T>36% → 73%</T></div>
+          </Step>
+        </Steps>
+      </Card>
+    </div>
+  </Frame>
+);
+
+// ---------------------------------------------------------------- part 6 additions
+
+const HeadCalc = ({ type, pic, how, children }: { type: string; pic: string; how: string; children: ReactNode }) => (
+  <Card color={C.s1} style={{ width: 550, flexShrink: 0, boxSizing: 'border-box', padding: '22px 26px' }}>
+    <TypeChip t={type} />
+    <div style={{ fontFamily: serif, fontSize: 33, fontWeight: 700, margin: '14px 0 6px' }}>{pic}</div>
+    <div style={{ fontSize: 25, lineHeight: 1.4, color: C.soft, height: 106 }}>{how}</div>
+    <div style={{ fontFamily: mono, fontSize: 25, lineHeight: 1.65 }}>{children}</div>
+  </Card>
+);
+
+const TypedHeads: Page = () => (
+  <Frame
+    part={6}
+    title="Three typed heads, three small formulas"
+    line="Each head turns scores into probabilities in the way its answer type needs. The scores here are chosen to reproduce our email’s numbers."
+    src="head designs for Jev-style models as described in Roitman, 2026, section 6.1 · vendors do not publish their own"
+  >
+    <div style={{ ...row, gap: 24, alignItems: 'stretch' }}>
+      <HeadCalc type="noul" pic="One dial" how="One score z for “yes”, squashed between 0 and 1 by a sigmoid.">
+        z = 1.05
+        <br />
+        1 / (1 + e<sup>−1.05</sup>)
+        <br />
+        = 1 / (1 + 0.35) = <P>0.74</P>
+      </HeadCalc>
+      <Steps>
+        <Step>
+          <HeadCalc type="choice" pic="A contest" how="One score per option. Softmax makes them compete, so the probabilities sum to 1.">
+            23.26 · 23.33 · 19.40
+            <br />
+            softmax
+            <br />
+            = <P>0.48</P> · <P>0.51</P> · <P>0.01</P>
+          </HeadCalc>
+        </Step>
+        <Step>
+          <HeadCalc type="score" pic="Cut points on a line" how="One score z, and one cut point per step up the scale. Each cut gives P(at least this level).">
+            P(≥ soon) &nbsp;= sig(0 − 2.6) = 0.07
+            <br />
+            P(≥ today) = sig(0 − 3.9) = 0.02
+            <br />
+            <P>0.93</P> · 0.07 − 0.02 = <P>0.05</P> · <P>0.02</P>
+          </HeadCalc>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const CostThreshold: Page = () => (
+  <Frame
+    part={6}
+    title="Where the 0.9 comes from: the cost of each mistake"
+    line="The threshold is the cost of a wrong action divided by cost plus benefit. The rule holds only when the probability is calibrated."
+    src="threshold rule as in Roitman, 2026, section 2.3 · the rupee amounts are illustrative"
+  >
+    <div style={{ ...col, gap: 26, marginTop: 10 }}>
+      <div style={{ ...row, gap: 30 }}>
+        <Card color={C.truth} style={{ flex: 1, padding: '22px 30px' }}>
+          <Label color={C.truth}>Refund issued, and it was wanted</Label>
+          <div style={{ fontFamily: mono, fontSize: 34, marginTop: 8 }}>benefit b = <T>₹50</T> <span style={{ fontSize: 24, color: C.muted }}>of staff time saved</span></div>
+        </Card>
+        <Card color={C.loss} style={{ flex: 1, padding: '22px 30px' }}>
+          <Label color={C.loss}>Refund issued, and it was not wanted</Label>
+          <div style={{ fontFamily: mono, fontSize: 34, marginTop: 8 }}>cost c = <L>₹450</L> <span style={{ fontSize: 24, color: C.muted }}>to undo it</span></div>
+        </Card>
+      </div>
+      <Steps>
+        <Step>
+          <div style={{ fontFamily: mono, fontSize: 34, lineHeight: 1.6 }}>
+            act when the expected gain is positive: <P>p</P> × b − (1 − <P>p</P>) × c &gt; 0
+          </div>
+        </Step>
+        <Step>
+          <div style={{ fontFamily: mono, fontSize: 34, lineHeight: 1.6 }}>
+            <P>p</P> &gt; c / (c + b) = 450 / (450 + 50) = <b>0.90</b>
+          </div>
+        </Step>
+        <Step>
+          <div style={{ fontSize: 30, lineHeight: 1.45, color: C.soft }}>
+            If undoing a refund cost only ₹50, the threshold would be 50 / (50 + 50) = 0.50. Our email reads <P>{f2(sci.p_refund_yes)}</P>, which is below 0.90, so a person looks at it.
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+// ---------------------------------------------------------------- the picture, and sources
+
+const Tag = ({ x, y, n }: { x: number; y: number; n: number }) => (
+  <g>
+    <rect x={x - 46} y={y - 24} width={92} height={32} rx={16} fill="var(--osd-accent)" />
+    <text x={x} y={y - 1} textAnchor="middle" fontSize={20} fontWeight={700} fill={C.white}>PART {n}</text>
+  </g>
+);
+
+const Picture = () => (
+  <svg width={1700} height={690} viewBox="0 0 1700 690">
+    <Arrows />
+    <Box x={20} y={50} w={300} h={130} text="state + questions" sub="email, tile or board" />
+    <Arr x1={320} y1={115} x2={400} y2={115} />
+    <Box x={410} y={50} w={300} h={130} text="one forward pass" sub="tokens → attention → vector" color={C.s2} />
+    <Arr x1={710} y1={115} x2={790} y2={115} />
+    <Box x={800} y={50} w={300} h={130} text="option scores" sub="letter logits or a trained head" color={C.s1} />
+    <Arr x1={1100} y1={115} x2={1180} y2={115} />
+    <Box x={1190} y={50} w={220} h={130} text="softmax" sub="÷ T" color={C.pred} />
+    <Arr x1={1410} y1={115} x2={1470} y2={115} />
+    <Box x={1480} y={50} w={210} h={130} text="probabilities" color={C.pred} size={28} />
+    <Arr x1={1585} y1={180} x2={1585} y2={270} />
+    <Box x={1380} y={280} w={310} h={130} text="thresholds" sub="act · ask a person · skip" />
+    <Box x={410} y={380} w={690} h={130} text="trained with a proper scoring rule" sub="log score or Brier: lowest at the true probability" color={C.loss} />
+    <Arr x1={950} y1={380} x2={950} y2={190} color={C.loss} />
+    <Box x={410} y={560} w={690} h={110} text="checked with a reliability diagram and ECE" color={C.truth} />
+    <path d="M1100,615 L1585,615 L1585,422" fill="none" stroke={C.soft} strokeWidth={3} markerEnd="url(#ah)" />
+    <Tag x={170} y={50} n={1} />
+    <Tag x={560} y={50} n={2} />
+    <Tag x={950} y={50} n={3} />
+    <Tag x={755} y={560} n={4} />
+    <Tag x={755} y={380} n={5} />
+    <Tag x={1535} y={280} n={6} />
+  </svg>
+);
+
+const Overview: Page = () => (
+  <Frame part={0} title="The whole lecture in one picture" line="We build this picture one box at a time. The red tags say which part of the lecture explains each box.">
+    <Picture />
+  </Frame>
+);
+
+const LinkRow = ({ what, who, url, use }: { what: string; who: string; url: string; use: string }) => (
+  <div style={{ ...row, gap: 26, fontSize: 26, lineHeight: 1.35, padding: '11px 0', borderBottom: `2px solid ${C.rule}`, alignItems: 'baseline' }}>
+    <div style={{ width: 820, flexShrink: 0 }}>
+      <a href={`https://${url}`} target="_blank" rel="noreferrer" style={{ color: C.s2, fontWeight: 600, textDecoration: 'none' }}>{what}</a>
+      <span style={{ color: C.soft }}> · {who}</span>
+    </div>
+    <div style={{ flex: 1, color: C.soft }}>{use}</div>
+  </div>
+);
+
+const GoFurther: Page = () => (
+  <Frame part={0} title="Tutorials and lectures to go further" line="The first three are about decision models. The rest explain the background this lecture went through quickly.">
+    <div style={{ ...col, marginTop: 0 }}>
+      <LinkRow what="The Hitchhiker’s Guide to System 1 Models" who="Roitman, 2026" url="arxiv.org/abs/2610.33775" use="a long written guide: the five families, calibration, cascades, pitfalls" />
+      <LinkRow what="Train your own Decision Model" who="Unsloth" url="unsloth.ai/docs/basics/train-your-own-decision-model-with-unsloth" use="the recipe behind notebook 3, with free Colab and Kaggle notebooks" />
+      <LinkRow what="Fine-tune a decision model with SFT" who="Liquid AI cookbook" url="github.com/Liquid4All/cookbook/blob/main/finetuning/notebooks/sft_for_decision_models_with_unsloth.ipynb" use="training the answer-slot readout of d1-3B on Banking77" />
+      <LinkRow what="A decision model like Jev, on CLINC150" who="MachineLearningMastery" url="machinelearningmastery.com/how-to-train-your-own-decision-model-like-jev-using-unsloth/" use="a second worked dataset, with accuracy and ECE before and after" />
+      <LinkRow what="Deep Dive into LLMs like ChatGPT" who="Andrej Karpathy" url="www.youtube.com/watch?v=7xTGNNLPyMI" use="three and a half hours on pre-training, fine-tuning and RL" />
+      <LinkRow what="Transformers, the tech behind LLMs" who="3Blue1Brown" url="www.youtube.com/watch?v=wjZofJX0v4M" use="animated tokens, attention and softmax, for Part 2" />
+      <LinkRow what="RLHF" who="Chip Huyen, 2023" url="huyenchip.com/2023/05/02/rlhf.html" use="the three training stages, with data sizes and labelling details" />
+      <LinkRow what="Probability calibration" who="scikit-learn user guide" url="scikit-learn.org/stable/modules/calibration.html" use="reliability curves, sigmoid, isotonic and temperature, with code" />
+    </div>
+  </Frame>
+);
+
 const Summary: Page = () => (
   <Frame part={0} title="Summary of the lecture" line="The same picture covers the support email, the satellite tile and the game board. Only the state and the questions change.">
-    <svg width={1700} height={690} viewBox="0 0 1700 690">
-      <Arrows />
-      <Box x={20} y={30} w={300} h={130} text="state + questions" sub="email, tile or board" />
-      <Arr x1={320} y1={95} x2={400} y2={95} />
-      <Box x={410} y={30} w={300} h={130} text="one forward pass" sub="tokens → attention → vector" color={C.s2} />
-      <Arr x1={710} y1={95} x2={790} y2={95} />
-      <Box x={800} y={30} w={300} h={130} text="option scores" sub="letter logits or a trained head" color={C.s1} />
-      <Arr x1={1100} y1={95} x2={1180} y2={95} />
-      <Box x={1190} y={30} w={220} h={130} text="softmax" sub="÷ T" color={C.pred} />
-      <Arr x1={1410} y1={95} x2={1470} y2={95} />
-      <Box x={1480} y={30} w={210} h={130} text="probabilities" color={C.pred} size={28} />
-      <Arr x1={1585} y1={160} x2={1585} y2={250} />
-      <Box x={1380} y={260} w={310} h={130} text="thresholds" sub="act · ask a person · skip" />
-      <Box x={410} y={360} w={690} h={130} text="trained with a proper scoring rule" sub="log score or Brier: lowest at the true probability" color={C.loss} />
-      <Arr x1={950} y1={360} x2={950} y2={170} color={C.loss} />
-      <Box x={410} y={550} w={690} h={110} text="checked with a reliability diagram and ECE" color={C.truth} />
-      <path d="M1100,605 L1585,605 L1585,402" fill="none" stroke={C.soft} strokeWidth={3} markerEnd="url(#ah)" />
-    </svg>
+    <Picture />
   </Frame>
 );
 
@@ -5182,13 +5985,16 @@ const NB = ({ n, name, what, where }: { n: string; name: string; what: string; w
   <Card style={{ flex: 1, padding: '30px 34px' }}>
     <div style={{ fontFamily: serif, fontSize: 80, fontWeight: 700, color: 'var(--osd-accent)', lineHeight: 1 }}>{n}</div>
     <div style={{ fontSize: 38, fontWeight: 600, margin: '16px 0 12px' }}>{name}</div>
-    <div style={{ fontSize: 29, lineHeight: 1.45, color: C.soft, height: 210 }}>{what}</div>
+    <div style={{ fontSize: 29, lineHeight: 1.45, color: C.soft, height: 190 }}>{what}</div>
     <div style={{ fontSize: 26, color: C.muted }}>{where}</div>
+    <a href={nbUrl(Number(n))} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 18, fontSize: 27, fontWeight: 600, color: C.s1, textDecoration: 'none', border: `2px solid ${C.s1}`, borderRadius: 10, padding: '6px 18px' }}>
+      Open in Colab ↗
+    </a>
   </Card>
 );
 
 const Notebooks: Page = () => (
-  <Frame part={0} title="Three notebooks" line="Open them from github.com/nipunbatra/system-one. Every measured number in these slides comes from notebooks 1 and 2.">
+  <Frame part={0} title="Three notebooks" line="Slides that have a notebook cell behind them carry a “Run it” link at the bottom left. Every measured number in these slides comes from notebooks 1 and 2.">
     <div style={{ ...row, gap: 34, alignItems: 'stretch', marginTop: 20 }}>
       <NB n="1" name="Read, don’t write" what="Tokens, the generation loop, reading option probabilities, ECE, temperature, thresholds." where="Colab, CPU or T4 · about 2 minutes on T4" />
       <NB n="2" name="Train a decision head" what="Proper scoring rules, a linear head on a frozen LLM, calibration on held-out rows." where="Colab, CPU or T4 · about 2 minutes on T4" />
@@ -5198,19 +6004,21 @@ const Notebooks: Page = () => (
 );
 
 const Src = ({ children }: { children: ReactNode }) => (
-  <div style={{ fontSize: 28, lineHeight: 1.4, padding: '9px 0', borderBottom: `2px solid ${C.rule}` }}>{children}</div>
+  <div style={{ fontSize: 26, lineHeight: 1.35, padding: '8px 0', borderBottom: `2px solid ${C.rule}` }}>{children}</div>
 );
 
 const Sources: Page = () => (
   <Frame part={0} title="Sources">
-    <div style={{ ...col, marginTop: 6 }}>
-      <Src>Martin Keen, “What Is Jev? The AI Model That Doesn’t Generate Text”, IBM Technology, 2026 (the email example, RLHF / RLVR / RLCD framing) · <a href={IBM_VIDEO} target="_blank" rel="noreferrer" style={{ color: C.s2 }}>youtube.com/watch?v=YGgNBcIgI4s</a></Src>
+    <div style={{ ...col, marginTop: 0 }}>
+      <Src>Martin Keen, “What Is Jev? The AI Model That Doesn’t Generate Text”, IBM Technology, 2026 (the email example; RLHF, RLVR, RLCD) · <a href={IBM_VIDEO} target="_blank" rel="noreferrer" style={{ color: C.s2 }}>youtube.com/watch?v=YGgNBcIgI4s</a></Src>
       <Src>Daniel Kahneman, Thinking, Fast and Slow, 2011</Src>
+      <Src>Roitman, “The Hitchhiker’s Guide to System 1 Models”, arXiv 2610.33775, 2026 (five families, head designs, the three edits, cascades)</Src>
       <Src>Deußer, Ramamurthy, Sparrenberg, Sifa, “Evaluating and Benchmarking the System One Model Jev”, arXiv 2609.37647</Src>
-      <Src>Unsloth, “Train your own Decision Model with Unsloth”, docs and notebook, 2026</Src>
-      <Src>Liquid AI, “d1.2: State-of-the-Art Omnimodal Decision Models”, blog and docs, November 2026 (answer types, image and audio input)</Src>
+      <Src>Unsloth, “Train your own Decision Model with Unsloth”, 2026 · Liquid AI, d1.2 blog and docs, and its fine-tuning cookbook, 2026</Src>
       <Src>Guo, Pleiss, Sun, Weinberger, “On Calibration of Modern Neural Networks”, ICML 2017 (ECE, temperature scaling)</Src>
-      <Src>Brier, “Verification of forecasts expressed in terms of probability”, 1950</Src>
+      <Src>Tian et al., “Just Ask for Calibration”, EMNLP 2023 · Leng et al., “Taming Overconfidence in LLMs: Reward Calibration in RLHF”, 2025</Src>
+      <Src>Brier, “Verification of forecasts expressed in terms of probability”, 1950 · scikit-learn user guide, “Probability calibration”</Src>
+      <Src>Ouyang et al., “Training language models to follow instructions with human feedback”, 2022 · Huyen, “RLHF”, 2023</Src>
       <Src>Jev facts: Wikipedia “Jev (AI model)” and the benchmark paper, as of November 2026</Src>
     </div>
   </Frame>
@@ -5223,16 +6031,19 @@ const deck: [Page, string][] = [
   [Email, 'Read the email aloud. Ask the class what a support system must decide before anyone replies, then reveal the three questions.'],
   [Needs, 'The bar numbers here are made up to show the shape of the output. Real numbers come in Part 3.'],
   [RouteMap, 'Six parts. Parts 2 and 4 carry the most material.'],
+  [Overview, 'Do not explain the boxes yet. Say that every part fills in one of them, and that this picture returns at the end.'],
   [S1, undefined as unknown as string],
   [TwoSums, 'Let the class shout the first. Wait on the second before revealing.'],
   [Kahneman, 'The link opens the IBM Technology video by Martin Keen, which this lecture follows for the framing and the email example.'],
   [TwoSystems, 'Ask the class for one more example of each.'],
+  [ExamSheets, 'Students know both sheets from entrance exams. The shaded sheet shows our own model’s three probabilities for the email, which Part 3 computes. Come back to this picture in Parts 3, 4 and 5.'],
   [MLExamples, 'Ask which column their last course project was in. Many pipelines send left-column questions to a chat LLM.'],
   [SoftwareCalls, 'Ask for more examples from their own projects, and which column each belongs in.'],
-  [VisionCalls, 'Jev is documented for text. Liquid d1.2 documents image and audio input. The questions here are our own examples, apart from the circuit board, siren and caller-language ones, which are from Liquid’s pages.'],
+  [VisionCalls, 'Jev began with text; Roitman’s guide reports image input and a box answer from version 1.14. Liquid d1.2 documents image and audio input. The questions here are our own examples, apart from the circuit board, siren and caller-language ones, which are from Liquid’s pages.'],
   [NewTypes, 'From Liquid’s d1.2 docs and blog, 16 Nov 2026. A number question with a range returns a median and an interval and has no found score. Vendor-reported accuracy only; no public benchmark covers the new types yet.'],
   [ReadValues, 'Example copied from Liquid’s d1.2 docs. The span numbers count characters from 0, and the end is exclusive. The model normalises the number and the date and still reports the text as written.'],
   [MoreExamples, 'All three from Liquid’s docs. In the multi-select answer the probabilities do not sum to 1, because each option is its own yes or no. The docs describe the interval as p10 to p90.'],
+  [Check1, 'Let the class answer each row before revealing it.'],
   [S2, ''],
   [Tokens, 'These are the real tokens and ids from the Qwen2.5 tokenizer. Notice the leading spaces are part of the tokens.'],
   [Embed, 'The vector values drawn are illustrative; the table size is real.'],
@@ -5252,20 +6063,25 @@ const deck: [Page, string][] = [
   [Repairs, 'Constrained decoding means masking the logits so that only tokens allowed by a grammar or JSON schema can be picked.'],
   [StatedConf, 'Compare with Part 4, where the same model read from logits has accuracy 0.79 and mean confidence 0.97 on 1,000 items. Different prompt and subset, same pattern.'],
   [Voting, 'The sampled prompt asks for a word, so its split differs from the letter readout in Part 3. Self-consistency is the usual name for this.'],
+  [Check2, 'The per-pass time is our measured 233 ms over 24 passes. A hosted model is faster per pass, and the count of passes is the same.'],
   [Recap2, ''],
   [S3, ''],
   [LookAgain, 'Same chart as before, with the non-option tokens dimmed. "billing" as a word also appears: the model could have answered in words.'],
   [Readout, 'Subtracting the largest logit is the standard trick to avoid huge exponentials. A real case of softmax over three numbers.'],
   [DecideCode, 'Notebook 1, section 4. Mention that option order can shift the numbers; it is an exercise in the notebook.'],
   [Timing, 'The comparison is for one question. A decision model answers all questions in the same pass.'],
-  [ArchDiff, 'The grey strip stands for the 151,936 scores; the coloured cells are the ones kept. We never removed the decoder: a decoder-only transformer is still the reader. What is gone is decoding into text. How Jev is built inside is not published.'],
   [Honest, 'The small model is undecided between billing and technical, and its written JSON picked billing. An untrained model; the point is that the doubt is now visible.'],
+  [ReadOnce, 'The sample-size formula is the usual one for a proportion, at its worst case p = 0.5. Roitman’s guide makes this comparison with a spam example. In Part 4 we do draw 200 samples and compare them with the read probabilities.'],
+  [ArchDiff, 'The grey strip stands for the 151,936 scores; the coloured cells are the ones kept. We never removed the decoder: a decoder-only transformer is still the reader. What is gone is decoding into text. How Jev is built inside is not published. The next slide shows one published recipe.'],
+  [Convert, 'This is the answer to how the decoder is removed. Nothing is cut out of the middle: the model keeps its blocks and loses its two decoder habits. The guide warns that switching the attention mask is fiddly in practice. Unsloth and our notebook 2 keep causal attention and read the last position.'],
   [Types, 'noul is the yes/no type name in Jev’s API. Its origin is not explained in the public material.'],
   [ScoreCalc, 'The model is confidently wrong about urgency. Keep this in mind for calibration. Liquid’s pages define score in two ways, the weighted level and the median level; we use the weighted one.'],
   [MoreTypes, 'How Liquid computes its newer answer types is not published. The multi-select and number readouts here are our own construction on an untrained model.'],
   [Request, 'Field names follow the Jev and Unsloth request format: state, questions, type, instructions, criteria.'],
   [Response, 'Field names follow the Jev and Liquid docs: choice with probabilities, noul as one number, score with its probabilities. I left out the confidence field because its formula is not documented.'],
-  [Jev, 'Jev facts are from Wikipedia and the benchmark paper, Liquid facts from its docs and blog. The last line lists models named in secondary roundups that I have not checked against vendor pages.'],
+  [Taxonomy, 'The taxonomy is from a single-author practical guide, not a peer-reviewed survey, and the author calls the families overlapping. Latency and size ranges are as printed in its Table 3. Reading letter logits from an LLM, as we do, is what the guide calls LLM-as-Jev and files under family III as a migration path.'],
+  [Jev, 'Jev facts are from Wikipedia and the benchmark paper, Liquid facts from its docs and blog. Laya, System One Gemma and the last line are as described in Roitman’s guide, which I have not checked against the model cards. The guide also reports that Jev 1.14 added image input and a box answer.'],
+  [Check3, 'e squared is 7.39. Ask for the numbers before revealing them.'],
   [Recap3, ''],
   [S4, ''],
   [Forecaster, 'Ask before revealing: how many rainy days would make you trust her?'],
@@ -5283,13 +6099,17 @@ const deck: [Page, string][] = [
   [RealBefore, 'Almost everything sits in the top bin. This is typical of an LLM read zero-shot.'],
   [ConfWays, 'Guo et al., 2017, define confidence as the largest predicted probability, and ECE is built on it. Parts 2 and 3 already met the other two: the written confidence and the vote count.'],
   [ConfCompare, 'The written answers come from a different prompt, which is why accuracy differs between the rows. The sampled row draws 200 letters from the same distribution we read, so it can only agree up to sampling noise. Sampling tells you more when the answer is many tokens long.'],
+  [LitConf, 'Tian et al. tested ChatGPT, GPT-4 and Claude on TriviaQA, SciQ and TruthfulQA, with probabilities estimated from ten samples because those models hide their logits. Leng et al. compare Llama3-8B before and after RLHF. Our row-two numbers are from the previous slide.'],
   [WhyExtreme, 'e to the 9 is about 8,100. The model has the order mostly right; the size of the gaps is what is off.'],
+  [DiscountFriend, 'Ask who has a friend like this. The friend’s ten answers are made up; the model’s two numbers are measured.'],
   [TempWorked, 'Work the T = 2 column on the board. e to the 1 is 2.72, e to the 0.5 is 1.65, e to the 0.05 is 1.05.'],
   [Temperature, 'Drag to 2 to match the worked example, then to 0.5 and to 10. At T = 1 we get 0.66, 0.24, 0.10 as before.'],
   [ChooseT, 'One parameter, fitted by a simple search over 191 values. Log loss is the same loss used to train classifiers; Part 5 comes back to it.'],
   [SameItem, 'Temperature cannot fix this answer. It only makes the model less sure about it.'],
   [RealAfter, 'T is chosen to minimise the log loss on 500 held-out items, never on the test items.'],
   [NotAccuracy, ''],
+  [ThreeRepairs, 'The conditions are from the scikit-learn guide and Roitman’s rule of thumb. The 50 to 200 figure is the guide’s summary of a paper it cites; I have not read that paper.'],
+  [Check4, 'Give the class a minute.'],
   [Recap4, ''],
   [S5, ''],
   [TrainPipeline, 'The earlier version of this slide skipped supervised fine-tuning. Labs differ in the details and often repeat or mix stages 2 and 3; these three are the common core.'],
@@ -5306,11 +6126,13 @@ const deck: [Page, string][] = [
   [TenAlike, 'Same input, same output. The ten emails stand for every email on which the model has the same information.'],
   [TruthLater, 'In a real system these labels come from ticket outcomes, such as whether a refund was issued. The 7 and 3 are made up for the example.'],
   [HonestyQ, 'Ask the class to vote for 0.70 or 0.99 before moving on.'],
+  [Marking, 'The scheme is the familiar plus four, minus one. With no negative marking the break-even is zero and everyone guesses. The point to land: behaviour follows the marks.'],
   [AccReward, 'Any stated probability above 0.5 gives the answer yes, so the accuracy reward cannot tell 0.70 from 0.99.'],
   [BrierOne, '0.81 / 0.01 = 81.'],
   [BrierExpected, 'Ask the class to guess the best report before revealing the last row. Dividing each total by 10 gives the average penalty per email.'],
   [LogScore, 'So ordinary supervised training with cross-entropy already rewards correct probabilities, at least on the training distribution.'],
   [RLCDIdeas, 'Unsloth exposes build_dataset, a trainer, split_holdout and calibrate. Its loss is not something I have verified. Wikipedia notes that RLCD may be ordinary supervised learning with calibration terms.'],
+  [ThreeLevels, 'The 0.246 and 0.081 are quoted in Roitman’s section 9.4 from an evaluation by the Laya authors; I have not read that evaluation. Deußer et al. is the independent benchmark. The two reports disagree about Jev, which is itself a reason to measure.'],
   [HeadWhy, 'The letter readout is zero-shot: nothing was trained for news topics. A head lets us use labelled data without touching the LLM.'],
   [HeadVector, 'This is the same last-position vector as in Part 2, step 4. In notebook 2 it is the final layer’s hidden state at the last token.'],
   [HeadMath, 'The three-number vector and the weights are made up so the sums can be done by hand. In code the head is torch.nn.Linear(896, 4).'],
@@ -5322,10 +6144,13 @@ const deck: [Page, string][] = [
   [UnslothRow, 'The example row is from Unsloth’s guide.'],
   [UnslothCode, 'API as in Unsloth’s official notebook. I have not run notebook 3 myself; run it once before class.'],
   [UnslothNumbers, 'Numbers from Unsloth’s documentation.'],
+  [TwoTrainings, 'The Banking77 message is copied as it appears in the dataset, spelling included. Liquid’s numbers are from the stored outputs of its notebook: 100 test messages, about four and a half minutes of training on an A100. Liquid skips the new head because it would discard the readout d1-3B already has.'],
+  [Check5, '0.4 squared is 0.16 and 0.6 squared is 0.36.'],
   [Recap5, ''],
   [S6, ''],
   [PerQuestion, 'This is the question students ask at this point. Our Part 5 head has four fixed outputs. General models take the question as input.'],
   [OnePrompt, 'Unsloth describes its head as one that “looks at the LLM’s output over each question and option and scores every option”. How the heads inside Jev and Liquid are built is not published.'],
+  [TypedHeads, 'The formulas are the ones Roitman’s guide gives for this family. The score z and the cut points are picked so that the results match what our model read for the email; they are not taken from any trained head. e to the minus 1.05 is 0.35, e to the 2.6 is 13.5, e to the 3.9 is 49.4.'],
   [TrainOnce, 'The 30 to 37% and 73% are Unsloth’s figures for Qwen3.5-0.8B on its typed-decisions set. The docs do not say when to fine-tune; the last two rows are our advice.'],
   [Recipe, 'The quoted advice is on Liquid’s model pages. The size of the test set in step 2 is our suggestion, not a documented rule.'],
   [AppEmail, 'The running example, now as a build plan. All three questions go in one request.'],
@@ -5333,16 +6158,19 @@ const deck: [Page, string][] = [
   [AppGame, 'The board probabilities are illustrative. Treating a policy as a choice question is our framing; the decision-model vendors do not discuss games.'],
   [NotFit, 'The list for generative LLMs follows Liquid’s documentation. The other two columns summarise this lecture.'],
   [Thresholds, 'From the IBM video’s refund example.'],
+  [CostThreshold, 'Rupee amounts are made up. Derivation: p b minus (1 minus p) c is positive when p is above c over (c plus b).'],
   [ThreeThresholds, 'All threshold values here are illustrative choices. Ask the class which mistake is worse in each case before revealing the bands.'],
   [ThresholdLive, 'Drag to 0.9 and to 0.5. Ask which threshold a bank would choose and which a news app would.'],
   [Pipeline, 'Kahneman’s picture again: fast most of the time, slow when needed.'],
   [PipelineThree, 'Kahneman again: System 1 for every input, System 2 where it is needed. In the kiln case System 2 is a person.'],
   [Limits, 'The benchmark also reports that binary probabilities need tuned thresholds: micro-F1 on UNFAIR-ToS rises from 0.50 to 0.75.'],
   [LimitsApps, 'These are our cautions for the three applications, drawn from the benchmark’s limits and from Part 4. The rare-event point is the base-rate effect.'],
+  [Check6, 'This is the recipe from earlier in the part, applied.'],
   [Jevons, 'William Stanley Jevons, The Coal Question, 1865.'],
   [Summary, 'Walk the picture left to right, then the two boxes below.'],
   [Notebooks, 'Notebook 3 needs a GPU and takes much longer; show its saved outputs.'],
   [Sources, ''],
+  [GoFurther, 'All links open in a new tab.'],
 ];
 
 export const meta: SlideMeta = {
