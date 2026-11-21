@@ -1809,6 +1809,45 @@ const Timing: Page = () => (
   </Frame>
 );
 
+const ArchCol = ({ x, name, color, top, topSub, out, outSub, loop, note }: { x: number; name: string; color: string; top: string; topSub: string; out: string; outSub: string; loop?: boolean; note: string }) => (
+  <g transform={`translate(${x} 0)`}>
+    <text x={245} y={36} textAnchor="middle" fontSize={36} fontFamily="Georgia, serif" fontWeight={700} fill={color}>{name}</text>
+    <Box x={95} y={560} w={300} h={70} text="input tokens" size={26} />
+    <Arr x1={245} y1={560} x2={245} y2={520} />
+    <rect x={75} y={370} width={340} height={150} rx={12} fill={C.panel} stroke={C.ink} strokeWidth={3} />
+    <text x={245} y={438} textAnchor="middle" fontSize={30} fontWeight={600} fill={C.ink}>transformer blocks</text>
+    <text x={245} y={478} textAnchor="middle" fontSize={24} fill={C.soft}>{sci.layers} layers · unchanged</text>
+    <Arr x1={245} y1={370} x2={245} y2={330} />
+    <Box x={55} y={220} w={380} h={110} text={top} sub={topSub} color={color} size={28} />
+    <Arr x1={245} y1={220} x2={245} y2={180} />
+    <Box x={55} y={70} w={380} h={110} text={out} sub={outSub} color={color} size={28} />
+    {loop && (
+      <g>
+        <path d="M435,125 L478,125 L478,595 L405,595" fill="none" stroke={C.loss} strokeWidth={4} markerEnd="url(#ah)" />
+        <text transform="translate(506 360) rotate(90)" textAnchor="middle" fontSize={24} fill={C.loss}>append and run again</text>
+      </g>
+    )}
+    <text x={245} y={672} textAnchor="middle" fontSize={24} fill={C.muted}>{note}</text>
+  </g>
+);
+
+const ArchDiff: Page = () => (
+  <Frame
+    part={3}
+    title="What changed inside the model"
+    line="The transformer stack stays as it is. Reading removes the loop, and a trained decision model also swaps the vocabulary-sized output layer for a small head."
+  >
+    <svg width={1700} height={690} viewBox="0 0 1700 690">
+      <Arrows />
+      <ArchCol x={0} name="Chat LLM" color={C.s2} top="output layer" topSub={`${sci.vocab.toLocaleString('en-US')} scores`} out="pick one token" outSub="then repeat" loop note="one pass per output token" />
+      <line x1={560} y1={10} x2={560} y2={680} stroke={C.rule} strokeWidth={3} />
+      <ArchCol x={590} name="Letter readout" color={C.s1} top="output layer" topSub={`${sci.vocab.toLocaleString('en-US')} scores`} out="keep the option letters" outSub="softmax over 3 scores" note="one pass · this part" />
+      <line x1={1120} y1={10} x2={1120} y2={680} stroke={C.rule} strokeWidth={3} />
+      <ArchCol x={1150} name="Decision model" color={C.pred} top="decision head" topSub="a few scores per question" out="probabilities" outSub="for every question at once" note="one pass · built in Part 5" />
+    </svg>
+  </Frame>
+);
+
 const Honest: Page = () => (
   <Frame
     part={3}
@@ -3057,45 +3096,88 @@ const SFT: Page = () => (
   </Frame>
 );
 
+const Btn = ({ children, on }: { children: ReactNode; on?: boolean }) => (
+  <div style={{ padding: '10px 26px', borderRadius: 10, fontSize: 26, fontWeight: 600, background: on ? C.truth : C.white, color: on ? C.white : C.soft, border: `2px solid ${on ? C.truth : C.rule}` }}>
+    {children}
+  </div>
+);
+
+const Window = ({ title, children, width }: { title: string; children: ReactNode; width: number }) => (
+  <div style={{ width, background: C.white, border: `2px solid ${C.rule}`, borderRadius: 'var(--osd-radius)', overflow: 'hidden' }}>
+    <div style={{ ...row, alignItems: 'center', gap: 10, background: C.panel, padding: '12px 20px' }}>
+      {[0, 1, 2].map((i) => (
+        <div key={i} style={{ width: 14, height: 14, borderRadius: 7, background: C.rule }} />
+      ))}
+      <div style={{ fontSize: 22, color: C.muted, marginLeft: 12 }}>{title}</div>
+    </div>
+    <div style={{ padding: '20px 26px' }}>{children}</div>
+  </div>
+);
+
 const RLHFPage: Page = () => (
   <Frame
     part={5}
-    title="Stage 3, RLHF: the reward comes from human preferences"
-    line="People compare pairs of answers. A reward model learns to predict their choice, and the LLM is then updated to write answers that this reward model scores highly."
+    title="RLHF: what the human rater sees"
+    line="A rater reads one prompt and two answers from the model, and clicks the better one. Thousands of such clicks are the training data for this stage."
   >
     <div style={{ ...row, gap: 40, alignItems: 'center', height: '100%' }}>
-      <div style={{ ...col, gap: 20, width: 760 }}>
-        <Card style={{ padding: '20px 26px' }} color={C.truth}>
-          <div style={{ ...row, justifyContent: 'space-between' }}>
+      <Window title="rating task 214 of 500 · illustrative" width={1060}>
+        <Label>Prompt</Label>
+        <div style={{ fontSize: 27, margin: '6px 0 18px' }}>Which team should handle this email? “{EMAIL}”</div>
+        <div style={{ ...row, gap: 20 }}>
+          <div style={{ flex: 1, border: `2px solid ${C.truth}`, borderRadius: 10, padding: '14px 18px' }}>
             <Label color={C.truth}>Answer A</Label>
-            <div style={{ fontSize: 26, fontWeight: 700, color: C.truth }}>✓ preferred</div>
+            <div style={{ fontSize: 25, lineHeight: 1.35, marginTop: 6 }}>
+              This belongs with billing. You were charged twice, so they can refund the duplicate payment.
+            </div>
           </div>
-          <div style={{ fontSize: 28, lineHeight: 1.35, marginTop: 8 }}>
-            This belongs with billing. You were charged twice, so they can refund the duplicate payment.
+          <div style={{ flex: 1, border: `2px solid ${C.rule}`, borderRadius: 10, padding: '14px 18px' }}>
+            <Label>Answer B</Label>
+            <div style={{ fontSize: 25, lineHeight: 1.35, marginTop: 6, color: C.soft }}>
+              It could be billing, or possibly a technical fault. I am not sure which team is right.
+            </div>
           </div>
-        </Card>
-        <Card style={{ padding: '20px 26px' }}>
-          <Label>Answer B</Label>
-          <div style={{ fontSize: 28, lineHeight: 1.35, marginTop: 8, color: C.soft }}>
-            It could be billing, or possibly a technical fault. I am not sure which team is right.
-          </div>
-        </Card>
-        <div style={{ fontSize: 23, color: C.muted }}>illustrative pair for our email</div>
-      </div>
+        </div>
+        <div style={{ ...row, gap: 16, marginTop: 20 }}>
+          <Btn on>A is better</Btn>
+          <Btn>B is better</Btn>
+          <Btn>about the same</Btn>
+        </div>
+      </Window>
       <Steps>
         <Step>
-          <div style={{ width: 820 }}>
-            <Label>Three steps</Label>
-            <Fact k="1. Compare" v="people pick the better of two answers" />
-            <Fact k="2. Reward model" v="a network learns to predict that choice" />
-            <Fact k="3. Update" v="the LLM is trained to raise its reward" />
-            <div style={{ fontSize: 26, color: C.soft, marginTop: 20, lineHeight: 1.4 }}>
-              InstructGPT (2022) used about 33,000 prompts with human rankings for the reward model, and PPO for the update.
-            </div>
+          <div style={{ width: 580, fontSize: 31, lineHeight: 1.45 }}>
+            <div>The rater does not know the correct team. They pick the answer that reads as more helpful.</div>
+            <div style={{ color: C.loss, marginTop: 22 }}>Answer B admits doubt, and it loses.</div>
           </div>
         </Step>
       </Steps>
     </div>
+  </Frame>
+);
+
+const RLHFLoop: Page = () => (
+  <Frame
+    part={5}
+    title="RLHF: from clicks to an updated model"
+    line="The objective in words: write answers that a model of human preference scores highly. InstructGPT (2022) used about 33,000 ranked prompts and the PPO algorithm."
+  >
+    <svg width={1700} height={690} viewBox="0 0 1700 690">
+      <Arrows />
+      <Box x={20} y={70} w={400} h={150} text="1. Comparisons" sub="A beats B, for thousands of pairs" />
+      <Arr x1={420} y1={145} x2={540} y2={145} />
+      <Box x={550} y={70} w={480} h={150} text="2. Reward model" sub="learns to give one score to any answer" color={C.s1} />
+      <Arr x1={1030} y1={145} x2={1150} y2={145} />
+      <Box x={1160} y={70} w={520} h={150} text="3. Update the LLM" sub="so its answers get higher scores" color={C.s2} />
+      <text x={790} y={300} textAnchor="middle" fontSize={26} fill={C.muted}>the reward model on our two answers (scores illustrative)</text>
+      <rect x={330} y={330} width={920} height={84} rx={10} fill={C.white} stroke={C.truth} strokeWidth={3} />
+      <text x={356} y={382} fontSize={28} fill={C.ink}>“This belongs with billing. You were charged twice…”</text>
+      <text x={1290} y={386} fontSize={44} fontFamily={mono} fill={C.truth} fontWeight={700}>0.82</text>
+      <rect x={330} y={436} width={920} height={84} rx={10} fill={C.white} stroke={C.rule} strokeWidth={3} />
+      <text x={356} y={488} fontSize={28} fill={C.soft}>“It could be billing, or possibly a technical fault…”</text>
+      <text x={1290} y={492} fontSize={44} fontFamily={mono} fill={C.muted} fontWeight={700}>0.31</text>
+      <text x={850} y={610} textAnchor="middle" fontSize={32} fill={C.loss}>The score is for how the answer reads. It is given before anyone checks which team was correct.</text>
+    </svg>
   </Frame>
 );
 
@@ -3122,6 +3204,51 @@ const RLVRPage: Page = () => (
       <text x={850} y={450} textAnchor="middle" fontSize={30} fill={C.soft}>Reasoning models are trained this way on large sets of problems with checkable answers.</text>
       <text x={850} y={540} textAnchor="middle" fontSize={30} fill={C.loss}>The checker sees only the final answer. It never sees how sure the model was.</text>
     </svg>
+  </Frame>
+);
+
+const RLVRCode: Page = () => (
+  <Frame
+    part={5}
+    title="RLVR on code: the checker is a test suite"
+    line="The objective in words: raise the share of tasks whose final answer passes the check. The reward is the same for a lucky guess and for a careful solution."
+  >
+    <div style={{ ...row, gap: 40, alignItems: 'center', height: '100%' }}>
+      <div style={{ width: 800 }}>
+        <Label>Task given to the model</Label>
+        <div style={{ fontSize: 28, margin: '6px 0 14px' }}>Write a function that returns True when n is even.</div>
+        <Label color={C.s2}>The model writes</Label>
+        <div style={{ height: 8 }} />
+        <Code
+          size={28}
+          code={`
+def is_even(n):
+    return n % 2 == 0
+`}
+        />
+      </div>
+      <Steps>
+        <Step>
+          <Window title="test runner" width={820}>
+            <div style={{ fontFamily: mono, fontSize: 25, lineHeight: 1.6 }}>
+              <div>
+                is_even(4) == True <span style={{ color: C.truth, float: 'right' }}>passed</span>
+              </div>
+              <div>
+                is_even(7) == False <span style={{ color: C.truth, float: 'right' }}>passed</span>
+              </div>
+              <div>
+                is_even(0) == True <span style={{ color: C.truth, float: 'right' }}>passed</span>
+              </div>
+              <div style={{ borderTop: `2px solid ${C.rule}`, marginTop: 12, paddingTop: 12, fontSize: 30 }}>
+                3 of 3 passed → reward <b style={{ color: C.truth }}>1</b>
+              </div>
+              <div style={{ fontSize: 24, color: C.muted, marginTop: 6 }}>any failed test → reward 0</div>
+            </div>
+          </Window>
+        </Step>
+      </Steps>
+    </div>
   </Frame>
 );
 
@@ -3193,27 +3320,44 @@ const RLCD: Page = () => (
   </Frame>
 );
 
+const Mail = ({ x, yes }: { x: number; yes: boolean }) => (
+  <g transform={`translate(${x} 0)`}>
+    <rect x={0} y={0} width={120} height={84} rx={8} fill={yes ? C.truth : C.white} stroke={yes ? C.truth : C.muted} strokeWidth={3} />
+    <path d="M6,8 L60,50 L114,8" fill="none" stroke={yes ? C.white : C.muted} strokeWidth={3} />
+    <text x={60} y={124} textAnchor="middle" fontSize={26} fill={yes ? C.truth : C.muted} fontWeight={600}>{yes ? 'yes' : 'no'}</text>
+  </g>
+);
+
+const TenMails = () => (
+  <svg width={1500} height={140} viewBox="0 0 1500 140">
+    {Array.from({ length: 10 }, (_, i) => (
+      <Mail key={i} x={10 + i * 150} yes={i < 7} />
+    ))}
+  </svg>
+);
+
 const HonestyQ: Page = () => (
   <Frame
     part={5}
-    title="A model is right 70% of the time. What should it report?"
-    line="If the reward only checks the answer, reporting 0.7 and reporting 0.99 earn the same, so training never moves the model towards 0.7."
+    title="Ten emails that look alike to the model"
+    line="The model cannot tell these ten apart, so it gives all of them the same probability. Seven of the customers did want a refund. What number should it give?"
   >
-    <div style={{ ...row, gap: 60, alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-      <Card style={{ width: 400, textAlign: 'center' }}>
-        <div style={{ fontFamily: mono, fontSize: 84, color: C.pred }}>0.70</div>
-        <div style={{ fontSize: 30, color: C.soft }}>the correct report</div>
-      </Card>
-      <Card style={{ width: 400, textAlign: 'center' }}>
-        <div style={{ fontFamily: mono, fontSize: 84, color: C.pred }}>0.99</div>
-        <div style={{ fontSize: 30, color: C.soft }}>sounding sure</div>
-      </Card>
+    <div style={{ ...col, gap: 30, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+      <div style={{ fontSize: 36 }}>
+        Question for each email: <b>Is the customer asking for a refund?</b>
+      </div>
+      <TenMails />
       <Steps>
         <Step>
-          <div style={{ width: 640, fontSize: 32, lineHeight: 1.6, whiteSpace: 'nowrap' }}>
-            <Label>Reward = 1 if the answer is right</Label>
-            <div style={{ fontFamily: mono, marginTop: 16 }}>say 0.70 → average reward 0.7</div>
-            <div style={{ fontFamily: mono }}>say 0.99 → average reward 0.7</div>
+          <div style={{ ...row, gap: 50, marginTop: 10 }}>
+            <Card style={{ width: 430, textAlign: 'center', padding: '20px 30px' }}>
+              <div style={{ fontFamily: mono, fontSize: 76, color: C.pred }}>0.70</div>
+              <div style={{ fontSize: 28, color: C.soft }}>matches 7 out of 10</div>
+            </Card>
+            <Card style={{ width: 430, textAlign: 'center', padding: '20px 30px' }}>
+              <div style={{ fontFamily: mono, fontSize: 76, color: C.pred }}>0.99</div>
+              <div style={{ fontSize: 28, color: C.soft }}>sounds sure</div>
+            </Card>
           </div>
         </Step>
       </Steps>
@@ -3221,22 +3365,59 @@ const HonestyQ: Page = () => (
   </Frame>
 );
 
+const PRow = ({ say, a, b, c, best }: { say: string; a: string; b: string; c: string; best?: boolean }) => (
+  <div style={{ ...row, alignItems: 'center', height: 92, fontFamily: mono, fontSize: 34, background: best ? '#e6f2ef' : 'transparent', borderRadius: 10, padding: '0 22px', borderTop: `2px solid ${C.rule}` }}>
+    <div style={{ width: 340, color: C.pred, whiteSpace: 'nowrap' }}>P(yes) = {say}</div>
+    <div style={{ width: 300, fontFamily: 'var(--osd-font-body)', fontSize: 30 }}>{a}</div>
+    <div style={{ width: 590, color: C.soft, whiteSpace: 'nowrap' }}>{b}</div>
+    <div style={{ fontWeight: 700 }}>{c}</div>
+  </div>
+);
+
+const AccReward: Page = () => (
+  <Frame
+    part={5}
+    title="Reward A: one point for each right answer"
+    line="Both reports lead to the answer “yes” on every email, and both score 7 points. This reward cannot teach the model to say 0.7."
+  >
+    <div style={{ ...col, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+      <div style={{ transform: 'scale(0.8)', marginBottom: 10 }}>
+        <TenMails />
+      </div>
+      <div>
+        <div style={{ ...row, fontSize: 23, letterSpacing: '0.08em', fontWeight: 600, color: C.muted, padding: '0 22px', height: 44 }}>
+          <div style={{ width: 340 }}>THE MODEL SAYS</div>
+          <div style={{ width: 300 }}>SO IT ANSWERS</div>
+          <div style={{ width: 590 }}>POINTS</div>
+          <div>TOTAL</div>
+        </div>
+        <PRow say="0.70" a="yes, ten times" b="7 right × 1 + 3 wrong × 0" c="7" />
+        <Steps>
+          <Step>
+            <PRow say="0.99" a="yes, ten times" b="7 right × 1 + 3 wrong × 0" c="7" />
+          </Step>
+        </Steps>
+      </div>
+    </div>
+  </Frame>
+);
+
 const BrierOne: Page = () => (
   <Frame
     part={5}
-    title="The Brier score penalises the stated probability"
-    line="Here y is 1 if the answer was right and 0 if not, and lower is better. A wrong answer at 0.9 costs 81 times more than a right answer at 0.9."
+    title="Reward B: a penalty that looks at the stated probability"
+    line="This is the Brier score for one email. y is 1 if the customer did want a refund and 0 if not, and a lower penalty is better. Being sure and wrong costs 81 times more."
   >
     <div style={{ ...col, gap: 60, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
       <Eq size={76}>
-        <span style={{ color: C.loss }}>loss</span> = ( <I color={C.pred}>p</I> − <I color={C.truth}>y</I> )<sup style={{ fontSize: 44 }}>2</sup>
+        <span style={{ color: C.loss }}>penalty</span> = ( <I color={C.pred}>p</I> − <I color={C.truth}>y</I> )<sup style={{ fontSize: 44 }}>2</sup>
       </Eq>
       <div style={{ ...row, gap: 60 }}>
         <Steps>
           <Step>
             <Card style={{ width: 660, textAlign: 'center' }}>
-              <div style={{ fontSize: 32, color: C.soft }}>
-                says <span style={{ color: C.pred }}>0.9</span>, and is <span style={{ color: C.truth }}>right (y = 1)</span>
+              <div style={{ fontSize: 27, color: C.soft, whiteSpace: 'nowrap' }}>
+                says <span style={{ color: C.pred }}>P(yes) = 0.9</span>, and the truth is <span style={{ color: C.truth }}>yes (y = 1)</span>
               </div>
               <div style={{ fontFamily: mono, fontSize: 48, marginTop: 16 }}>
                 (0.9 − 1)² = <span style={{ color: C.loss }}>0.01</span>
@@ -3245,8 +3426,8 @@ const BrierOne: Page = () => (
           </Step>
           <Step>
             <Card style={{ width: 660, textAlign: 'center' }}>
-              <div style={{ fontSize: 32, color: C.soft }}>
-                says <span style={{ color: C.pred }}>0.9</span>, and is <span style={{ color: C.truth }}>wrong (y = 0)</span>
+              <div style={{ fontSize: 27, color: C.soft, whiteSpace: 'nowrap' }}>
+                says <span style={{ color: C.pred }}>P(yes) = 0.9</span>, and the truth is <span style={{ color: C.truth }}>no (y = 0)</span>
               </div>
               <div style={{ fontFamily: mono, fontSize: 48, marginTop: 16 }}>
                 (0.9 − 0)² = <span style={{ color: C.loss }}>0.81</span>
@@ -3262,7 +3443,7 @@ const BrierOne: Page = () => (
 const EB = ({ say, calc, val, best }: { say: string; calc: string; val: string; best?: boolean }) => (
   <div style={{ ...row, alignItems: 'center', height: 86, fontFamily: mono, fontSize: 36, background: best ? '#e6f2ef' : 'transparent', borderRadius: 10, padding: '0 20px' }}>
     <div style={{ width: 190, color: C.pred }}>say {say}</div>
-    <div style={{ width: 640, color: C.soft }}>{calc}</div>
+    <div style={{ width: 560, color: C.soft }}>{calc}</div>
     <div style={{ width: 150, color: C.loss, fontWeight: 700 }}>= {val}</div>
   </div>
 );
@@ -3283,7 +3464,7 @@ const BrierCurve = () => {
         <text key={v} x={X(v)} y={Y(0.18) + 34} textAnchor="middle" fontSize={24} fill={C.soft}>{v.toFixed(1)}</text>
       ))}
       <text x={X(0.6)} y={Y(0.18) + 74} textAnchor="middle" fontSize={26} fill={C.pred}>stated probability</text>
-      <text x={X(0.25)} y={Y(0.5)} fontSize={26} fill={C.loss}>expected loss</text>
+      <text x={X(0.25)} y={Y(0.5)} fontSize={26} fill={C.loss}>total penalty</text>
     </svg>
   );
 };
@@ -3291,21 +3472,21 @@ const BrierCurve = () => {
 const BrierExpected: Page = () => (
   <Frame
     part={5}
-    title="The Brier score is lowest at the true probability"
-    line="Expected loss = 0.7 × (loss if right) + 0.3 × (loss if wrong). A loss that is lowest at the true probability is called a proper scoring rule."
+    title="Add the penalty over the ten emails"
+    line="Seven emails are “yes” and three are “no”. The total penalty is lowest when the model says 0.7. A penalty with this property is called a proper scoring rule."
   >
     <div style={{ ...row, gap: 30, alignItems: 'center', height: '100%' }}>
       <div style={col}>
-        <EB say="0.5" calc="0.7 × 0.25 + 0.3 × 0.25" val="0.25" />
+        <EB say="0.5" calc="7 × 0.25 + 3 × 0.25" val="2.50" />
         <Steps>
           <Step>
-            <EB say="0.9" calc="0.7 × 0.01 + 0.3 × 0.81" val="0.25" />
+            <EB say="0.9" calc="7 × 0.01 + 3 × 0.81" val="2.50" />
           </Step>
           <Step>
-            <EB say="1.0" calc="0.7 × 0.00 + 0.3 × 1.00" val="0.30" />
+            <EB say="1.0" calc="7 × 0.00 + 3 × 1.00" val="3.00" />
           </Step>
           <Step>
-            <EB say="0.7" calc="0.7 × 0.09 + 0.3 × 0.49" val="0.21" best />
+            <EB say="0.7" calc="7 × 0.09 + 3 × 0.49" val="2.10" best />
           </Step>
         </Steps>
       </div>
@@ -3321,7 +3502,7 @@ const BrierExpected: Page = () => (
 const LogScore: Page = () => (
   <Frame
     part={5}
-    title="You already use a proper scoring rule"
+    title="Cross-entropy is also a proper scoring rule"
     line="Cross-entropy, the usual classification loss, is the log score. A classifier head trained with it is rewarded for reporting correct probabilities."
   >
     <div style={{ ...col, gap: 60, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
@@ -3342,6 +3523,49 @@ const LogScore: Page = () => (
         </Step>
       </Steps>
     </div>
+  </Frame>
+);
+
+const Idea = ({ n, head, children }: { n: string; head: string; children: ReactNode }) => (
+  <Card style={{ width: 540, padding: '26px 30px' }}>
+    <div style={{ fontFamily: serif, fontSize: 64, fontWeight: 700, color: C.s1, lineHeight: 1 }}>{n}</div>
+    <div style={{ fontSize: 34, fontWeight: 600, margin: '12px 0 10px', lineHeight: 1.2 }}>{head}</div>
+    <div style={{ fontSize: 27, lineHeight: 1.4, color: C.soft }}>{children}</div>
+  </Card>
+);
+
+const RLCDIdeas: Page = () => (
+  <Frame
+    part={5}
+    title="How a reward for calibrated decisions can be built"
+    line="This is our reading of what such training needs, and Unsloth’s trainer follows similar steps. Whether Jev’s RLCD works this way has not been published."
+  >
+    <div style={{ ...row, gap: 40, alignItems: 'stretch' }}>
+      <Idea n="1" head="Questions with known answers">
+        Many states, each with typed questions and the correct answer: “Refund?” yes. “Team?” billing. They can be labelled by people or
+        generated.
+      </Idea>
+      <Steps>
+        <Step>
+          <Idea n="2" head="A proper scoring rule as the reward">
+            The model reports probabilities. The reward is the negative Brier penalty or the log of the probability it gave the correct answer.
+          </Idea>
+        </Step>
+        <Step>
+          <Idea n="3" head="Calibration on held-out rows">
+            Rows kept out of training are used to fit a temperature per question type, as we did with T = {sci.zs.T.toFixed(1)} in Part 4.
+          </Idea>
+        </Step>
+      </Steps>
+    </div>
+    <Steps>
+      <Step>
+        <div style={{ fontSize: 28, lineHeight: 1.4, color: C.ink, marginTop: 26, background: C.panel, borderRadius: 'var(--osd-radius)', padding: '16px 24px' }}>
+          Is this reinforcement learning or supervised learning? When the correct answer is known and the reward is a proper scoring rule,
+          raising the reward is the same as lowering a supervised loss. Nothing has to be sampled.
+        </div>
+      </Step>
+    </Steps>
   </Frame>
 );
 
@@ -3807,6 +4031,7 @@ const deck: [Page, string][] = [
   [Readout, 'Subtracting the largest logit is the standard trick to avoid huge exponentials. A real case of softmax over three numbers.'],
   [DecideCode, 'Notebook 1, section 4. Mention that option order can shift the numbers; it is an exercise in the notebook.'],
   [Timing, 'The comparison is for one question. A decision model answers all questions in the same pass.'],
+  [ArchDiff, 'We never removed the decoder: a decoder-only transformer is still the reader. What is gone is decoding into text. How Jev is built inside is not published.'],
   [Honest, 'The small model is undecided between billing and technical, and its written JSON picked billing. An untrained model; the point is that the doubt is now visible.'],
   [Types, 'noul is the yes/no type name in Jev’s API. Its origin is not explained in the public material.'],
   [ScoreCalc, 'The model is confidently wrong about urgency. Keep this in mind for calibration.'],
@@ -3841,14 +4066,18 @@ const deck: [Page, string][] = [
   [PreTrain, 'Token counts are the makers’ own figures: the GPT-3 paper, Meta’s Llama 3 announcement and the Qwen2.5 report. Our small Qwen model comes from that family.'],
   [BaseModel, 'The continuation is illustrative. A base model has no notion of a turn ending, so it also does not know when to stop.'],
   [SFT, 'Instruction tuning and SFT name the same stage. Dolly is from Databricks, Alpaca from Stanford, FLAN from Google. Check the counts against the dataset cards before quoting them.'],
-  [RLHFPage, 'InstructGPT is Ouyang et al., 2022. The answers shown are illustrative. Note which answer wins: the one that sounds sure.'],
+  [RLHFPage, 'The window is a mock-up of a rating tool. Real tools differ, and some ask for a ranking of four or more answers. Note which answer wins.'],
+  [RLHFLoop, 'InstructGPT is Ouyang et al., 2022. The two scores are illustrative. Newer methods such as DPO skip the separate reward model and train on the comparisons directly.'],
   [RLVRPage, 'RLVR means reinforcement learning with verifiable rewards. The same sum as in Part 1.'],
+  [RLVRCode, 'A function that returned True for every input would fail the second test and get 0. The reward says nothing about which test failed.'],
   [RLTwo, 'This framing follows the IBM video.'],
   [RLCD, 'Be clear that what follows is our construction with the same goal, not Jev’s method. Wikipedia notes it may be ordinary supervised learning with calibration terms in the loss.'],
-  [HonestyQ, 'Any stated probability above 0.5 picks the same answer, so the accuracy reward cannot tell them apart.'],
+  [HonestyQ, 'Ask the class to vote for 0.70 or 0.99 before moving on. The ten emails stand for all the emails on which the model has the same information.'],
+  [AccReward, 'Any stated probability above 0.5 gives the answer yes, so the accuracy reward cannot tell 0.70 from 0.99.'],
   [BrierOne, '0.81 / 0.01 = 81.'],
-  [BrierExpected, 'Ask the class to guess the best report before revealing the last row.'],
+  [BrierExpected, 'Ask the class to guess the best report before revealing the last row. Dividing each total by 10 gives the average penalty per email.'],
   [LogScore, 'So ordinary supervised training with cross-entropy already rewards correct probabilities, at least on the training distribution.'],
+  [RLCDIdeas, 'Unsloth exposes build_dataset, a trainer, split_holdout and calibrate. Its loss is not something I have verified. Wikipedia notes that RLCD may be ordinary supervised learning with calibration terms.'],
   [HeadFigure, 'Recall the encoder slide: we are using a decoder’s last vector the way an encoder model uses its output vector.'],
   [HeadCode, 'Notebook 2. Features are standardised first. Training takes a few seconds.'],
   [HeadResults, '2,000 training items. The Brier-trained head gives nearly the same numbers; it is in the notebook.'],
