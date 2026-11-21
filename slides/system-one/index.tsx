@@ -4278,9 +4278,328 @@ const Recap5: Page = () => (
 const S6: Page = () => (
   <SectionPage
     n={6}
-    goal="We have a fast answer and a probability we can trust. How does software use them, and where does this break?"
-    how="Thresholds on the refund question, a live threshold on our trained head, a pipeline with an LLM, then the limits."
+    goal="You have a new problem: some questions are yes or no, some are a choice, the input may be an image. How do you build it, and where does it break?"
+    how="Whether a head is trained per question, a recipe for a new problem, and three applications. Then thresholds, a pipeline with an LLM, and the limits."
   />
+);
+
+const TwoWays = ({ color, head, sub, rows }: { color: string; head: string; sub: string; rows: [string, string][] }) => (
+  <Card color={color} style={{ width: 830, padding: '28px 34px' }}>
+    <div style={{ fontFamily: serif, fontSize: 44, fontWeight: 700, color }}>{head}</div>
+    <div style={{ fontSize: 27, color: C.soft, marginBottom: 14 }}>{sub}</div>
+    {rows.map(([k, v]) => (
+      <div key={k} style={{ ...row, gap: 20, fontSize: 28, lineHeight: 1.3, padding: '11px 0', borderTop: `2px solid ${C.rule}` }}>
+        <div style={{ width: 230, color: C.muted, flexShrink: 0 }}>{k}</div>
+        <div>{v}</div>
+      </div>
+    ))}
+  </Card>
+);
+
+const PerQuestion: Page = () => (
+  <Frame
+    part={6}
+    title="Do we train a head for every question?"
+    line="The head we built answers one question. General decision models put the question and its options into the input, so a new question needs new text and no new training."
+  >
+    <div style={{ ...row, gap: 40, alignItems: 'stretch', marginTop: 6 }}>
+      <TwoWays
+        color={C.s1}
+        head="A head for one question"
+        sub="what we trained in Part 5"
+        rows={[
+          ['Question', 'fixed: “which topic?”'],
+          ['Outputs', 'exactly 4, one per topic'],
+          ['New question', 'new labelled data and a new head'],
+          ['Good for', 'one high-volume question you have labels for'],
+        ]}
+      />
+      <Steps>
+        <Step>
+          <TwoWays
+            color={C.pred}
+            head="One model for any question"
+            sub="Jev, Liquid d1, a model trained with Unsloth"
+            rows={[
+              ['Question', 'written in the prompt, with its options'],
+              ['Outputs', 'one score for every option it is given'],
+              ['New question', 'new text in the request'],
+              ['Good for', 'many different questions, some not known yet'],
+            ]}
+          />
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const OptScore = ({ x, y, label, p, top }: { x: number; y: number; label: string; p: string; top?: boolean }) => (
+  <g>
+    <rect x={x} y={y} width={250} height={56} rx={8} fill={C.white} stroke={top ? C.pred : C.rule} strokeWidth={3} />
+    <text x={x + 16} y={y + 37} fontSize={26} fontFamily={mono} fill={C.ink}>{label}</text>
+    <line x1={x + 250} y1={y + 28} x2={x + 330} y2={y + 28} stroke={C.soft} strokeWidth={2} markerEnd="url(#ah)" />
+    <text x={x + 345} y={y + 38} fontSize={30} fontFamily={mono} fill={C.pred} fontWeight={top ? 700 : 400}>{p}</text>
+  </g>
+);
+
+const OnePrompt: Page = () => (
+  <Frame
+    part={6}
+    title="One prompt holds the state, the questions and the options"
+    line="The LLM reads this once. A small shared head then gives a score to every option, and the scores are turned into probabilities within each question."
+  >
+    <svg width={1700} height={690} viewBox="0 0 1700 690">
+      <Arrows />
+      <rect x={20} y={20} width={620} height={640} rx={14} fill={C.panel} stroke={C.rule} strokeWidth={3} />
+      <text x={44} y={62} fontSize={24} fill={C.muted} fontWeight={600}>ONE PROMPT</text>
+      <text x={44} y={108} fontSize={26} fill={C.soft}>state</text>
+      <text x={44} y={146} fontSize={26} fontFamily="Georgia, serif">“I was charged twice this month,</text>
+      <text x={44} y={180} fontSize={26} fontFamily="Georgia, serif">please fix it.”</text>
+      <text x={44} y={240} fontSize={26} fill={C.soft}>question 1 · choice</text>
+      <text x={44} y={276} fontSize={26}>Which team should handle this?</text>
+      <text x={44} y={400} fontSize={26} fill={C.soft}>question 2 · noul</text>
+      <text x={44} y={436} fontSize={26}>Does the customer ask for a refund?</text>
+      <text x={44} y={510} fontSize={26} fill={C.soft}>question 3 · score</text>
+      <text x={44} y={546} fontSize={26}>How urgent is this?</text>
+      <Arr x1={640} y1={340} x2={720} y2={340} />
+      <Box x={730} y={250} w={250} h={180} text="LLM" sub="reads it once" color={C.s2} size={40} />
+      <Arr x1={980} y1={340} x2={1050} y2={340} />
+      <text x={1070} y={50} fontSize={24} fill={C.s1} fontWeight={600}>SHARED HEAD: A SCORE PER OPTION</text>
+      <OptScore x={1070} y={70} label="billing" p={f2(sci.p_team[0])} />
+      <OptScore x={1070} y={134} label="technical" p={f2(sci.p_team[1])} top />
+      <OptScore x={1070} y={198} label="sales" p={f2(sci.p_team[2])} />
+      <OptScore x={1070} y={312} label="yes" p={f2(sci.p_refund_yes)} top />
+      <OptScore x={1070} y={426} label="not urgent" p={f2(sci.p_urgency[0])} top />
+      <OptScore x={1070} y={490} label="soon" p={f2(sci.p_urgency[1])} />
+      <OptScore x={1070} y={554} label="today" p={f2(sci.p_urgency[2])} />
+      <text x={1070} y={650} fontSize={23} fill={C.muted}>numbers are our Part 3 readout for this email</text>
+    </svg>
+  </Frame>
+);
+
+const Phase = ({ when, what, detail, color }: { when: string; what: string; detail: string; color: string }) => (
+  <div style={{ ...row, gap: 30, alignItems: 'center', padding: '20px 0', borderTop: `2px solid ${C.rule}` }}>
+    <div style={{ width: 330, fontSize: 30, fontWeight: 700, color, flexShrink: 0 }}>{when}</div>
+    <div style={{ width: 520, fontSize: 32, fontWeight: 600, flexShrink: 0 }}>{what}</div>
+    <div style={{ fontSize: 27, lineHeight: 1.35, color: C.soft }}>{detail}</div>
+  </div>
+);
+
+const TrainOnce: Page = () => (
+  <Frame
+    part={6}
+    title="What gets trained, and how often"
+    line="Training happens once, on a mix of many questions of every type. Unsloth reports that a new head starts near chance, 30 to 37%, and reaches 73% after that training."
+  >
+    <div style={{ ...col, marginTop: 10 }}>
+      <Phase when="Once, by whoever builds the model" what="Train the head and LoRA adapters" detail="on a large mixed set: many states, many questions, all three types in the same rows" color={C.s2} />
+      <Steps>
+        <Step>
+          <Phase when="For each new application" what="Write the questions" detail="type, instructions and criteria; no training" color={C.pred} />
+        </Step>
+        <Step>
+          <Phase when="Always" what="Check on your own data" detail="accuracy, a reliability diagram, and thresholds fitted on held-out rows" color={C.truth} />
+        </Step>
+        <Step>
+          <Phase when="Only if accuracy falls short" what="Fine-tune on your labelled rows" detail="more training of the same head and adapters, or a small head of your own as in Part 5" color={C.s1} />
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const StepCard = ({ n, head, body }: { n: string; head: string; body: string }) => (
+  <div style={{ ...row, gap: 24, alignItems: 'flex-start', padding: '14px 0', borderTop: `2px solid ${C.rule}` }}>
+    <div style={{ width: 54, height: 54, borderRadius: 27, background: 'var(--osd-accent)', color: C.white, fontSize: 28, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{n}</div>
+    <div style={{ width: 520, fontSize: 31, fontWeight: 600, lineHeight: 1.3, flexShrink: 0 }}>{head}</div>
+    <div style={{ fontSize: 27, lineHeight: 1.35, color: C.soft }}>{body}</div>
+  </div>
+);
+
+const Recipe: Page = () => (
+  <Frame
+    part={6}
+    title="A recipe for your own problem"
+    line="Steps 2 to 5 are our advice. The vendors’ pages say one thing on this: calibrate any decision threshold on data from your own use."
+  >
+    <div style={{ ...col, marginTop: 4 }}>
+      <StepCard n="1" head="Write the state and the questions" body="For each question choose a type: noul, choice, score, or a newer one such as a box or a count." />
+      <Steps>
+        <Step>
+          <StepCard n="2" head="Label a small test set yourself" body="One or two hundred real inputs with the correct answers. Without this nothing below can be measured." />
+        </Step>
+        <Step>
+          <StepCard n="3" head="Try a general model with no training" body="Record accuracy and draw the reliability diagram for each question." />
+        </Step>
+        <Step>
+          <StepCard n="4" head="If the confidence is off, calibrate" body="Fit a temperature or thresholds on half of your labels and check on the other half." />
+        </Step>
+        <Step>
+          <StepCard n="5" head="If the accuracy is short, train" body="Fine-tune with Unsloth on your labelled rows, or train a head on frozen vectors as in notebook 2." />
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const AppRow = ({ k, children }: { k: string; children: ReactNode }) => (
+  <div style={{ ...row, gap: 20, fontSize: 27, lineHeight: 1.35, padding: '12px 0', borderTop: `2px solid ${C.rule}` }}>
+    <div style={{ width: 210, color: C.muted, flexShrink: 0 }}>{k}</div>
+    <div style={{ flex: 1 }}>{children}</div>
+  </div>
+);
+const Q = ({ t, children }: { t: string; children: ReactNode }) => (
+  <div style={{ ...row, gap: 12, alignItems: 'center', marginBottom: 6 }}>
+    <TypeChip t={t} small />
+    <span>{children}</span>
+  </div>
+);
+
+const AppEmail: Page = () => (
+  <Frame
+    part={6}
+    title="Application 1: sorting support email"
+    line="Text in, three typed answers out. A general decision model can be tried with no training, and the thresholds come from tickets that staff have already resolved."
+  >
+    <div style={{ ...row, gap: 50, alignItems: 'center', height: '100%' }}>
+      <div style={{ flexShrink: 0 }}>
+        <EmailCard width={560} />
+      </div>
+      <div style={{ flex: 1 }}>
+        <AppRow k="Input">the email as text</AppRow>
+        <AppRow k="Questions">
+          <Q t="choice">Which team? billing · technical · sales</Q>
+          <Q t="noul">Is the customer asking for a refund?</Q>
+          <Q t="score">How urgent? not urgent · soon · today</Q>
+        </AppRow>
+        <Steps>
+          <Step>
+            <AppRow k="Model and head">a general text decision model; its own shared head</AppRow>
+            <AppRow k="Training">none to start. Fine-tune if routing accuracy on your tickets is short.</AppRow>
+          </Step>
+          <Step>
+            <AppRow k="Calibration">a few hundred resolved tickets, to set the 0.9 and 0.1 thresholds</AppRow>
+            <AppRow k="Action">route automatically above the threshold, otherwise ask a person</AppRow>
+          </Step>
+        </Steps>
+      </div>
+    </div>
+  </Frame>
+);
+
+const AppKiln: Page = () => (
+  <Frame
+    part={6}
+    title="Application 2: brick kilns in satellite images"
+    line="An image in, a yes or no and a location out. Satellite tiles look unlike everyday photos, so we expect this one to need training on labelled tiles; measure first."
+  >
+    <div style={{ ...row, gap: 50, alignItems: 'center', height: '100%' }}>
+      <svg width={470} height={470} viewBox="0 0 470 470" style={{ flexShrink: 0, borderRadius: 'var(--osd-radius)' }}>
+        <rect width={470} height={470} fill="#d9d2bf" />
+        <rect x={0} y={0} width={210} height={150} fill="#c3cfa6" />
+        <rect x={230} y={0} width={240} height={190} fill="#cbd4ae" />
+        <rect x={0} y={300} width={170} height={170} fill="#c9d3ac" />
+        <rect x={300} y={330} width={170} height={140} fill="#bfcb9f" />
+        <path d="M0,230 L470,200" stroke="#f3efe4" strokeWidth={10} />
+        <ellipse cx={250} cy={290} rx={78} ry={34} fill="#b5654a" stroke="#8c4a35" strokeWidth={4} transform="rotate(-12 250 290)" />
+        <ellipse cx={250} cy={290} rx={48} ry={14} fill="#d9d2bf" transform="rotate(-12 250 290)" />
+        <circle cx={250} cy={290} r={6} fill="#5b4a40" />
+        <rect x={160} y={238} width={182} height={104} fill="none" stroke={C.pred} strokeWidth={5} />
+        <text x={160} y={228} fontSize={22} fontFamily={mono} fill={C.pred}>kiln · found 0.93</text>
+        <text x={12} y={458} fontSize={18} fill={C.soft}>drawing, with an illustrative answer</text>
+      </svg>
+      <div style={{ flex: 1 }}>
+        <AppRow k="Input">one satellite tile</AppRow>
+        <AppRow k="Questions">
+          <Q t="noul">Is there a brick kiln in this tile?</Q>
+          <Q t="box">Where is the kiln?</Q>
+          <Q t="choice">Which kind? zigzag · fixed chimney · other</Q>
+        </AppRow>
+        <Steps>
+          <Step>
+            <AppRow k="Model and head">a decision model that takes images, such as Liquid’s d1 family</AppRow>
+            <AppRow k="Training">try with none; if short, train on labelled tiles, or put a head on an image encoder</AppRow>
+          </Step>
+          <Step>
+            <AppRow k="Calibration">tiles from a district held out of training</AppRow>
+            <AppRow k="Action">send tiles above the threshold to a person for confirmation</AppRow>
+          </Step>
+        </Steps>
+      </div>
+    </div>
+  </Frame>
+);
+
+const AppGame: Page = () => (
+  <Frame
+    part={6}
+    title="Application 3: choosing a move in a game"
+    line="The board is the state and the legal moves are the options, so one forward pass gives a probability for every move. When no move stands out, a slower search takes over."
+  >
+    <div style={{ ...row, gap: 50, alignItems: 'center', height: '100%' }}>
+      <svg width={470} height={470} viewBox="0 0 470 470" style={{ flexShrink: 0 }}>
+        <rect width={470} height={470} rx={14} fill={C.white} stroke={C.rule} strokeWidth={3} />
+        {[1, 2].map((i) => (
+          <g key={i}>
+            <line x1={35 + i * 133} y1={35} x2={35 + i * 133} y2={435} stroke={C.ink} strokeWidth={5} />
+            <line x1={35} y1={35 + i * 133} x2={435} y2={35 + i * 133} stroke={C.ink} strokeWidth={5} />
+          </g>
+        ))}
+        {[
+          ['X', 0, 0], ['O', 1, 0], ['X', 0, 1], ['O', 1, 1],
+        ].map(([m, c, r]) => (
+          <text key={`${c}${r}`} x={101 + (c as number) * 133} y={128 + (r as number) * 133} textAnchor="middle" fontSize={96} fontFamily="Georgia, serif" fill={m === 'X' ? C.s2 : C.s1}>{m}</text>
+        ))}
+        <rect x={45} y={311} width={113} height={113} rx={10} fill={`${C.pred}22`} stroke={C.pred} strokeWidth={4} />
+        <text x={101} y={380} textAnchor="middle" fontSize={34} fontFamily={mono} fill={C.pred} fontWeight={700}>0.81</text>
+        <text x={234} y={380} textAnchor="middle" fontSize={28} fontFamily={mono} fill={C.muted}>0.09</text>
+        <text x={367} y={380} textAnchor="middle" fontSize={28} fontFamily={mono} fill={C.muted}>0.03</text>
+        <text x={367} y={114} textAnchor="middle" fontSize={28} fontFamily={mono} fill={C.muted}>0.04</text>
+        <text x={367} y={247} textAnchor="middle" fontSize={28} fontFamily={mono} fill={C.muted}>0.03</text>
+        <text x={235} y={462} textAnchor="middle" fontSize={18} fill={C.soft}>X to move · probabilities illustrative</text>
+      </svg>
+      <div style={{ flex: 1 }}>
+        <AppRow k="Input">the board, as text or as a picture</AppRow>
+        <AppRow k="Questions">
+          <Q t="choice">Which move should X play? one option per empty square</Q>
+          <Q t="score">How good is this position for X? losing · even · winning</Q>
+        </AppRow>
+        <Steps>
+          <Step>
+            <AppRow k="Model and head">a decision model as a fast policy: System 1 for the game</AppRow>
+            <AppRow k="Training">needed. Labels come free from a solver or from who won, the same verified reward as RLVR.</AppRow>
+          </Step>
+          <Step>
+            <AppRow k="Calibration">positions from games held out of training</AppRow>
+            <AppRow k="Action">play the top move when it is clear; otherwise run a search, which is System 2</AppRow>
+          </Step>
+        </Steps>
+      </div>
+    </div>
+  </Frame>
+);
+
+const NotFit: Page = () => (
+  <Frame
+    part={6}
+    title="Which approach fits which problem"
+    line="A decision model fits when the answer comes from a list, a scale, or a place in the input. Liquid’s own pages send text generation, summaries, code and open questions to an LLM."
+  >
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 30, marginTop: 10 }}>
+      <Card color={C.pred} style={{ padding: '26px 28px' }}>
+        <Label color={C.pred}>General decision model</Label>
+        <div style={{ fontSize: 28, lineHeight: 1.45, marginTop: 12 }}>Many different questions, some arriving later. Little or no labelled data. Text, images or audio.</div>
+      </Card>
+      <Card color={C.s1} style={{ padding: '26px 28px' }}>
+        <Label color={C.s1}>Your own head or fine-tune</Label>
+        <div style={{ fontSize: 28, lineHeight: 1.45, marginTop: 12 }}>One or a few fixed questions at high volume, with labels. Unusual inputs such as satellite tiles or game boards.</div>
+      </Card>
+      <Card color={C.s2} style={{ padding: '26px 28px' }}>
+        <Label color={C.s2}>A generative LLM</Label>
+        <div style={{ fontSize: 28, lineHeight: 1.45, marginTop: 12 }}>The output is free text: a reply, a summary, code, an explanation, a conversation. Also problems that need steps.</div>
+      </Card>
+    </div>
+  </Frame>
 );
 
 const Thresholds: Page = () => (
@@ -4461,10 +4780,10 @@ const Jevons: Page = () => (
 );
 
 const Summary: Page = () => (
-  <Frame part={0} title="Summary of the lecture">
+  <Frame part={0} title="Summary of the lecture" line="The same picture covers the support email, the satellite tile and the game board. Only the state and the questions change.">
     <svg width={1700} height={690} viewBox="0 0 1700 690">
       <Arrows />
-      <Box x={20} y={30} w={300} h={130} text="state + questions" sub="email, 3 questions" />
+      <Box x={20} y={30} w={300} h={130} text="state + questions" sub="email, tile or board" />
       <Arr x1={320} y1={95} x2={400} y2={95} />
       <Box x={410} y={30} w={300} h={130} text="one forward pass" sub="tokens → attention → vector" color={C.s2} />
       <Arr x1={710} y1={95} x2={790} y2={95} />
@@ -4566,7 +4885,7 @@ const deck: [Page, string][] = [
   [ArchDiff, 'We never removed the decoder: a decoder-only transformer is still the reader. What is gone is decoding into text. How Jev is built inside is not published.'],
   [Honest, 'The small model is undecided between billing and technical, and its written JSON picked billing. An untrained model; the point is that the doubt is now visible.'],
   [Types, 'noul is the yes/no type name in Jev’s API. Its origin is not explained in the public material.'],
-  [ScoreCalc, 'The model is confidently wrong about urgency. Keep this in mind for calibration.'],
+  [ScoreCalc, 'The model is confidently wrong about urgency. Keep this in mind for calibration. Liquid’s pages define score in two ways, the weighted level and the median level; we use the weighted one.'],
   [MoreTypes, 'How Liquid computes its newer answer types is not published. The multi-select and number readouts here are our own construction on an untrained model.'],
   [Request, 'Field names follow the Jev and Unsloth request format: state, questions, type, instructions, criteria.'],
   [Response, 'Field names follow the Jev and Liquid docs: choice with probabilities, noul as one number, score with its probabilities. I left out the confidence field because its formula is not documented.'],
@@ -4627,6 +4946,14 @@ const deck: [Page, string][] = [
   [UnslothNumbers, 'Numbers from Unsloth’s documentation.'],
   [Recap5, ''],
   [S6, ''],
+  [PerQuestion, 'This is the question students ask at this point. Our Part 5 head has four fixed outputs. General models take the question as input.'],
+  [OnePrompt, 'Unsloth describes its head as one that “looks at the LLM’s output over each question and option and scores every option”. How the heads inside Jev and Liquid are built is not published.'],
+  [TrainOnce, 'The 30 to 37% and 73% are Unsloth’s figures for Qwen3.5-0.8B on its typed-decisions set. The docs do not say when to fine-tune; the last two rows are our advice.'],
+  [Recipe, 'The quoted advice is on Liquid’s model pages. The size of the test set in step 2 is our suggestion, not a documented rule.'],
+  [AppEmail, 'The running example, now as a build plan. All three questions go in one request.'],
+  [AppKiln, 'The drawing and the 0.93 are illustrative. Liquid documents image input and box answers; nobody has reported results on satellite tiles, so the training row is our expectation.'],
+  [AppGame, 'The board probabilities are illustrative. Treating a policy as a choice question is our framing; the decision-model vendors do not discuss games.'],
+  [NotFit, 'The list for generative LLMs follows Liquid’s documentation. The other two columns summarise this lecture.'],
   [Thresholds, 'From the IBM video’s refund example.'],
   [ThresholdLive, 'Drag to 0.9 and to 0.5. Ask which threshold a bank would choose and which a news app would.'],
   [Pipeline, 'Kahneman’s picture again: fast most of the time, slow when needed.'],
