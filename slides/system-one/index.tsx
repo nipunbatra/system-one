@@ -2740,41 +2740,76 @@ const RealSetup: Page = () => (
   </Frame>
 );
 
+const ONE_MAX = top(ONE.logits);
+const ONE_E = ONE.logits.map((z) => Math.exp(z - ONE_MAX));
+const ONE_TOT = ONE_E.reduce((a, b) => a + b, 0);
+
 const RealOne: Page = () => (
   <Frame
     part={4}
-    title="One prediction, from news item to confidence"
-    line={`The answer is the option with the largest probability, and that probability is the confidence. Here the model says Sci/Tech with ${f2(top(ONE.probs))}, and it is right.`}
+    title="One prediction: from logits to answer and confidence"
+    line={`The answer is the option with the largest probability. The confidence is that largest probability, here ${f2(top(ONE.probs))}. It is the model’s own estimate that its answer is right.`}
   >
-    <div style={{ ...row, gap: 50, alignItems: 'center', height: '100%' }}>
-      <div style={{ width: 600, flexShrink: 0 }}>
+    <div style={{ ...row, gap: 40, alignItems: 'center', height: '100%' }}>
+      <div style={{ width: 430, flexShrink: 0 }}>
         <Label>News item</Label>
-        <div style={{ fontFamily: serif, fontSize: 34, lineHeight: 1.35, margin: '12px 0 22px' }}>“{clean(ONE.text).slice(0, 100)}…”</div>
+        <div style={{ fontFamily: serif, fontSize: 30, lineHeight: 1.35, margin: '10px 0 18px' }}>“{clean(ONE.text).slice(0, 86)}…”</div>
         <Label color={C.truth}>Correct topic</Label>
-        <div style={{ fontSize: 36, color: C.truth, fontWeight: 600, marginTop: 8 }}>{short(ONE.label)}</div>
+        <div style={{ fontSize: 32, color: C.truth, fontWeight: 600, marginTop: 6 }}>{short(ONE.label)}</div>
       </div>
       <div style={col}>
         <div style={row}>
-          <RHead w={300} left>option</RHead>
-          <RHead w={190}>logit</RHead>
+          <div style={col}>
+            <RHead w={270} left>option</RHead>
+            {TOPIC4.map((t, i) => (
+              <RCell key={t} w={270} left>{'ABCD'[i]}  {t}</RCell>
+            ))}
+          </div>
+          <div style={col}>
+            <RHead w={170}>logit</RHead>
+            {ONE.logits.map((z, i) => (
+              <RCell key={i} w={170}>{z.toFixed(2)}</RCell>
+            ))}
+          </div>
           <Steps>
             <Step>
-              <RHead w={260}>probability</RHead>
+              <div style={col}>
+                <RHead w={230}>minus {ONE_MAX.toFixed(2)}</RHead>
+                {ONE.logits.map((z, i) => (
+                  <RCell key={i} w={230} color={C.soft}>{(z - ONE_MAX).toFixed(2).replace('-', '−')}</RCell>
+                ))}
+              </div>
+            </Step>
+            <Step>
+              <div style={col}>
+                <RHead w={230}>e to that power</RHead>
+                {ONE_E.map((v, i) => (
+                  <RCell key={i} w={230} color={C.soft}>{v.toFixed(4)}</RCell>
+                ))}
+              </div>
+            </Step>
+            <Step>
+              <div style={col}>
+                <RHead w={300}>÷ total {ONE_TOT.toFixed(4)}</RHead>
+                {ONE.probs.map((v, i) => (
+                  <RCell key={i} w={300} color={C.pred}>{v === top(ONE.probs) ? <b>{f2(v)}</b> : f2(v)}</RCell>
+                ))}
+              </div>
             </Step>
           </Steps>
         </div>
-        {TOPIC4.map((t, i) => (
-          <div key={t} style={row}>
-            <RCell w={300} left>{'ABCD'[i]}  {t}</RCell>
-            <RCell w={190}>{ONE.logits[i].toFixed(2)}</RCell>
-            <Steps>
-              <Step>
-                <RCell w={260} color={C.pred}>{ONE.probs[i] === top(ONE.probs) ? <b>{f2(ONE.probs[i])}</b> : f2(ONE.probs[i])}</RCell>
-              </Step>
-            </Steps>
-          </div>
-        ))}
-        <div style={{ fontSize: 24, color: C.muted, marginTop: 14 }}>softmax over the four logits, as on the readout slide</div>
+        <Steps>
+          <Step>
+            <div style={{ ...row, gap: 30, marginTop: 22, justifyContent: 'flex-end' }}>
+              <div style={{ border: `3px solid ${C.ink}`, borderRadius: 10, padding: '10px 20px', fontSize: 27 }}>
+                answer = option with the largest probability = <b>D, Sci/Tech</b>
+              </div>
+              <div style={{ border: `3px solid ${C.pred}`, borderRadius: 10, padding: '10px 20px', fontSize: 27, color: C.pred }}>
+                confidence = that probability = <b>{f2(top(ONE.probs))}</b>
+              </div>
+            </div>
+          </Step>
+        </Steps>
       </div>
     </div>
   </Frame>
@@ -2784,22 +2819,35 @@ const RealSix: Page = () => (
   <Frame
     part={4}
     title="Six of the 1,000 predictions"
-    line="Four are right and two are wrong, and the confidence is almost the same in all six. The two wrong answers come with 0.9997."
+    line="In every row the answer is the topic with the largest of the four probabilities, and the confidence is that largest value. The two wrong answers both come with 0.9997."
   >
-    <div style={{ ...col, marginTop: 6 }}>
-      <div style={{ ...row, fontSize: 23, letterSpacing: '0.08em', fontWeight: 600, color: C.muted, height: 42 }}>
-        <div style={{ width: 760 }}>NEWS ITEM</div>
-        <div style={{ width: 230 }}>MODEL SAID</div>
-        <div style={{ width: 230, color: C.pred }}>CONFIDENCE</div>
-        <div style={{ width: 230, color: C.truth }}>CORRECT TOPIC</div>
+    <div style={{ ...col, marginTop: 16 }}>
+      <div style={{ ...row, fontSize: 21, letterSpacing: '0.06em', fontWeight: 600, color: C.muted, height: 62, alignItems: 'flex-end', paddingBottom: 8 }}>
+        <div style={{ width: 500 }}>NEWS ITEM</div>
+        <div style={{ width: 520, color: C.pred, textAlign: 'center' }}>
+          <div>PROBABILITIES FROM THE SOFTMAX</div>
+          <div style={{ ...row }}>
+            {TOPIC4.map((t) => (
+              <div key={t} style={{ width: 130, letterSpacing: 0, fontWeight: 400 }}>{t}</div>
+            ))}
+          </div>
+        </div>
+        <div style={{ width: 170, paddingLeft: 20 }}>ANSWER</div>
+        <div style={{ width: 180, color: C.pred }}>CONFIDENCE</div>
+        <div style={{ width: 170, color: C.truth }}>CORRECT</div>
         <div>RIGHT?</div>
       </div>
       {EXS.map((e) => (
-        <div key={e.text} style={{ ...row, alignItems: 'center', fontSize: 28, height: 86, borderTop: `2px solid ${C.rule}` }}>
-          <div style={{ width: 760, paddingRight: 30, lineHeight: 1.25 }}>{clean(e.text).slice(0, 78)}…</div>
-          <div style={{ width: 230 }}>{short(e.pred)}</div>
-          <div style={{ width: 230, fontFamily: mono, color: C.pred }}>{top(e.probs).toFixed(4)}</div>
-          <div style={{ width: 230, color: C.truth }}>{short(e.label)}</div>
+        <div key={e.text} style={{ ...row, alignItems: 'center', fontSize: 26, height: 84, borderTop: `2px solid ${C.rule}` }}>
+          <div style={{ width: 500, paddingRight: 24, lineHeight: 1.25, fontSize: 25 }}>{clean(e.text).slice(0, 58)}…</div>
+          {e.probs.map((v, i) => (
+            <div key={i} style={{ width: 130, textAlign: 'center', fontFamily: mono, fontSize: 24, color: v === top(e.probs) ? C.pred : C.muted, fontWeight: v === top(e.probs) ? 700 : 400, background: v === top(e.probs) ? `${C.pred}18` : 'transparent', borderRadius: 6, padding: '6px 0' }}>
+              {v.toFixed(4)}
+            </div>
+          ))}
+          <div style={{ width: 170, paddingLeft: 20 }}>{short(e.pred)}</div>
+          <div style={{ width: 180, fontFamily: mono, color: C.pred, fontWeight: 700 }}>{top(e.probs).toFixed(4)}</div>
+          <div style={{ width: 170, color: C.truth }}>{short(e.label)}</div>
           <div style={{ fontSize: 36, fontWeight: 700, color: e.pred === e.label ? C.truth : C.loss }}>{e.pred === e.label ? '✓' : '✗'}</div>
         </div>
       ))}
