@@ -555,12 +555,12 @@ const RouteItem = ({ n, title, what }: { n: number; title: string; what: string 
 const RouteMap: Page = () => (
   <Frame part={0} title="Plan for today">
     <div style={{ ...col, gap: 8, marginTop: 10 }}>
-      <RouteItem n={1} title={PARTS[0]} what="fast judgement and slow reasoning" />
+      <RouteItem n={1} title={PARTS[0]} what="fast and slow answers, and the questions software asks" />
       <RouteItem n={2} title={PARTS[1]} what="tokens, attention, logits, one token at a time" />
       <RouteItem n={3} title={PARTS[2]} what="getting the answer from one forward pass" />
       <RouteItem n={4} title={PARTS[3]} what="when can a probability be trusted?" />
-      <RouteItem n={5} title={PARTS[4]} what="losses that reward correct probabilities" />
-      <RouteItem n={6} title={PARTS[5]} what="thresholds, guardrails, pipelines, limits" />
+      <RouteItem n={5} title={PARTS[4]} what="how LLMs are trained, and a head trained for decisions" />
+      <RouteItem n={6} title={PARTS[5]} what="a recipe, three applications, thresholds, limits" />
     </div>
   </Frame>
 );
@@ -1589,7 +1589,7 @@ const ThreeCosts: Page = () => (
           <Cost n="1" head="Time" body="One forward pass per output token, plus any thinking tokens." />
         </Step>
         <Step>
-          <Cost n="2" head="Loose output" body="Free text can break the JSON or name a team that is not on the list." />
+          <Cost n="2" head="Unreliable format" body="Free text can break the JSON or name a team that is not on the list." />
         </Step>
         <Step>
           <Cost n="3" head="No confidence" body="We get one answer and no number for how sure the model was." />
@@ -1715,7 +1715,7 @@ const LooseOutput: Page = () => (
 const Repairs: Page = () => (
   <Frame
     part={2}
-    title="Using written output takes a parser and a fallback"
+    title="Cost 2: so the output needs a parser and a fallback"
     line="Each fix is more code or more forward passes. Constrained decoding does guarantee valid JSON, but it still gives no probability."
   >
     <div style={{ ...row, gap: 40, alignItems: 'center', height: '100%' }}>
@@ -1845,7 +1845,7 @@ const Recap2: Page = () => (
       <RecapItem>Text becomes tokens, tokens become vectors, attention mixes them.</RecapItem>
       <RecapItem>One forward pass ends in one distribution over the next token.</RecapItem>
       <RecapItem>Writing an answer repeats that pass once per token.</RecapItem>
-      <RecapItem>A written answer does not tell us how sure the model was.</RecapItem>
+      <RecapItem>Writing costs time, can break the format, and gives no usable confidence.</RecapItem>
     </div>
   </Frame>
 );
@@ -1856,7 +1856,7 @@ const S3: Page = () => (
   <SectionPage
     n={3}
     goal="If the question has a fixed list of answers, do we need the model to write anything at all?"
-    how="Go back to the first distribution, keep only the options, and read the probabilities straight off it."
+    how="Go back to the first distribution, keep only the options and read their probabilities. Then see what changed inside the model, and what a request and a response look like."
   />
 );
 
@@ -2022,7 +2022,7 @@ const Strip = ({ x, y, keep, color }: { x: number; y: number; keep: number; colo
 };
 
 const ArchOne = ({ x, kind, opts, top, sub, notes, dim }: { x: number; kind: 0 | 1 | 2; opts: string[]; top: string; sub: string; notes: [string, string]; dim?: boolean }) => {
-  const color = [C.s2, C.s1, C.pred][kind];
+  const color = [C.s2, C.s1, C.s1][kind];
   const name = ['Chat LLM', 'Letter readout', 'Decision model'][kind];
   const k = opts.length;
   return (
@@ -2374,6 +2374,7 @@ const Recap3: Page = () => (
       <RecapItem>For a question with listed answers, one forward pass is enough.</RecapItem>
       <RecapItem>Keep the option logits, apply softmax, get a probability per option.</RecapItem>
       <RecapItem>Choice, noul and score questions are all read this way.</RecapItem>
+      <RecapItem>Inside the model the blocks stay the same. The loop goes, and a small head can replace the output layer.</RecapItem>
       <RecapItem>Our model said technical with {f2(sci.p_team[1])}. Should a program believe that number?</RecapItem>
     </div>
   </Frame>
@@ -2896,8 +2897,8 @@ const Way = ({ n, head, how, cost, gives, color }: { n: string; head: string; ho
 const ConfWays: Page = () => (
   <Frame
     part={4}
-    title="Where can a confidence come from?"
-    line="We use the first: the largest softmax probability. It is the standard definition in calibration research, and the next slide compares it with the other two on our model."
+    title="Is the softmax the wrong place to get a confidence?"
+    line="So far we read it: the largest softmax probability, the standard definition in calibration research. Would another source be better calibrated? The next slide measures all three."
   >
     <div style={{ ...row, gap: 34, alignItems: 'stretch' }}>
       <Way n="1" head="Read it" color={C.pred} how="Take the probabilities from the softmax. The largest one is the confidence in the answer." cost="one forward pass" gives="any value between 0 and 1" />
@@ -3357,6 +3358,7 @@ const Recap4: Page = () => (
       <RecapItem>Calibrated: among answers given with probability p, a fraction p are right.</RecapItem>
       <RecapItem>Reliability diagram: confidence against accuracy, bin by bin.</RecapItem>
       <RecapItem>ECE: the average gap, weighted by bin size.</RecapItem>
+      <RecapItem>Confidence is the largest softmax probability. Writing it or sampling it did no better.</RecapItem>
       <RecapItem>Temperature scaling fixes confidence after training and does not change accuracy.</RecapItem>
     </div>
   </Frame>
@@ -3554,7 +3556,7 @@ const Window = ({ title, children, width }: { title: string; children: ReactNode
 const RLHFPage: Page = () => (
   <Frame
     part={5}
-    title="RLHF: what the human rater sees"
+    title="Stage 3, RLHF: what the human rater sees"
     line="A rater reads one prompt and two answers from the model, and clicks the better one. Thousands of such clicks are the training data for this stage."
   >
     <div style={{ ...row, gap: 40, alignItems: 'center', height: '100%' }}>
@@ -3596,7 +3598,7 @@ const RLHFPage: Page = () => (
 const RLHFLoop: Page = () => (
   <Frame
     part={5}
-    title="RLHF: from clicks to an updated model"
+    title="Stage 3, RLHF: from clicks to an updated model"
     line="The objective in words: write answers that a model of human preference scores highly. InstructGPT (2022) used about 33,000 ranked prompts and the PPO algorithm."
   >
     <svg width={1700} height={690} viewBox="0 0 1700 690">
@@ -3647,7 +3649,7 @@ const RLVRPage: Page = () => (
 const RLVRCode: Page = () => (
   <Frame
     part={5}
-    title="RLVR on code: the checker is a test suite"
+    title="Stage 3, RLVR on code: the checker is a test suite"
     line="The objective in words: raise the share of tasks whose final answer passes the check. The reward is the same for a lucky guess and for a careful solution."
   >
     <div style={{ ...row, gap: 40, alignItems: 'center', height: '100%' }}>
@@ -4456,9 +4458,9 @@ const UnslothNumbers: Page = () => (
 );
 
 const Recap5: Page = () => (
-  <Frame part={5} title="Where we are" line="Next: how a program uses a probability it can trust.">
+  <Frame part={5} title="Where we are" line="Next: how to build this for a new problem of your own, and where it breaks.">
     <div style={{ ...col, gap: 34, marginTop: 50 }}>
-      <RecapItem>RLHF and RLVR reward good answers. Neither rewards a correct estimate of confidence.</RecapItem>
+      <RecapItem>A chat model is trained in three stages. RLHF and RLVR reward good answers, and neither rewards a correct confidence.</RecapItem>
       <RecapItem>A proper scoring rule is lowest when the stated probability is the true one.</RecapItem>
       <RecapItem>Cross-entropy and the Brier score are both proper.</RecapItem>
       <RecapItem>
@@ -4500,7 +4502,7 @@ const PerQuestion: Page = () => (
   >
     <div style={{ ...row, gap: 40, alignItems: 'stretch', marginTop: 6 }}>
       <TwoWays
-        color={C.s1}
+        color={C.soft}
         head="A head for one question"
         sub="what we trained in Part 5"
         rows={[
@@ -4513,7 +4515,7 @@ const PerQuestion: Page = () => (
       <Steps>
         <Step>
           <TwoWays
-            color={C.pred}
+            color={C.s1}
             head="One model for any question"
             sub="Jev, Liquid d1, a model trained with Unsloth"
             rows={[
@@ -4529,46 +4531,66 @@ const PerQuestion: Page = () => (
   </Frame>
 );
 
-const OptScore = ({ x, y, label, p, top }: { x: number; y: number; label: string; p: string; top?: boolean }) => (
+const Seg = ({ x, w, head, body, color = C.rule }: { x: number; w: number; head: string; body: string; color?: string }) => (
   <g>
-    <rect x={x} y={y} width={250} height={56} rx={8} fill={C.white} stroke={top ? C.pred : C.rule} strokeWidth={3} />
-    <text x={x + 16} y={y + 37} fontSize={26} fontFamily={mono} fill={C.ink}>{label}</text>
-    <line x1={x + 250} y1={y + 28} x2={x + 330} y2={y + 28} stroke={C.soft} strokeWidth={2} markerEnd="url(#ah)" />
-    <text x={x + 345} y={y + 38} fontSize={30} fontFamily={mono} fill={C.pred} fontWeight={top ? 700 : 400}>{p}</text>
+    <rect x={x} y={548} width={w} height={96} rx={10} fill={C.white} stroke={color} strokeWidth={3} />
+    <text x={x + 16} y={584} fontSize={22} fontWeight={700} fill={color === C.rule ? C.soft : color}>{head}</text>
+    <text x={x + 16} y={620} fontSize={23} fill={C.ink}>{body}</text>
+  </g>
+);
+const HCell = ({ x, w, label, p, top }: { x: number; w: number; label: string; p: string; top?: boolean }) => (
+  <g>
+    <rect x={x} y={262} width={w - 8} height={48} rx={6} fill={C.s1} opacity={top ? 1 : 0.55} />
+    <text x={x + (w - 8) / 2} y={294} textAnchor="middle" fontSize={20} fill={C.white} fontWeight={600}>{label}</text>
+    <text x={x + (w - 8) / 2} y={244} textAnchor="middle" fontSize={26} fontFamily={mono} fill={C.pred} fontWeight={top ? 700 : 400}>{p}</text>
+  </g>
+);
+const Group = ({ x, w, answer, how }: { x: number; w: number; answer: string; how: string }) => (
+  <g>
+    <path d={`M${x},206 L${x},194 L${x + w - 8},194 L${x + w - 8},206`} fill="none" stroke={C.s1} strokeWidth={3} />
+    <text x={x + (w - 8) / 2} y={180} textAnchor="middle" fontSize={21} fill={C.soft}>{how}</text>
+    <rect x={x} y={84} width={w - 8} height={60} rx={10} fill={C.white} stroke={C.s1} strokeWidth={3} />
+    <text x={x + (w - 8) / 2} y={123} textAnchor="middle" fontSize={25} fontWeight={700} fill={C.pred}>{answer}</text>
   </g>
 );
 
 const OnePrompt: Page = () => (
   <Frame
     part={6}
-    title="One prompt holds the state, the questions and the options"
-    line="The LLM reads this once. A small shared head then gives a score to every option, and the scores are turned into probabilities within each question."
+    title="One prompt, one pass, a score for every option"
+    line="The state and all the questions go in together. The same transformer blocks read them once, and a shared head gives each option a score, turned into probabilities within its own question."
   >
     <svg width={1700} height={690} viewBox="0 0 1700 690">
       <Arrows />
-      <rect x={20} y={20} width={620} height={640} rx={14} fill={C.panel} stroke={C.rule} strokeWidth={3} />
-      <text x={44} y={62} fontSize={24} fill={C.muted} fontWeight={600}>ONE PROMPT</text>
-      <text x={44} y={108} fontSize={26} fill={C.soft}>state</text>
-      <text x={44} y={146} fontSize={26} fontFamily="Georgia, serif">“I was charged twice this month,</text>
-      <text x={44} y={180} fontSize={26} fontFamily="Georgia, serif">please fix it.”</text>
-      <text x={44} y={240} fontSize={26} fill={C.soft}>question 1 · choice</text>
-      <text x={44} y={276} fontSize={26}>Which team should handle this?</text>
-      <text x={44} y={400} fontSize={26} fill={C.soft}>question 2 · noul</text>
-      <text x={44} y={436} fontSize={26}>Does the customer ask for a refund?</text>
-      <text x={44} y={510} fontSize={26} fill={C.soft}>question 3 · score</text>
-      <text x={44} y={546} fontSize={26}>How urgent is this?</text>
-      <Arr x1={640} y1={340} x2={720} y2={340} />
-      <Box x={730} y={250} w={250} h={180} text="LLM" sub="reads it once" color={C.s2} size={40} />
-      <Arr x1={980} y1={340} x2={1050} y2={340} />
-      <text x={1070} y={50} fontSize={24} fill={C.s1} fontWeight={600}>SHARED HEAD: A SCORE PER OPTION</text>
-      <OptScore x={1070} y={70} label="billing" p={f2(sci.p_team[0])} />
-      <OptScore x={1070} y={134} label="technical" p={f2(sci.p_team[1])} top />
-      <OptScore x={1070} y={198} label="sales" p={f2(sci.p_team[2])} />
-      <OptScore x={1070} y={312} label="yes" p={f2(sci.p_refund_yes)} top />
-      <OptScore x={1070} y={426} label="not urgent" p={f2(sci.p_urgency[0])} top />
-      <OptScore x={1070} y={490} label="soon" p={f2(sci.p_urgency[1])} />
-      <OptScore x={1070} y={554} label="today" p={f2(sci.p_urgency[2])} />
-      <text x={1070} y={650} fontSize={23} fill={C.muted}>numbers are our Part 3 readout for this email</text>
+      <text x={850} y={40} textAnchor="middle" fontSize={34} fontFamily="Georgia, serif" fontWeight={700} fill={C.s1}>Decision model, several questions at once</text>
+      <Group x={470} w={450} answer="choice: technical" how="softmax over these 3" />
+      <Group x={960} w={300} answer={`noul: ${f2(sci.p_refund_yes)}`} how="P(yes)" />
+      <Group x={1290} w={390} answer={`score: ${f2(sci.p_urgency[1] + 2 * sci.p_urgency[2])}`} how="softmax, then the weighted level" />
+      <HCell x={470} w={150} label="billing" p={f2(sci.p_team[0])} />
+      <HCell x={620} w={150} label="technical" p={f2(sci.p_team[1])} top />
+      <HCell x={770} w={150} label="sales" p={f2(sci.p_team[2])} />
+      <HCell x={1035} w={150} label="yes" p={f2(sci.p_refund_yes)} top />
+      <HCell x={1290} w={130} label="not urgent" p={f2(sci.p_urgency[0])} top />
+      <HCell x={1420} w={130} label="soon" p={f2(sci.p_urgency[1])} />
+      <HCell x={1550} w={130} label="today" p={f2(sci.p_urgency[2])} />
+      <text x={30} y={282} fontSize={25} fontWeight={700} fill={C.s1}>decision head</text>
+      <text x={30} y={314} fontSize={22} fill={C.soft}>shared by all questions:</text>
+      <text x={30} y={342} fontSize={22} fill={C.soft}>one score per option</text>
+      <text x={30} y={228} fontSize={22} fill={C.truth} fontWeight={600}>no loop</text>
+      {[695, 1110, 1485].map((x) => (
+        <Arr key={x} x1={x} y1={376} x2={x} y2={318} />
+      ))}
+      <rect x={20} y={380} width={1660} height={104} rx={12} fill={C.panel} stroke={C.ink} strokeWidth={3} />
+      <text x={850} y={428} textAnchor="middle" fontSize={30} fontWeight={600} fill={C.ink}>transformer blocks</text>
+      <text x={850} y={464} textAnchor="middle" fontSize={23} fill={C.soft}>the same blocks as before · they read the whole prompt once</text>
+      {[230, 695, 1110, 1485].map((x) => (
+        <Arr key={x} x1={x} y1={544} x2={x} y2={488} />
+      ))}
+      <Seg x={20} w={420} head="STATE" body="“I was charged twice this…”" />
+      <Seg x={470} w={442} head="QUESTION 1 · choice" body="Which team? 3 options" color={C.ink} />
+      <Seg x={960} w={292} head="QUESTION 2 · noul" body="Asking for a refund?" color={C.ink} />
+      <Seg x={1290} w={382} head="QUESTION 3 · score" body="How urgent? 3 levels" color={C.ink} />
+      <text x={850} y={676} textAnchor="middle" fontSize={22} fill={C.muted}>input tokens: one prompt · probabilities shown are our Part 3 readout for this email</text>
     </svg>
   </Frame>
 );
@@ -4782,8 +4804,8 @@ const NotFit: Page = () => (
     line="A decision model fits when the answer comes from a list, a scale, or a place in the input. Liquid’s own pages send text generation, summaries, code and open questions to an LLM."
   >
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 30, marginTop: 10 }}>
-      <Card color={C.pred} style={{ padding: '26px 28px' }}>
-        <Label color={C.pred}>General decision model</Label>
+      <Card color={C.s1} style={{ padding: '26px 28px' }}>
+        <Label color={C.s1}>General decision model</Label>
         <div style={{ fontSize: 28, lineHeight: 1.45, marginTop: 12 }}>Many different questions, some arriving later. Little or no labelled data. Text, images or audio.</div>
       </Card>
       <Card color={C.s1} style={{ padding: '26px 28px' }}>
@@ -5256,11 +5278,11 @@ const deck: [Page, string][] = [
   [Shapes, 'Curves are illustrative.'],
   [RealSetup, 'Same model as before. AG News is a standard four-topic news dataset. The 500 items kept aside are used later to choose the temperature.'],
   [RealOne, 'Reveal the probability column after the class has guessed the answer from the logits. Confidence means the largest of the four probabilities.'],
-  [ConfWays, 'Guo et al., 2017, define confidence as the largest predicted probability, and ECE is built on it. Parts 2 and 3 already met the other two: the written confidence and the vote count.'],
-  [ConfCompare, 'The written answers come from a different prompt, which is why accuracy differs between the rows. The sampled row draws 200 letters from the same distribution we read, so it can only agree up to sampling noise. Sampling tells you more when the answer is many tokens long.'],
   [RealSix, 'Ask whether the Microsoft item is really Sci/Tech or Business. Labels can be debatable, and the model gives 0.9997 either way.'],
   [RealNumbers, 'AG News, 4 topics, 1,000 test items, Qwen2.5-0.5B-Instruct read from letter logits.'],
   [RealBefore, 'Almost everything sits in the top bin. This is typical of an LLM read zero-shot.'],
+  [ConfWays, 'Guo et al., 2017, define confidence as the largest predicted probability, and ECE is built on it. Parts 2 and 3 already met the other two: the written confidence and the vote count.'],
+  [ConfCompare, 'The written answers come from a different prompt, which is why accuracy differs between the rows. The sampled row draws 200 letters from the same distribution we read, so it can only agree up to sampling noise. Sampling tells you more when the answer is many tokens long.'],
   [WhyExtreme, 'e to the 9 is about 8,100. The model has the order mostly right; the size of the gaps is what is off.'],
   [TempWorked, 'Work the T = 2 column on the board. e to the 1 is 2.72, e to the 0.5 is 1.65, e to the 0.05 is 1.05.'],
   [Temperature, 'Drag to 2 to match the worked example, then to 0.5 and to 10. At T = 1 we get 0.66, 0.24, 0.10 as before.'],
