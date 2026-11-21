@@ -3917,11 +3917,178 @@ const RLCDIdeas: Page = () => (
   </Frame>
 );
 
+const HeadWhy: Page = () => (
+  <Frame
+    part={5}
+    title="Why add a head of our own"
+    line="The LLM has already understood the news item. The weak step is the last one, where an output layer built for next-token prediction is asked a topic question through letters."
+  >
+    <div style={{ ...row, gap: 40, alignItems: 'stretch', marginTop: 10 }}>
+      <Card style={{ width: 830, padding: '30px 34px' }} color={C.muted}>
+        <Label>What Part 3 did</Label>
+        <div style={{ fontSize: 32, lineHeight: 1.45, marginTop: 12 }}>
+          Used the LLM’s own output layer. It gives {sci.vocab.toLocaleString('en-US')} scores, one per token, and we kept the four for A, B, C and D.
+        </div>
+        <div style={{ ...row, gap: 50, marginTop: 26, fontFamily: mono, fontSize: 34 }}>
+          <span style={{ color: C.truth }}>accuracy {f2(sci.zs.accuracy)}</span>
+          <span style={{ color: C.pred }}>confidence {f2(sci.zs.mean_conf)}</span>
+        </div>
+        <div style={{ fontSize: 25, color: C.muted, marginTop: 8 }}>on the 1,000 test items, before any temperature</div>
+      </Card>
+      <Steps>
+        <Step>
+          <Card style={{ width: 830, padding: '30px 34px' }} color={C.s1}>
+            <Label color={C.s1}>The idea</Label>
+            <div style={{ fontSize: 32, lineHeight: 1.45, marginTop: 12 }}>
+              Keep everything the LLM computes up to its last step. Replace that last step with a small layer that has exactly four outputs, one per
+              topic, and train only this layer on labelled news items.
+            </div>
+            <div style={{ fontSize: 28, color: C.soft, marginTop: 18 }}>This small layer is called a decision head.</div>
+          </Card>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const HeadVector: Page = () => (
+  <Frame
+    part={5}
+    title="What the head reads: the last vector"
+    line={`After the ${sci.layers} blocks, every position holds a vector of ${sci.hidden} numbers. Attention has let the last position look at every token before it, so its vector summarises the whole prompt.`}
+  >
+    <svg width={1700} height={690} viewBox="0 0 1700 690">
+      <Arrows />
+      <text x={60} y={36} fontSize={26} fill={C.muted}>the prompt, as tokens</text>
+      {['News:', 'Sensex', 'closes', '…', 'Which', 'topic', '?', 'Answer', ':'].map((t, i) => (
+        <g key={i}>
+          <rect x={60 + i * 172} y={54} width={156} height={62} rx={10} fill={C.white} stroke={C.rule} strokeWidth={3} />
+          <text x={138 + i * 172} y={95} textAnchor="middle" fontSize={26} fontFamily={mono}>{t}</text>
+          <line x1={138 + i * 172} y1={116} x2={138 + i * 172} y2={176} stroke={C.soft} strokeWidth={2} />
+          <line x1={138 + i * 172} y1={326} x2={138 + i * 172} y2={392} stroke={i === 8 ? C.pred : C.soft} strokeWidth={i === 8 ? 5 : 2} markerEnd={i === 8 ? undefined : undefined} />
+          <rect x={98 + i * 172} y={392} width={80} height={150} rx={8} fill={i === 8 ? C.pred : C.panel} stroke={i === 8 ? C.pred : C.rule} strokeWidth={3} opacity={i === 8 ? 1 : 0.7} />
+        </g>
+      ))}
+      <rect x={40} y={176} width={1580} height={150} rx={14} fill={C.white} stroke={C.s2} strokeWidth={4} />
+      <text x={830} y={244} textAnchor="middle" fontSize={38} fontWeight={600} fill={C.s2}>{sci.layers} transformer blocks · frozen</text>
+      <text x={830} y={292} textAnchor="middle" fontSize={27} fill={C.soft}>frozen means none of its {sci.params_M} M parameters change during our training</text>
+      <text x={60} y={590} fontSize={26} fill={C.muted}>one vector of {sci.hidden} numbers per position</text>
+      <text x={1560} y={590} textAnchor="end" fontSize={32} fontWeight={700} fill={C.pred}>last vector h</text>
+      <text x={1560} y={630} textAnchor="end" fontSize={26} fill={C.pred}>{sci.hidden} numbers · the only thing the head sees</text>
+    </svg>
+  </Frame>
+);
+
+const HeadMath: Page = () => (
+  <Frame
+    part={5}
+    title="What the head computes: one weighted sum per topic"
+    line={`This toy uses 3 numbers in place of ${sci.hidden}. The real head has ${sci.hidden} weights and 1 bias for each of 4 topics: ${sci.hidden} × 4 + 4 = ${sci.head.params.toLocaleString('en-US')} parameters.`}
+  >
+    <div style={{ ...col, gap: 26, justifyContent: 'center', height: '100%' }}>
+      <div style={{ ...row, gap: 60, alignItems: 'center' }}>
+        <Eq size={46}>
+          score<sub style={{ fontSize: 26 }}>topic</sub> = <span style={{ color: C.s1 }}>w</span>
+          <sub style={{ fontSize: 26, color: C.s1 }}>topic</sub> · <span style={{ color: C.pred }}>h</span> + <span style={{ color: C.s1 }}>b</span>
+          <sub style={{ fontSize: 26, color: C.s1 }}>topic</sub>
+        </Eq>
+        <div style={{ fontFamily: mono, fontSize: 34 }}>
+          last vector <span style={{ color: C.pred }}>h = [0.5, −1.0, 2.0]</span> <span style={{ fontSize: 24, color: C.muted, fontFamily: 'var(--osd-font-body)' }}>illustrative</span>
+        </div>
+      </div>
+      <Steps>
+        <Step>
+          <div style={{ fontFamily: mono, fontSize: 30, lineHeight: 1.7, borderTop: `2px solid ${C.rule}`, paddingTop: 16, whiteSpace: 'nowrap' }}>
+            <div style={{ fontFamily: 'var(--osd-font-body)', fontWeight: 600 }}>
+              Sports <span style={{ color: C.s1, fontFamily: mono, fontWeight: 400 }}>w = [1.0, 0.2, 0.5], b = 0.1</span>
+            </div>
+            <span style={{ color: C.s1 }}>1.0</span> × <span style={{ color: C.pred }}>0.5</span> + <span style={{ color: C.s1 }}>0.2</span> ×{' '}
+            <span style={{ color: C.pred }}>(−1.0)</span> + <span style={{ color: C.s1 }}>0.5</span> × <span style={{ color: C.pred }}>2.0</span> +{' '}
+            <span style={{ color: C.s1 }}>0.1</span> = 0.5 − 0.2 + 1.0 + 0.1 = <b>1.4</b>
+          </div>
+        </Step>
+        <Step>
+          <div style={{ fontFamily: mono, fontSize: 30, lineHeight: 1.7, borderTop: `2px solid ${C.rule}`, paddingTop: 16, whiteSpace: 'nowrap' }}>
+            <div style={{ fontFamily: 'var(--osd-font-body)', fontWeight: 600 }}>
+              Business <span style={{ color: C.s1, fontFamily: mono, fontWeight: 400 }}>w = [−0.4, 1.0, 0.3], b = 0.0</span>
+            </div>
+            <span style={{ color: C.s1 }}>−0.4</span> × <span style={{ color: C.pred }}>0.5</span> + <span style={{ color: C.s1 }}>1.0</span> ×{' '}
+            <span style={{ color: C.pred }}>(−1.0)</span> + <span style={{ color: C.s1 }}>0.3</span> × <span style={{ color: C.pred }}>2.0</span> +{' '}
+            <span style={{ color: C.s1 }}>0.0</span> = −0.2 − 1.0 + 0.6 + 0.0 = <b>−0.6</b>
+          </div>
+        </Step>
+        <Step>
+          <div style={{ fontSize: 30, color: C.soft, borderTop: `2px solid ${C.rule}`, paddingTop: 16 }}>
+            The scores, one per topic, go through the same softmax as before to become probabilities. Training adjusts only the orange numbers.
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const HeadTwoPhases: Page = () => (
+  <Frame
+    part={5}
+    title="Training happens in two phases"
+    line={`The slow part runs once: ${sci.head.n_train.toLocaleString('en-US')} forward passes of the frozen LLM, with each last vector saved. After that the head trains on the saved vectors in seconds.`}
+  >
+    <svg width={1700} height={690} viewBox="0 0 1700 690">
+      <Arrows />
+      <text x={20} y={50} fontSize={30} fontWeight={700} fill={C.s2}>Phase 1 · once</text>
+      <Box x={20} y={80} w={360} h={130} text={`${sci.head.n_train.toLocaleString('en-US')} news items`} sub="each with its correct topic" />
+      <Arr x1={380} y1={145} x2={470} y2={145} />
+      <Box x={480} y={80} w={360} h={130} text="frozen LLM" sub="one forward pass per item" color={C.s2} />
+      <Arr x1={840} y1={145} x2={930} y2={145} />
+      <Box x={940} y={80} w={420} h={130} text="H: saved last vectors" sub={`${sci.head.n_train.toLocaleString('en-US')} rows × ${sci.hidden} numbers`} color={C.pred} />
+      <Box x={1420} y={80} w={260} h={130} text="y: topics" sub={`${sci.head.n_train.toLocaleString('en-US')} labels`} color={C.truth} />
+      <text x={20} y={340} fontSize={30} fontWeight={700} fill={C.s1}>Phase 2 · 300 steps, a few seconds</text>
+      <Box x={20} y={370} w={360} h={130} text="H" sub="all saved vectors" color={C.pred} />
+      <Arr x1={380} y1={435} x2={470} y2={435} />
+      <Box x={480} y={370} w={360} h={130} text="decision head" sub="4 scores per row" color={C.s1} />
+      <Arr x1={840} y1={435} x2={930} y2={435} />
+      <Box x={940} y={370} w={420} h={130} text="cross-entropy with y" sub="the log score from the last slides" color={C.loss} />
+      <path d="M1150,500 L1150,580 L660,580 L660,512" fill="none" stroke={C.loss} strokeWidth={4} markerEnd="url(#ah)" />
+      <text x={905} y={620} textAnchor="middle" fontSize={28} fill={C.loss}>adjust the head’s {sci.head.params.toLocaleString('en-US')} numbers, then repeat</text>
+    </svg>
+  </Frame>
+);
+
+const DEMO = sci.head.demo as unknown as { text: string; probs: Record<string, number> }[];
+
+const HeadDemo: Page = () => (
+  <Frame
+    part={5}
+    title="The trained head on three new headlines"
+    line="These headlines were written for this lecture and are in none of the datasets. Each prediction is one forward pass of the frozen LLM followed by the head."
+  >
+    <div style={{ ...row, gap: 34, alignItems: 'stretch', marginTop: 10 }}>
+      {DEMO.map((d) => (
+        <Card key={d.text} style={{ width: 544, padding: '24px 26px' }}>
+          <div style={{ fontFamily: serif, fontSize: 29, lineHeight: 1.35, height: 160 }}>“{d.text}”</div>
+          {Object.entries(d.probs).map(([t, v]) => {
+            const best = v === Math.max(...Object.values(d.probs));
+            return (
+              <div key={t} style={{ ...row, alignItems: 'center', gap: 12, height: 50 }}>
+                <div style={{ width: 130, fontSize: 26, textAlign: 'right', fontWeight: best ? 700 : 400 }}>{short(t)}</div>
+                <div style={{ width: 240, height: 28, background: C.panel, borderRadius: 5 }}>
+                  <div style={{ width: Math.max(3, 240 * v), height: 28, background: best ? C.pred : C.muted, borderRadius: 5 }} />
+                </div>
+                <div style={{ fontFamily: mono, fontSize: 26, color: best ? C.pred : C.muted }}>{f2(v)}</div>
+              </div>
+            );
+          })}
+        </Card>
+      ))}
+    </div>
+  </Frame>
+);
+
 const HeadFigure: Page = () => (
   <Frame
     part={5}
-    title="Train a small head on a frozen LLM"
-    line={`The LLM’s own output layer scores all ${sci.vocab.toLocaleString('en-US')} tokens. We add a head with ${sci.head.params.toLocaleString('en-US')} parameters that scores only our four topics, and train just that.`}
+    title="Two output layers on the same last vector"
+    line={`The LLM’s own output layer scores all ${sci.vocab.toLocaleString('en-US')} tokens. The head scores only our four topics with ${sci.head.params.toLocaleString('en-US')} parameters, and it is the only part we train.`}
   >
     <svg width={1700} height={690} viewBox="0 0 1700 690">
       <Arrows />
@@ -4447,9 +4614,14 @@ const deck: [Page, string][] = [
   [BrierExpected, 'Ask the class to guess the best report before revealing the last row. Dividing each total by 10 gives the average penalty per email.'],
   [LogScore, 'So ordinary supervised training with cross-entropy already rewards correct probabilities, at least on the training distribution.'],
   [RLCDIdeas, 'Unsloth exposes build_dataset, a trainer, split_holdout and calibrate. Its loss is not something I have verified. Wikipedia notes that RLCD may be ordinary supervised learning with calibration terms.'],
+  [HeadWhy, 'The letter readout is zero-shot: nothing was trained for news topics. A head lets us use labelled data without touching the LLM.'],
+  [HeadVector, 'This is the same last-position vector as in Part 2, step 4. In notebook 2 it is the final layer’s hidden state at the last token.'],
+  [HeadMath, 'The three-number vector and the weights are made up so the sums can be done by hand. In code the head is torch.nn.Linear(896, 4).'],
   [HeadFigure, 'Recall the encoder slide: we are using a decoder’s last vector the way an encoder model uses its output vector.'],
+  [HeadTwoPhases, 'Notebook 2 also standardises each of the 896 columns of H before training. 500 more items are held out to fit the temperature.'],
   [HeadCode, 'Notebook 2. Features are standardised first. Training takes a few seconds.'],
   [HeadResults, '2,000 training items. The Brier-trained head gives nearly the same numbers; it is in the notebook.'],
+  [HeadDemo, 'Real outputs from notebook 2. Ask the class for a headline and run it live in the notebook.'],
   [UnslothRow, 'The example row is from Unsloth’s guide.'],
   [UnslothCode, 'API as in Unsloth’s official notebook. I have not run notebook 3 myself; run it once before class.'],
   [UnslothNumbers, 'Numbers from Unsloth’s documentation.'],
