@@ -964,6 +964,169 @@ const NewTypes: Page = () => (
   </Frame>
 );
 
+type Mark = { span: [number, number]; color: string };
+// Shows a text with the character ranges the model pointed to, exactly as the response gives them.
+const Marked = ({ text, marks, size = 30 }: { text: string; marks: Mark[]; size?: number }) => {
+  const out: ReactNode[] = [];
+  let last = 0;
+  [...marks].sort((a, b) => a.span[0] - b.span[0]).forEach((m, i) => {
+    out.push(text.slice(last, m.span[0]));
+    out.push(
+      <span key={i} style={{ background: `${m.color}26`, color: m.color, fontWeight: 700, borderRadius: 4, padding: '1px 3px', borderBottom: `3px solid ${m.color}` }}>
+        {text.slice(m.span[0], m.span[1])}
+      </span>,
+    );
+    last = m.span[1];
+  });
+  out.push(text.slice(last));
+  return <div style={{ fontFamily: mono, fontSize: size, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{out}</div>;
+};
+
+const INVOICE = 'ACME SA\nInvoice 2026-117\nTotal due: 1 234,50 EUR\nPay before 03/04/2026 (day/month/year)';
+
+const ValRow = ({ type, q, a, from, found, color }: { type: string; q: string; a: string; from: string; found: string; color: string }) => (
+  <div style={{ ...row, gap: 20, alignItems: 'center', minHeight: 108, borderTop: `2px solid ${C.rule}` }}>
+    <div style={{ width: 120, flexShrink: 0 }}>
+      <TypeChip t={type} small />
+    </div>
+    <div style={{ width: 330, fontSize: 28, fontWeight: 600, lineHeight: 1.25, flexShrink: 0 }}>{q}</div>
+    <div style={{ width: 330, flexShrink: 0 }}>
+      <div style={{ fontFamily: mono, fontSize: 30, color, fontWeight: 700 }}>{a}</div>
+      <div style={{ fontSize: 22, color: C.muted }}>{from}</div>
+    </div>
+    <div style={{ fontFamily: mono, fontSize: 28, color: C.soft }}>{found}</div>
+  </div>
+);
+
+const ReadValues: Page = () => (
+  <Frame
+    part={1}
+    title="Example: reading values from an invoice"
+    line="Each answer comes with the characters it was read from, so a program can check it against the document. A question with no answer in the text returns “not found”."
+  >
+    <div style={{ ...row, gap: 50, alignItems: 'center', height: '100%' }}>
+      <div style={{ width: 680, flexShrink: 0 }}>
+        <Label>The input, as plain text</Label>
+        <Card style={{ marginTop: 10, padding: '22px 28px' }}>
+          <Marked
+            text={INVOICE}
+            size={26}
+            marks={[
+              { span: [0, 7], color: C.s2 },
+              { span: [36, 48], color: C.s1 },
+              { span: [60, 70], color: C.truth },
+            ]}
+          />
+        </Card>
+        <div style={{ fontSize: 22, color: C.muted, marginTop: 10 }}>example from Liquid’s d1.2 documentation; highlights are the returned spans</div>
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ ...row, gap: 20, fontSize: 21, letterSpacing: '0.08em', fontWeight: 600, color: C.muted, height: 40 }}>
+          <div style={{ width: 120 }}>TYPE</div>
+          <div style={{ width: 330 }}>QUESTION</div>
+          <div style={{ width: 330 }}>ANSWER</div>
+          <div>FOUND</div>
+        </div>
+        <ValRow type="text" q="Who issued the invoice?" a="ACME SA" from="characters 0 to 7" found="0.986" color={C.s2} />
+        <Steps>
+          <Step>
+            <ValRow type="number" q="How much is due?" a="1234.5 EUR" from="read from “1 234,50 EUR”" found="1" color={C.s1} />
+          </Step>
+          <Step>
+            <ValRow type="date" q="By when must it be paid?" a="2026-04-03" from="read from “03/04/2026”" found="1" color={C.truth} />
+          </Step>
+          <Step>
+            <ValRow type="number" q="How much VAT is charged?" a="null" from="not in the document" found="0" color={C.loss} />
+          </Step>
+        </Steps>
+      </div>
+    </div>
+  </Frame>
+);
+
+const PATIENT = 'Patient Rachel Kim (DOB 1984-02-11) called from 415-555-0142 about her refill. Email: rkim@example.com.';
+const PII: [[number, number], number][] = [
+  [[8, 18], 0.997],
+  [[24, 34], 0.953],
+  [[48, 60], 0.926],
+  [[86, 102], 0.813],
+];
+const TOPICS_EX: [string, number][] = [
+  ['billing', 0.968],
+  ['delivery', 0.969],
+  ['product', 0.0024],
+  ['account', 0.0007],
+];
+
+const ExCard = ({ types, q, children }: { types: string[]; q: string; children: ReactNode }) => (
+  <Card style={{ width: 544, padding: '22px 26px' }}>
+    <div style={{ ...row, gap: 8 }}>
+      {types.map((t) => (
+        <TypeChip key={t} t={t} small />
+      ))}
+    </div>
+    <div style={{ fontSize: 27, fontWeight: 600, lineHeight: 1.25, margin: '12px 0 14px', height: 68 }}>{q}</div>
+    {children}
+  </Card>
+);
+
+const MoreExamples: Page = () => (
+  <Frame
+    part={1}
+    title="Examples: passages, several options, a count"
+    line="All three are from Liquid’s d1.2 documentation. The third shows a count for a group photograph, given as a median with an interval that holds 80% of the probability."
+  >
+    <div style={{ ...row, gap: 34, alignItems: 'stretch' }}>
+      <ExCard types={['spans']} q="Every piece of personal data.">
+        <Marked text={PATIENT} size={23} marks={PII.map(([span]) => ({ span, color: C.s2 }))} />
+        <div style={{ fontFamily: mono, fontSize: 22, color: C.soft, marginTop: 14, lineHeight: 1.5 }}>
+          found: {PII.map(([, f]) => f.toFixed(3)).join(', ')}
+          <br />
+          count: 4
+        </div>
+      </ExCard>
+      <Steps>
+        <Step>
+          <ExCard types={['choice', 'multiple']} q="Which topics does the message raise?">
+            <div style={{ fontFamily: serif, fontSize: 26, lineHeight: 1.35, marginBottom: 14 }}>
+              “My package arrived late and I was charged twice for it.”
+            </div>
+            {TOPICS_EX.map(([t, v]) => (
+              <div key={t} style={{ ...row, alignItems: 'center', gap: 12, height: 46 }}>
+                <div style={{ width: 120, fontSize: 26, textAlign: 'right' }}>{t}</div>
+                <div style={{ width: 190, height: 26, background: C.panel, borderRadius: 5 }}>
+                  <div style={{ width: Math.max(3, 190 * v), height: 26, background: v >= 0.5 ? C.pred : C.muted, borderRadius: 5 }} />
+                </div>
+                <div style={{ fontFamily: mono, fontSize: 24, color: v >= 0.5 ? C.pred : C.muted }}>{v}</div>
+              </div>
+            ))}
+            <div style={{ fontFamily: mono, fontSize: 22, color: C.pred, marginTop: 10 }}>choices: billing, delivery</div>
+          </ExCard>
+        </Step>
+        <Step>
+          <ExCard types={['number', 'range']} q="How many people are in the photo? Range 0 to 60, step 1.">
+            <svg width={490} height={150} viewBox="0 0 490 150">
+              <line x1={20} y1={80} x2={470} y2={80} stroke={C.rule} strokeWidth={6} strokeLinecap="round" />
+              <line x1={20 + (23 / 60) * 450} y1={80} x2={20 + (30 / 60) * 450} y2={80} stroke={C.pred} strokeWidth={14} strokeLinecap="round" opacity={0.45} />
+              <circle cx={20 + (26 / 60) * 450} cy={80} r={13} fill={C.pred} />
+              <text x={20 + (26 / 60) * 450} y={44} textAnchor="middle" fontSize={34} fontFamily={mono} fontWeight={700} fill={C.pred}>26</text>
+              {[0, 20, 40, 60].map((v) => (
+                <text key={v} x={20 + (v / 60) * 450} y={126} textAnchor="middle" fontSize={22} fill={C.soft}>{v}</text>
+              ))}
+            </svg>
+            <div style={{ fontFamily: mono, fontSize: 24, lineHeight: 1.5 }}>
+              number: <b style={{ color: C.pred }}>26</b>
+              <br />
+              interval: [23, 30]
+            </div>
+            <div style={{ fontSize: 22, color: C.muted, marginTop: 8 }}>input: one group photograph</div>
+          </ExCard>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
 // ---------------------------------------------------------------- part 2
 
 const S2: Page = () => (
@@ -4111,6 +4274,8 @@ const deck: [Page, string][] = [
   [SoftwareCalls, 'Ask for more examples from their own projects, and which column each belongs in.'],
   [VisionCalls, 'Jev is documented for text. Liquid d1.2 documents image and audio input. The questions here are our own examples, apart from the circuit board, siren and caller-language ones, which are from Liquid’s pages.'],
   [NewTypes, 'From Liquid’s d1.2 docs and blog, 16 Nov 2026. A number question with a range returns a median and an interval and has no found score. Vendor-reported accuracy only; no public benchmark covers the new types yet.'],
+  [ReadValues, 'Example copied from Liquid’s d1.2 docs. The span numbers count characters from 0, and the end is exclusive. The model normalises the number and the date and still reports the text as written.'],
+  [MoreExamples, 'All three from Liquid’s docs. In the multi-select answer the probabilities do not sum to 1, because each option is its own yes or no. The docs describe the interval as p10 to p90.'],
   [S2, ''],
   [Tokens, 'These are the real tokens and ids from the Qwen2.5 tokenizer. Notice the leading spaces are part of the tokens.'],
   [Embed, 'The vector values drawn are illustrative; the table size is real.'],
