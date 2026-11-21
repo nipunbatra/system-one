@@ -4,7 +4,8 @@ root = pathlib.Path(__file__).resolve().parent.parent
 r1 = json.load(open(root / "notebooks/results_1.json")); r2 = json.load(open(root / "notebooks/results_2.json"))
 a = r1.pop("agnews")
 out = dict(r1)
-out["zs"] = {k: a[k] for k in ("n", "accuracy", "mean_conf", "ece", "bins", "T", "mean_conf_T", "ece_T", "bins_T")}
+out["zs"] = {k: a[k] for k in ("n", "accuracy", "mean_conf", "ece", "bins", "T", "mean_conf_T", "ece_T", "bins_T", "examples", "nll_curve", "nll_at_1", "nll_best")}
+out["zs"]["n_right"] = sum(a["correct"])
 out["head"] = {"n_train": r2["n_train"], "n_val": r2["n_val"], "params": r2["head_params"], "T": r2["T_head"],
                "raw": r2["head_log"], "cal": r2["head_log_T"], "brier_loss": r2["head_brier"],
                "conf": r2["head_conf_T"], "correct": r2["head_correct"], "curve": r2["curve"], "demo": r2["demo"]}

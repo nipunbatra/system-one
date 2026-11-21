@@ -361,6 +361,19 @@ print(f"mean confidence {conf.mean():.3f}   <- the model thinks it is right this
 print(f"ECE             {ece(conf, correct):.3f}")
 fig, ax = plt.subplots(figsize=(5, 5)); reliability(conf, correct, "Qwen2.5-0.5B, read from logits", ax); plt.show()
 '''),
+("md", """
+A few single predictions, so the summary numbers above have faces. `confidence` is the largest of the four probabilities.
+"""),
+("code", """
+wrong = [i for i in range(len(test)) if not correct[i]][:2]
+right = [i for i in range(len(test)) if correct[i]][:4]
+examples = []
+for i in sorted(right + wrong):
+    examples.append({"text": test["text"][i][:120], "label": TOPICS[int(test_y[i])], "pred": TOPICS[int(pred[i])],
+                     "logits": [round(v, 3) for v in test_logits[i].tolist()], "probs": [round(v, 4) for v in probs[i].tolist()]})
+    e = examples[-1]
+    print(f"{conf[i]:.3f}  said {e['pred']:<22} truth {e['label']:<22} {e['text'][:60]!r}")
+"""),
 ("md", '''
 ## 7. One number fixes most of it: temperature scaling
 
@@ -425,7 +438,9 @@ results = {
                "mean_conf_T": round(conf_T.mean().item(), 4), "ece_T": round(ece(conf_T, correct), 4),
                "bins_T": bin_table(conf_T, correct), "thresholds": thresholds,
                "conf": [round(v, 3) for v in conf.tolist()], "conf_T": [round(v, 3) for v in conf_T.tolist()],
-               "correct": [int(v) for v in correct.tolist()]},
+               "correct": [int(v) for v in correct.tolist()],
+               "examples": examples, "nll_curve": [[round(float(t), 2), round(float(v), 4)] for t, v in zip(Ts, nll)][::5],
+               "nll_at_1": round(float(nll[int(np.argmin(abs(Ts - 1.0)))]), 4), "nll_best": round(float(min(nll)), 4)},
 }
 json.dump(results, open("results_1.json", "w"))
 print("saved results_1.json")

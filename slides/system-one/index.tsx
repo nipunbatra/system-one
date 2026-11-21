@@ -2110,7 +2110,7 @@ const S4: Page = () => (
   <SectionPage
     n={4}
     goal="The model says 0.8. What would have to be true for us to act on that number?"
-    how="A weather forecaster first, then ten predictions binned by hand, the reliability diagram, ECE, and finally our own model."
+    how="A weather forecaster first, then ten predictions binned by hand, the reliability diagram and ECE. After that we test our own model and fix its confidence with one parameter."
   />
 );
 
@@ -2211,15 +2211,19 @@ const ToyTable: Page = () => (
   </Frame>
 );
 
+const CalcLine = ({ label, calc, color }: { label: string; calc: string; color: string }) => (
+  <div style={{ marginTop: 12 }}>
+    <div style={{ fontSize: 22, color: C.muted }}>{label}</div>
+    <div style={{ fontFamily: mono, fontSize: 24, color, whiteSpace: 'nowrap' }}>{calc}</div>
+  </div>
+);
 const BinCard = ({ range, children, conf, acc, gap }: { range: string; children: ReactNode; conf: string; acc: string; gap: string }) => (
-  <Card style={{ padding: '22px 22px', flex: 1 }}>
-    <div style={{ fontFamily: mono, fontSize: 30, color: C.soft }}>{range}</div>
-    <div style={{ ...row, justifyContent: 'center', margin: '18px 0 20px' }}>{children}</div>
-    <div style={{ fontFamily: mono, fontSize: 31, lineHeight: 1.7, whiteSpace: 'nowrap' }}>
-      <div style={{ color: C.pred }}>confidence {conf}</div>
-      <div style={{ color: C.truth }}>accuracy {acc}</div>
-      <div style={{ color: C.loss }}>gap {gap}</div>
-    </div>
+  <Card style={{ padding: '20px 22px', width: 548 }}>
+    <div style={{ fontFamily: mono, fontSize: 30, color: C.soft }}>bin {range}</div>
+    <div style={{ ...row, justifyContent: 'center', margin: '14px 0 8px' }}>{children}</div>
+    <CalcLine label="mean confidence = sum of confidences / count" calc={conf} color={C.pred} />
+    <CalcLine label="accuracy = number right / count" calc={acc} color={C.truth} />
+    <CalcLine label="gap = | accuracy − mean confidence |" calc={gap} color={C.loss} />
   </Card>
 );
 
@@ -2229,18 +2233,18 @@ const ToyBins: Page = () => (
     title="Group them by confidence, then compare"
     line="For each bin we compare the average confidence (the sum divided by the count) with the fraction the model got right."
   >
-    <div style={{ ...row, gap: 26, alignItems: 'flex-start', marginTop: 60 }}>
-      <BinCard range="0.4 to 0.6" conf="1.00 / 2 = 0.50" acc="1 / 2 = 0.50" gap="0.00">
+    <div style={{ ...row, gap: 28, alignItems: 'flex-start', marginTop: 20 }}>
+      <BinCard range="0.4 to 0.6" conf="(0.55 + 0.45) / 2 = 0.50" acc="1 / 2 = 0.50" gap="| 0.50 − 0.50 | = 0.00">
         <ToyCell i={8} w={110} /><ToyCell i={9} w={110} />
       </BinCard>
       <Steps>
         <Step>
-          <BinCard range="0.6 to 0.8" conf="2.10 / 3 = 0.70" acc="2 / 3 = 0.67" gap="0.03">
+          <BinCard range="0.6 to 0.8" conf="(0.75 + 0.70 + 0.65) / 3 = 0.70" acc="2 / 3 = 0.67" gap="| 0.67 − 0.70 | = 0.03">
             <ToyCell i={5} w={110} /><ToyCell i={6} w={110} /><ToyCell i={7} w={110} />
           </BinCard>
         </Step>
         <Step>
-          <BinCard range="0.8 to 1.0" conf="4.50 / 5 = 0.90" acc="3 / 5 = 0.60" gap="0.30">
+          <BinCard range="0.8 to 1.0" conf="(.95+.90+.90+.90+.85) / 5 = 0.90" acc="3 / 5 = 0.60" gap="| 0.60 − 0.90 | = 0.30">
             <ToyCell i={0} w={98} /><ToyCell i={1} w={98} /><ToyCell i={2} w={98} /><ToyCell i={3} w={98} /><ToyCell i={4} w={98} />
           </BinCard>
         </Step>
@@ -2279,33 +2283,58 @@ const ToyDiagram: Page = () => (
   </Frame>
 );
 
+const EceRow = ({ range, n, acc, conf, gap, term }: { range: string; n: number; acc: string; conf: string; gap: string; term: string }) => (
+  <div style={{ ...row, alignItems: 'center', fontFamily: mono, fontSize: 31, height: 76, borderTop: `2px solid ${C.rule}`, whiteSpace: 'nowrap' }}>
+    <span style={{ width: 235, fontSize: 25, color: C.soft, flexShrink: 0 }}>{range}</span>
+    <span style={{ color: C.s2, width: 86 }}>{n}/10</span>× |{' '}
+    <span style={{ color: C.truth, margin: '0 10px' }}>{acc}</span>−<span style={{ color: C.pred, margin: '0 10px' }}>{conf}</span>| ={' '}
+    <span style={{ color: C.s2, margin: '0 10px' }}>{(n / 10).toFixed(1)}</span>×<span style={{ color: C.loss, margin: '0 10px' }}>{gap}</span>={' '}
+    <b style={{ marginLeft: 10 }}>{term}</b>
+  </div>
+);
+
 const EceFormula: Page = () => (
   <Frame
     part={4}
     title="One number: expected calibration error"
     line="ECE is the average gap, with each bin weighted by its share of the predictions. A perfectly calibrated model scores 0."
   >
-    <div style={{ ...col, gap: 56, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-      <Eq size={60}>
-        ECE = Σ<sub style={{ fontSize: 30 }}>bins</sub>
-        <Frac top={<span>predictions in bin</span>} bot={<span>all predictions</span>} />×{' '}
-        <span style={{ color: C.loss }}>
-          | <span style={{ color: C.truth }}>accuracy</span> − <span style={{ color: C.pred }}>confidence</span> |
-        </span>
-      </Eq>
-      <Steps>
-        <Step>
-          <div style={{ fontFamily: mono, fontSize: 44, textAlign: 'center' }}>
-            <Frac top="2" bot="10" />× <span style={{ color: C.loss }}>0.00</span> + <Frac top="3" bot="10" />×{' '}
-            <span style={{ color: C.loss }}>0.03</span> + <Frac top="5" bot="10" />× <span style={{ color: C.loss }}>0.30</span>
-          </div>
-        </Step>
-        <Step>
-          <div style={{ fontFamily: mono, fontSize: 44, textAlign: 'center' }}>
-            = 0 + 0.01 + 0.15 = <b style={{ color: C.loss }}>0.16</b>
-          </div>
-        </Step>
-      </Steps>
+    <div style={{ ...row, gap: 30, alignItems: 'center', height: '100%' }}>
+      <div style={{ flexShrink: 0, textAlign: 'center' }}>
+        <Reliability bins={TOYBINS} size={380} />
+        <div style={{ fontSize: 23, marginTop: -40 }}>
+          <span style={{ color: C.s2 }}>dot size = share of predictions</span> · <span style={{ color: C.loss }}>red bar = gap</span>
+        </div>
+      </div>
+      <div style={{ flex: 1 }}>
+        <Eq size={42}>
+          ECE = Σ<sub style={{ fontSize: 24 }}>bins</sub>
+          <span style={{ color: C.s2 }}>
+            <Frac top={<span>predictions in bin</span>} bot={<span>all predictions</span>} />
+          </span>
+          ×{' '}
+          <span style={{ color: C.loss }}>
+            | <span style={{ color: C.truth }}>accuracy</span> − <span style={{ color: C.pred }}>confidence</span> |
+          </span>
+        </Eq>
+        <div style={{ height: 26 }} />
+        <Steps>
+          <Step>
+            <EceRow range="bin 0.4 to 0.6" n={2} acc="0.50" conf="0.50" gap="0.00" term="0.00" />
+          </Step>
+          <Step>
+            <EceRow range="bin 0.6 to 0.8" n={3} acc="0.67" conf="0.70" gap="0.03" term="0.01" />
+          </Step>
+          <Step>
+            <EceRow range="bin 0.8 to 1.0" n={5} acc="0.60" conf="0.90" gap="0.30" term="0.15" />
+          </Step>
+          <Step>
+            <div style={{ fontFamily: mono, fontSize: 36, borderTop: `3px solid ${C.ink}`, paddingTop: 16, textAlign: 'right' }}>
+              ECE = 0.00 + 0.01 + 0.15 = <b style={{ color: C.loss }}>0.16</b>
+            </div>
+          </Step>
+        </Steps>
+      </div>
     </div>
   </Frame>
 );
@@ -2336,17 +2365,28 @@ def ece(conf, correct, n_bins=10):
 );
 
 const Shape = ({ over }: { over: boolean }) => {
-  const X = (v: number) => 60 + v * 440;
-  const Y = (v: number) => 20 + (1 - v) * 440;
-  const f = (v: number) => (over ? 0.35 + 0.45 * (v - 0.4) / 0.6 + 0.0 : Math.min(1, 0.62 + 0.38 * (v - 0.4) / 0.45));
-  const xs = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
+  const X = (v: number) => 90 + v * 420;
+  const Y = (v: number) => 20 + (1 - v) * 420;
+  const f = (v: number) => (over ? 0.78 * v : v + (5 / 6) * v * (1 - v));
+  const xs = Array.from({ length: 41 }, (_, i) => i / 40);
+  const ex = over ? 0.9 : 0.6;
   return (
-    <svg width={540} height={500} viewBox="0 0 540 500">
-      <rect x={X(0)} y={Y(1)} width={440} height={440} fill={C.white} stroke={C.rule} strokeWidth={3} />
+    <svg width={560} height={530} viewBox="0 0 560 530">
+      <rect x={X(0)} y={Y(1)} width={420} height={420} fill={C.white} stroke={C.rule} strokeWidth={3} />
       <line x1={X(0)} y1={Y(0)} x2={X(1)} y2={Y(1)} stroke={C.muted} strokeWidth={3} strokeDasharray="10 8" />
+      {[0, 0.5, 1].map((v) => (
+        <g key={v}>
+          <text x={X(v)} y={Y(0) + 32} textAnchor="middle" fontSize={24} fill={C.soft}>{v.toFixed(1)}</text>
+          <text x={X(0) - 14} y={Y(v) + 8} textAnchor="end" fontSize={24} fill={C.soft}>{v.toFixed(1)}</text>
+        </g>
+      ))}
       <polyline points={xs.map((v) => `${X(v)},${Y(f(v))}`).join(' ')} fill="none" stroke={C.ink} strokeWidth={5} />
-      <text x={X(0.5)} y={Y(0) + 34} textAnchor="middle" fontSize={24} fill={C.pred}>confidence</text>
-      <text transform={`translate(34 ${Y(0.5)}) rotate(-90)`} textAnchor="middle" fontSize={24} fill={C.truth}>accuracy</text>
+      <line x1={X(ex)} y1={Y(0)} x2={X(ex)} y2={Y(Math.min(ex, f(ex)))} stroke={C.pred} strokeWidth={2} strokeDasharray="6 6" />
+      <line x1={X(0)} y1={Y(f(ex))} x2={X(ex)} y2={Y(f(ex))} stroke={C.truth} strokeWidth={2} strokeDasharray="6 6" />
+      <line x1={X(ex)} y1={Y(f(ex))} x2={X(ex)} y2={Y(ex)} stroke={C.loss} strokeWidth={7} />
+      <circle cx={X(ex)} cy={Y(f(ex))} r={11} fill={C.ink} />
+      <text x={X(0.5)} y={Y(0) + 72} textAnchor="middle" fontSize={27} fill={C.pred}>confidence (what the model said)</text>
+      <text transform={`translate(28 ${Y(0.5)}) rotate(-90)`} textAnchor="middle" fontSize={27} fill={C.truth}>accuracy (what happened)</text>
     </svg>
   );
 };
@@ -2355,7 +2395,7 @@ const Shapes: Page = () => (
   <Frame
     part={4}
     title="Overconfident and underconfident models"
-    line="These curves are illustrative. Below the line the model’s confidence is higher than its accuracy, and above the line it is lower."
+    line="These curves are illustrative. Below the dashed line the model’s confidence is higher than its accuracy. Above the line it is lower."
   >
     <div style={{ ...row, gap: 120, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
       <div style={{ textAlign: 'center' }}>
@@ -2376,36 +2416,179 @@ const Shapes: Page = () => (
   </Frame>
 );
 
-const RealNumbers: Page = () => (
+type Ex = { text: string; label: string; pred: string; logits: number[]; probs: number[] };
+const EXS = sci.zs.examples as unknown as Ex[];
+const TOPIC4 = ['World', 'Sports', 'Business', 'Sci/Tech'];
+const short = (t: string) => (t.startsWith('Science') ? 'Sci/Tech' : t);
+const clean = (t: string) => t.replace(/ #39;/g, '’').replace(/\s+/g, ' ');
+const ONE = EXS.find((e) => e.text.startsWith('Cassini')) ?? EXS[0];
+const WRONG = EXS.find((e) => e.pred !== e.label) ?? EXS[1];
+const top = (v: number[]) => Math.max(...v);
+
+const Setup = ({ head, big, children }: { head: string; big: string; children: ReactNode }) => (
+  <Card style={{ width: 540, padding: '34px 36px', minHeight: 430 }}>
+    <Label>{head}</Label>
+    <div style={{ fontFamily: serif, fontSize: 44, fontWeight: 700, margin: '12px 0 14px', lineHeight: 1.2 }}>{big}</div>
+    <div style={{ fontSize: 32, lineHeight: 1.45, color: C.soft }}>{children}</div>
+  </Card>
+);
+
+const RealSetup: Page = () => (
   <Frame
     part={4}
-    title="Our model on 1,000 news items"
-    line={`Four topics, one forward pass per item, probabilities read from the letter logits. The model is right ${pct(sci.zs.accuracy)} of the time, but its average confidence is ${pct(sci.zs.mean_conf)}.`}
+    title="Now a real test: the model, the data, the question"
+    line="We use the same small model as in Parts 2 and 3, on a public dataset where every item has a known correct answer."
   >
-    <div style={{ ...row, gap: 160, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-      <Big value={f2(sci.zs.accuracy)} label="accuracy" color={C.truth} />
+    <div style={{ ...row, gap: 40, alignItems: 'stretch', marginTop: 20 }}>
+      <Setup head="The model" big={sci.model.split('/')[1]}>
+        {sci.params_M} M parameters. It is the model that read our email, and it has had no training for this task.
+      </Setup>
       <Steps>
         <Step>
-          <Big value={f2(sci.zs.mean_conf)} label="mean confidence" color={C.pred} />
+          <Setup head="The data" big="AG News">
+            Short news items, each labelled with one of four topics: World, Sports, Business, Sci/Tech. We take {sci.zs.n.toLocaleString('en-US')}{' '}
+            for testing and keep 500 others aside for later.
+          </Setup>
+        </Step>
+        <Step>
+          <Setup head="The question" big="A choice with four options">
+            “Which topic is this news about?” with options A to D. One forward pass per item, and we read the four letter logits as in
+            Part 3.
+          </Setup>
         </Step>
       </Steps>
     </div>
   </Frame>
 );
 
+const RealOne: Page = () => (
+  <Frame
+    part={4}
+    title="One prediction, from news item to confidence"
+    line={`The answer is the option with the largest probability, and that probability is the confidence. Here the model says Sci/Tech with ${f2(top(ONE.probs))}, and it is right.`}
+  >
+    <div style={{ ...row, gap: 50, alignItems: 'center', height: '100%' }}>
+      <div style={{ width: 600, flexShrink: 0 }}>
+        <Label>News item</Label>
+        <div style={{ fontFamily: serif, fontSize: 34, lineHeight: 1.35, margin: '12px 0 22px' }}>“{clean(ONE.text).slice(0, 100)}…”</div>
+        <Label color={C.truth}>Correct topic</Label>
+        <div style={{ fontSize: 36, color: C.truth, fontWeight: 600, marginTop: 8 }}>{short(ONE.label)}</div>
+      </div>
+      <div style={col}>
+        <div style={row}>
+          <RHead w={300} left>option</RHead>
+          <RHead w={190}>logit</RHead>
+          <Steps>
+            <Step>
+              <RHead w={260}>probability</RHead>
+            </Step>
+          </Steps>
+        </div>
+        {TOPIC4.map((t, i) => (
+          <div key={t} style={row}>
+            <RCell w={300} left>{'ABCD'[i]}  {t}</RCell>
+            <RCell w={190}>{ONE.logits[i].toFixed(2)}</RCell>
+            <Steps>
+              <Step>
+                <RCell w={260} color={C.pred}>{ONE.probs[i] === top(ONE.probs) ? <b>{f2(ONE.probs[i])}</b> : f2(ONE.probs[i])}</RCell>
+              </Step>
+            </Steps>
+          </div>
+        ))}
+        <div style={{ fontSize: 24, color: C.muted, marginTop: 14 }}>softmax over the four logits, as on the readout slide</div>
+      </div>
+    </div>
+  </Frame>
+);
+
+const RealSix: Page = () => (
+  <Frame
+    part={4}
+    title="Six of the 1,000 predictions"
+    line="Four are right and two are wrong, and the confidence is almost the same in all six. The two wrong answers come with 0.9997."
+  >
+    <div style={{ ...col, marginTop: 6 }}>
+      <div style={{ ...row, fontSize: 23, letterSpacing: '0.08em', fontWeight: 600, color: C.muted, height: 42 }}>
+        <div style={{ width: 760 }}>NEWS ITEM</div>
+        <div style={{ width: 230 }}>MODEL SAID</div>
+        <div style={{ width: 230, color: C.pred }}>CONFIDENCE</div>
+        <div style={{ width: 230, color: C.truth }}>CORRECT TOPIC</div>
+        <div>RIGHT?</div>
+      </div>
+      {EXS.map((e) => (
+        <div key={e.text} style={{ ...row, alignItems: 'center', fontSize: 28, height: 86, borderTop: `2px solid ${C.rule}` }}>
+          <div style={{ width: 760, paddingRight: 30, lineHeight: 1.25 }}>{clean(e.text).slice(0, 78)}…</div>
+          <div style={{ width: 230 }}>{short(e.pred)}</div>
+          <div style={{ width: 230, fontFamily: mono, color: C.pred }}>{top(e.probs).toFixed(4)}</div>
+          <div style={{ width: 230, color: C.truth }}>{short(e.label)}</div>
+          <div style={{ fontSize: 36, fontWeight: 700, color: e.pred === e.label ? C.truth : C.loss }}>{e.pred === e.label ? '✓' : '✗'}</div>
+        </div>
+      ))}
+    </div>
+  </Frame>
+);
+
+const RealNumbers: Page = () => (
+  <Frame
+    part={4}
+    title="All 1,000 predictions, in two numbers"
+    line={`The model is right ${pct(sci.zs.accuracy)} of the time, but its average confidence is ${pct(sci.zs.mean_conf)}. A calibrated model would have these two numbers equal.`}
+  >
+    <div style={{ ...row, gap: 140, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+      <div style={{ textAlign: 'center' }}>
+        <Big value={f2(sci.zs.accuracy)} label="accuracy" color={C.truth} />
+        <div style={{ fontFamily: mono, fontSize: 30, color: C.truth, marginTop: 14 }}>
+          {sci.zs.n_right} right / {sci.zs.n.toLocaleString('en-US')}
+        </div>
+      </div>
+      <Steps>
+        <Step>
+          <div style={{ textAlign: 'center' }}>
+            <Big value={f2(sci.zs.mean_conf)} label="mean confidence" color={C.pred} />
+            <div style={{ fontFamily: mono, fontSize: 30, color: C.pred, marginTop: 14 }}>
+              sum of 1,000 confidences / 1,000
+            </div>
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const TOPBIN = sci.zs.bins[9] as { n: number; conf: number; acc: number };
+const TOPTERM = (TOPBIN.n / sci.zs.n) * Math.abs(TOPBIN.acc - TOPBIN.conf);
+
 const RealBefore: Page = () => (
   <Frame
     part={4}
     title="The reliability diagram for our model"
-    line={`${sci.zs.bins[9].n} of the 1,000 answers come with confidence above 0.9, and only ${pct(sci.zs.bins[9].acc as number)} of those are right. ECE is ${f2(sci.zs.ece)}.`}
+    line={`${TOPBIN.n} of the 1,000 answers come with confidence above 0.9, and only ${pct(TOPBIN.acc)} of those are right. That one bin accounts for most of the ECE.`}
   >
-    <div style={{ ...row, gap: 90, alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-      <Reliability bins={sci.zs.bins} size={480} counts />
-      <div style={{ ...col, gap: 30 }}>
-        <Big value={f2(sci.zs.ece)} label="ECE" color={C.loss} />
-        <div style={{ fontSize: 26, color: C.muted, width: 420, textAlign: 'center' }}>
-          numbers beside the dots count the predictions in each bin
-        </div>
+    <div style={{ ...row, gap: 60, alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+      <Reliability bins={sci.zs.bins} size={460} counts />
+      <div style={{ ...col, gap: 18, width: 760 }}>
+        <Label>ECE, bin by bin</Label>
+        <Steps>
+          <Step>
+            <div style={{ fontFamily: mono, fontSize: 29, lineHeight: 1.7, whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 24, color: C.soft }}>bin 0.9 to 1.0</div>
+              <span style={{ color: C.s2 }}>{TOPBIN.n}/1000</span> × | <span style={{ color: C.truth }}>{f2(TOPBIN.acc)}</span> −{' '}
+              <span style={{ color: C.pred }}>{f2(TOPBIN.conf)}</span> | = <b>{f2(TOPTERM)}</b>
+            </div>
+          </Step>
+          <Step>
+            <div style={{ fontFamily: mono, fontSize: 29, lineHeight: 1.7, whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 24, color: C.soft }}>the other four bins, {sci.zs.n - TOPBIN.n} predictions</div>
+              add <b>{f2(sci.zs.ece - TOPTERM)}</b>
+            </div>
+          </Step>
+          <Step>
+            <div style={{ fontFamily: mono, fontSize: 38, borderTop: `3px solid ${C.ink}`, paddingTop: 14 }}>
+              ECE = {f2(TOPTERM)} + {f2(sci.zs.ece - TOPTERM)} = <b style={{ color: C.loss }}>{f2(sci.zs.ece)}</b>
+            </div>
+          </Step>
+        </Steps>
+        <div style={{ fontSize: 23, color: C.muted }}>numbers beside the dots count the predictions in each bin</div>
       </div>
     </div>
   </Frame>
@@ -2417,41 +2600,224 @@ const softmaxT = (z: number[], T: number) => {
   return e.map((v) => v / s);
 };
 
-const Temperature: Page = () => {
-  const [T, setT] = useState(1);
-  const p = softmaxT([2.0, 1.0, 0.1], T);
+const WGAP = top(WRONG.logits) - [...WRONG.logits].sort((a, b) => b - a)[1];
+
+const WhyExtreme: Page = () => (
+  <Frame
+    part={4}
+    title="Why the confidence is so extreme"
+    line={`Softmax turns a logit gap of ${WGAP.toFixed(1)} into odds of about ${(Math.round(Math.exp(WGAP) / 100) * 100).toLocaleString('en-US')} to 1. The order of the options is usually right. The gaps are too large.`}
+  >
+    <div style={{ ...row, gap: 60, alignItems: 'center', height: '100%' }}>
+      <div style={{ width: 560, flexShrink: 0 }}>
+        <Label>One of the wrong answers</Label>
+        <div style={{ fontFamily: serif, fontSize: 32, lineHeight: 1.35, margin: '12px 0 20px' }}>“{clean(WRONG.text).slice(0, 84)}…”</div>
+        <div style={{ fontSize: 30, lineHeight: 1.5 }}>
+          model said <b>{short(WRONG.pred)}</b>
+          <br />
+          <span style={{ color: C.truth }}>correct topic: {short(WRONG.label)}</span>
+        </div>
+      </div>
+      <div style={col}>
+        <div style={row}>
+          <RHead w={280} left>option</RHead>
+          <RHead w={180}>logit</RHead>
+          <RHead w={300}>gap to the top</RHead>
+          <RHead w={240}>probability</RHead>
+        </div>
+        {TOPIC4.map((t, i) => (
+          <div key={t} style={row}>
+            <RCell w={280} left>{'ABCD'[i]}  {t}</RCell>
+            <RCell w={180}>{WRONG.logits[i].toFixed(1)}</RCell>
+            <RCell w={300} color={C.loss}>{(top(WRONG.logits) - WRONG.logits[i]).toFixed(1)}</RCell>
+            <RCell w={240} color={C.pred}>{WRONG.probs[i].toFixed(4)}</RCell>
+          </div>
+        ))}
+      </div>
+    </div>
+  </Frame>
+);
+
+const TRow = ({ z, T }: { z: number; T: number }) => (
+  <div style={row}>
+    <RCell w={170}>{z.toFixed(1)}</RCell>
+    <RCell w={190} color={C.loss}>{(z / T).toFixed(2)}</RCell>
+    <RCell w={270} color={C.soft}>{Math.exp(z / T).toFixed(2)}</RCell>
+  </div>
+);
+
+const TempWorked: Page = () => {
+  const z = [2.0, 1.0, 0.1];
+  const e = z.map((v) => Math.exp(v / 2));
+  const tot = e.reduce((a, b) => a + b, 0);
+  const p1 = softmaxT(z, 1);
   return (
     <Frame
       part={4}
-      title="Temperature scaling: a fix with one parameter"
-      line="Divide every logit by T before the softmax. T above 1 flattens the distribution; the order of the options never changes."
+      title="Temperature: divide every logit by T, then softmax"
+      line="With T = 2 the gaps between logits are halved. The top option falls from 0.66 to 0.50 and is still the top option."
     >
-      <div style={{ ...row, gap: 70, alignItems: 'center', height: '100%' }}>
-        <div style={{ width: 560 }}>
-          <Eq size={54}>
+      <div style={{ ...row, gap: 30, alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+        <div style={{ width: 330, flexShrink: 0, whiteSpace: 'nowrap' }}>
+          <Eq size={36}>
             <I color={C.pred}>p</I> = softmax(<I>z</I> / <I color={C.loss}>T</I>)
           </Eq>
-          <div style={{ marginTop: 60, textAlign: 'center' }}>
-            <div style={{ fontFamily: mono, fontSize: 56, color: C.loss }}>T = {T.toFixed(1)}</div>
+          <div style={{ fontFamily: mono, fontSize: 44, color: C.loss, textAlign: 'center', marginTop: 24 }}>T = 2</div>
+        </div>
+        <div style={col}>
+          <div style={row}>
+            <RHead w={170}>logit z</RHead>
+            <RHead w={190}>z / 2</RHead>
+            <RHead w={270}>e to that power</RHead>
+          </div>
+          {z.map((v) => (
+            <TRow key={v} z={v} T={2} />
+          ))}
+          <div style={{ ...row, justifyContent: 'flex-end', fontFamily: mono, fontSize: 30, color: C.soft, padding: '12px 30px 0' }}>total {tot.toFixed(2)}</div>
+        </div>
+        <Steps>
+          <Step>
+            <div style={col}>
+              <RHead w={430}>divide by {tot.toFixed(2)}</RHead>
+              {e.map((v, i) => (
+                <RCell key={i} w={430} color={C.pred}>{v.toFixed(2)} / {tot.toFixed(2)} = {f2(v / tot)}</RCell>
+              ))}
+              <div style={{ height: 54 }} />
+            </div>
+          </Step>
+          <Step>
+            <div style={col}>
+              <RHead w={180}>at T = 1</RHead>
+              {p1.map((v, i) => (
+                <RCell key={i} w={180} color={C.muted}>{f2(v)}</RCell>
+              ))}
+              <div style={{ height: 54 }} />
+            </div>
+          </Step>
+        </Steps>
+      </div>
+    </Frame>
+  );
+};
+
+const Temperature: Page = () => {
+  const [T, setT] = useState(1);
+  const z = [2.0, 1.0, 0.1];
+  const p = softmaxT(z, T);
+  const hint = T < 1 ? 'T below 1: gaps grow, the model looks more sure' : T === 1 ? 'T = 1: nothing changes' : 'T above 1: gaps shrink, the model looks less sure';
+  return (
+    <Frame
+      part={4}
+      title="Try other temperatures"
+      line="Dividing by T above 1 flattens the distribution, and a very large T pushes every option towards 1/3. The order of the options never changes."
+    >
+      <div style={{ ...row, gap: 70, alignItems: 'center', height: '100%' }}>
+        <div style={{ width: 600 }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontFamily: mono, fontSize: 64, color: C.loss }}>T = {T.toFixed(1)}</div>
             <input
               type="range"
               min={0.5}
-              max={5}
+              max={10}
               step={0.1}
               value={T}
               onChange={(e) => setT(Number(e.target.value))}
               onKeyDown={(e) => e.stopPropagation()}
-              style={{ width: 480, marginTop: 24, accentColor: C.loss }}
+              style={{ width: 520, marginTop: 24, accentColor: C.loss }}
             />
-            <div style={{ fontSize: 26, color: C.muted, marginTop: 14 }}>drag me</div>
+            <div style={{ fontSize: 26, color: C.muted, marginTop: 10 }}>drag the slider</div>
+            <div style={{ fontSize: 30, color: C.loss, marginTop: 30, height: 80 }}>{hint}</div>
           </div>
         </div>
         <div style={col}>
-          <div style={{ fontSize: 28, color: C.muted, marginLeft: 320, marginBottom: 10 }}>logits 2.0, 1.0, 0.1 from the softmax slide</div>
-          <Bar label="z = 2.0" p={p[0]} width={620} mono />
-          <Bar label="z = 1.0" p={p[1]} width={620} mono />
-          <Bar label="z = 0.1" p={p[2]} width={620} mono />
+          <div style={{ ...row, fontSize: 26, color: C.muted, marginBottom: 8 }}>
+            <div style={{ width: 300, textAlign: 'right', paddingRight: 20 }}>z / T</div>
+            <div>probability</div>
+          </div>
+          {z.map((v, i) => (
+            <Bar key={v} label={`${v.toFixed(1)}/${T.toFixed(1)} = ${(v / T).toFixed(2)}`} p={p[i]} width={520} mono />
+          ))}
         </div>
+      </div>
+    </Frame>
+  );
+};
+
+const NLL = sci.zs.nll_curve as unknown as [number, number][];
+
+const ChooseT: Page = () => {
+  const X = (t: number) => 110 + ((t - 0.5) / 9.5) * 760;
+  const Y = (v: number) => 30 + (1 - (v - 0.5) / 2.5) * 430;
+  return (
+    <Frame
+      part={4}
+      title="Choosing T: try many values on held-out items"
+      line={`Log loss is the average of −log(probability given to the correct topic). On 500 held-out items it is lowest at T = ${sci.zs.T.toFixed(1)}. The 1,000 test items are never used to pick T.`}
+    >
+      <div style={{ ...row, gap: 50, alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+        <svg width={920} height={560} viewBox="0 0 920 560">
+          <rect x={X(0.5)} y={Y(3)} width={760} height={430} fill={C.white} stroke={C.rule} strokeWidth={3} />
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((t) => (
+            <text key={t} x={X(t)} y={Y(0.5) + 34} textAnchor="middle" fontSize={24} fill={C.soft}>{t}</text>
+          ))}
+          {[1, 2, 3].map((v) => (
+            <text key={v} x={X(0.5) - 14} y={Y(v) + 8} textAnchor="end" fontSize={24} fill={C.soft}>{v.toFixed(1)}</text>
+          ))}
+          <polyline points={NLL.map(([t, v]) => `${X(t)},${Y(v)}`).join(' ')} fill="none" stroke={C.ink} strokeWidth={5} />
+          <circle cx={X(1)} cy={Y(sci.zs.nll_at_1)} r={11} fill={C.muted} />
+          <text x={X(1) + 20} y={Y(sci.zs.nll_at_1) - 6} fontSize={26} fill={C.soft}>T = 1 · log loss {f2(sci.zs.nll_at_1)}</text>
+          <line x1={X(sci.zs.T)} y1={Y(0.5)} x2={X(sci.zs.T)} y2={Y(sci.zs.nll_best)} stroke={C.loss} strokeWidth={3} strokeDasharray="8 6" />
+          <circle cx={X(sci.zs.T)} cy={Y(sci.zs.nll_best)} r={13} fill={C.loss} />
+          <text x={X(sci.zs.T) + 10} y={Y(sci.zs.nll_best) - 70} fontSize={28} fill={C.loss} fontWeight={600}>T = {sci.zs.T.toFixed(1)} · log loss {f2(sci.zs.nll_best)}</text>
+          <text x={X(5.25)} y={Y(0.5) + 78} textAnchor="middle" fontSize={27} fill={C.loss}>temperature T</text>
+          <text transform={`translate(30 ${Y(1.75)}) rotate(-90)`} textAnchor="middle" fontSize={27} fill={C.soft}>log loss on 500 held-out items</text>
+        </svg>
+        <div style={{ width: 560, fontSize: 30, lineHeight: 1.5 }}>
+          <Steps>
+            <Step>
+              <div style={{ marginBottom: 22 }}>
+                Log loss punishes a confident wrong answer heavily: −log(0.0001) = 9.2.
+              </div>
+            </Step>
+            <Step>
+              <div style={{ color: C.soft }}>
+                Too small a T keeps those penalties. Too large a T throws away confidence the model has earned. The lowest point balances the two.
+              </div>
+            </Step>
+          </Steps>
+        </div>
+      </div>
+    </Frame>
+  );
+};
+
+const SameItem: Page = () => {
+  const after = softmaxT(WRONG.logits, sci.zs.T);
+  return (
+    <Frame
+      part={4}
+      title={`The same wrong answer, before and after T = ${sci.zs.T.toFixed(1)}`}
+      line={`The model still says ${short(WRONG.pred)} and is still wrong. Its confidence falls from ${top(WRONG.probs).toFixed(4)} to ${f2(top(after))}, which is closer to how often such answers are right.`}
+    >
+      <div style={{ ...row, gap: 60, alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+        <div style={col}>
+          <Label>As read, T = 1 · top {top(WRONG.probs).toFixed(4)}</Label>
+          <div style={{ height: 12 }} />
+          {TOPIC4.map((t, i) => (
+            <Bar key={t} label={t} p={WRONG.probs[i]} width={330} />
+          ))}
+        </div>
+        <Steps>
+          <Step>
+            <div style={col}>
+              <Label color={C.loss}>Logits divided by {sci.zs.T.toFixed(1)}</Label>
+              <div style={{ height: 12 }} />
+              {TOPIC4.map((t, i) => (
+                <Bar key={t} label={`${WRONG.logits[i].toFixed(1)} → ${(WRONG.logits[i] / sci.zs.T).toFixed(1)}`} p={after[i]} width={330} mono />
+              ))}
+            </div>
+          </Step>
+        </Steps>
       </div>
     </Frame>
   );
@@ -2460,7 +2826,7 @@ const Temperature: Page = () => {
 const RealAfter: Page = () => (
   <Frame
     part={4}
-    title={`Fit T on 500 held-out items: T = ${sci.zs.T.toFixed(1)}`}
+    title={`All 1,000 test items, before and after T = ${sci.zs.T.toFixed(1)}`}
     line={`ECE falls from ${f2(sci.zs.ece)} to ${f2(sci.zs.ece_T)}. Accuracy stays at ${f2(sci.zs.accuracy)}, because dividing by T never changes which option is on top.`}
   >
     <div style={{ ...row, gap: 60, alignItems: 'center', justifyContent: 'center', height: '100%' }}>
@@ -2526,24 +2892,235 @@ const S5: Page = () => (
   <SectionPage
     n={5}
     goal="How do we train a model so that its probabilities come out right, instead of repairing them afterwards?"
-    how="How chat models are trained, what each reward measures, a loss that rewards correct probabilities, and a head we train ourselves."
+    how="The three stages of training a chat model with an example of each, what each reward measures, a loss that rewards correct probabilities, and a head we train ourselves."
   />
+);
+
+const Stage = ({ n, name, color, data, goal, scale }: { n: string; name: string; color: string; data: string; goal: string; scale: string }) => (
+  <Card color={color} style={{ width: 540, padding: '26px 30px' }}>
+    <div style={{ fontSize: 24, letterSpacing: '0.12em', fontWeight: 600, color }}>STAGE {n}</div>
+    <div style={{ fontFamily: serif, fontSize: 42, fontWeight: 700, margin: '6px 0 16px', lineHeight: 1.15 }}>{name}</div>
+    {[
+      ['Data', data],
+      ['Objective', goal],
+      ['Typical scale', scale],
+    ].map(([k, v]) => (
+      <div key={k} style={{ borderTop: `2px solid ${C.rule}`, padding: '12px 0' }}>
+        <div style={{ fontSize: 22, color: C.muted }}>{k}</div>
+        <div style={{ fontSize: 27, lineHeight: 1.3 }}>{v}</div>
+      </div>
+    ))}
+  </Card>
 );
 
 const TrainPipeline: Page = () => (
   <Frame
     part={5}
-    title="How a chat model is trained"
-    line="Pre-training teaches the model language. Post-training shapes its behaviour with reinforcement learning: the model answers, gets a reward, and is updated."
+    title="A chat model is trained in three stages"
+    line="Each stage uses less data than the one before and moves the model closer to the behaviour we want. The question for this part: what does each objective reward?"
+  >
+    <div style={{ ...row, gap: 40, alignItems: 'stretch' }}>
+      <Stage n="1" name="Pre-training" color={C.s2} data="web pages, books, code" goal="predict the next token" scale="trillions of tokens" />
+      <Steps>
+        <Step>
+          <Stage n="2" name="Supervised fine-tuning" color={C.truth} data="instruction and response pairs" goal="predict the next token of the response" scale="thousands to millions of pairs" />
+        </Step>
+        <Step>
+          <Stage n="3" name="Reinforcement learning" color={C.s1} data="the model’s own answers, scored" goal="raise the expected reward" scale="tens of thousands of prompts" />
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const NTRow = ({ ctx, next }: { ctx: string; next: string }) => (
+  <div style={{ ...row, alignItems: 'center', gap: 16, height: 66, fontFamily: mono, fontSize: 30 }}>
+    <div style={{ width: 700, textAlign: 'right', color: C.soft, whiteSpace: 'nowrap' }}>{ctx}</div>
+    <div style={{ color: C.muted }}>→</div>
+    <div style={{ background: C.truth, color: C.white, borderRadius: 8, padding: '4px 16px' }}>{next}</div>
+  </div>
+);
+
+const PreTrain: Page = () => (
+  <Frame
+    part={5}
+    title="Stage 1, pre-training: predict the next token"
+    line="Every position in every document is a training example, and the text itself supplies the correct answer. No person labels anything."
+  >
+    <div style={{ ...row, gap: 50, alignItems: 'center', height: '100%' }}>
+      <div style={col}>
+        <Label>One sentence gives five examples</Label>
+        <div style={{ height: 10 }} />
+        <NTRow ctx="The" next="capital" />
+        <NTRow ctx="The capital" next="of" />
+        <NTRow ctx="The capital of" next="Gujarat" />
+        <NTRow ctx="The capital of Gujarat" next="is" />
+        <NTRow ctx="The capital of Gujarat is" next="Gandhinagar" />
+        <div style={{ fontSize: 23, color: C.muted, marginTop: 10, textAlign: 'right' }}>shown word by word; the model works on tokens</div>
+      </div>
+      <Steps>
+        <Step>
+          <div style={{ width: 620 }}>
+            <Label color={C.loss}>Objective</Label>
+            <div style={{ fontFamily: serif, fontSize: 38, margin: '8px 0 6px' }}>
+              loss = −log <I color={C.pred}>p</I>(<span style={{ color: C.truth }}>correct next token</span>)
+            </div>
+            <div style={{ fontSize: 26, color: C.soft, marginBottom: 26 }}>averaged over every position: cross-entropy</div>
+            <Label>Scale, as reported by the makers</Label>
+            <Fact k="GPT-3 (2020)" v="about 300 billion tokens" />
+            <Fact k="Llama 3 (2024)" v="over 15 trillion tokens" />
+            <Fact k="Qwen2.5 (2024)" v="up to 18 trillion tokens" />
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const Chat = ({ who, children, color }: { who: string; children: ReactNode; color: string }) => (
+  <div style={{ borderLeft: `6px solid ${color}`, padding: '6px 0 6px 20px', marginBottom: 16 }}>
+    <div style={{ fontSize: 22, letterSpacing: '0.1em', fontWeight: 600, color }}>{who}</div>
+    <div style={{ fontSize: 28, lineHeight: 1.35 }}>{children}</div>
+  </div>
+);
+
+const BaseModel: Page = () => (
+  <Frame
+    part={5}
+    title="After stage 1 the model continues text"
+    line="A pre-trained model has learned language and many facts. Given our email it writes more email, because that is what usually follows such text."
+  >
+    <div style={{ ...row, gap: 60, alignItems: 'center', height: '100%' }}>
+      <Card style={{ width: 780 }} color={C.s2}>
+        <Label color={C.s2}>Pre-trained model, given the email</Label>
+        <div style={{ fontFamily: serif, fontSize: 36, lineHeight: 1.45, marginTop: 16 }}>
+          “{EMAIL}
+          <span style={{ color: C.s2 }}> I have attached both receipts. Please let me know when the extra amount will be returned. Regards, …</span>”
+        </div>
+        <div style={{ fontSize: 23, color: C.muted, marginTop: 14 }}>continuation in blue is illustrative</div>
+      </Card>
+      <Steps>
+        <Step>
+          <div style={{ width: 780 }}>
+            <Label>What we wanted</Label>
+            <div style={{ fontSize: 36, lineHeight: 1.45, marginTop: 12 }}>
+              Read the email as a request, follow the instruction that comes with it, and stop when the answer is complete.
+            </div>
+            <div style={{ fontSize: 30, color: C.soft, marginTop: 22 }}>Stage 2 teaches this.</div>
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const SFT: Page = () => (
+  <Frame
+    part={5}
+    title="Stage 2, supervised fine-tuning on instruction pairs"
+    line="This stage is also called instruction tuning. The loss is the same next-token loss, counted only on the response, so the model learns to answer in the format shown."
+  >
+    <div style={{ ...row, gap: 50, alignItems: 'center', height: '100%' }}>
+      <Card style={{ width: 820, padding: '26px 30px' }}>
+        <Label>One training example</Label>
+        <div style={{ height: 14 }} />
+        <Chat who="INSTRUCTION" color={C.soft}>
+          Which team should handle this email: billing, technical or sales?
+          <br />
+          “{EMAIL}”
+        </Chat>
+        <Chat who="RESPONSE, WRITTEN BY A PERSON" color={C.truth}>
+          billing
+        </Chat>
+        <div style={{ fontFamily: mono, fontSize: 21, color: C.muted, lineHeight: 1.5, marginTop: 6 }}>
+          {'<|im_start|>user … <|im_end|>'}
+          <br />
+          {'<|im_start|>assistant billing<|im_end|>'}
+        </div>
+        <div style={{ fontSize: 22, color: C.muted, marginTop: 6 }}>the same pair in the chat template that Qwen models use</div>
+      </Card>
+      <Steps>
+        <Step>
+          <div style={{ width: 760 }}>
+            <Label color={C.loss}>Objective</Label>
+            <div style={{ fontFamily: serif, fontSize: 34, margin: '8px 0 24px' }}>
+              loss = −log <I color={C.pred}>p</I>(<span style={{ color: C.truth }}>next response token</span>)
+            </div>
+            <Label>Public instruction datasets</Label>
+            <Fact k="Dolly (2023)" v="15,000 pairs written by people" />
+            <Fact k="Alpaca (2023)" v="52,000 pairs generated by an LLM" />
+            <Fact k="FLAN (2022)" v="about 1,800 tasks turned into instructions" />
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const RLHFPage: Page = () => (
+  <Frame
+    part={5}
+    title="Stage 3, RLHF: the reward comes from human preferences"
+    line="People compare pairs of answers. A reward model learns to predict their choice, and the LLM is then updated to write answers that this reward model scores highly."
+  >
+    <div style={{ ...row, gap: 40, alignItems: 'center', height: '100%' }}>
+      <div style={{ ...col, gap: 20, width: 760 }}>
+        <Card style={{ padding: '20px 26px' }} color={C.truth}>
+          <div style={{ ...row, justifyContent: 'space-between' }}>
+            <Label color={C.truth}>Answer A</Label>
+            <div style={{ fontSize: 26, fontWeight: 700, color: C.truth }}>✓ preferred</div>
+          </div>
+          <div style={{ fontSize: 28, lineHeight: 1.35, marginTop: 8 }}>
+            This belongs with billing. You were charged twice, so they can refund the duplicate payment.
+          </div>
+        </Card>
+        <Card style={{ padding: '20px 26px' }}>
+          <Label>Answer B</Label>
+          <div style={{ fontSize: 28, lineHeight: 1.35, marginTop: 8, color: C.soft }}>
+            It could be billing, or possibly a technical fault. I am not sure which team is right.
+          </div>
+        </Card>
+        <div style={{ fontSize: 23, color: C.muted }}>illustrative pair for our email</div>
+      </div>
+      <Steps>
+        <Step>
+          <div style={{ width: 820 }}>
+            <Label>Three steps</Label>
+            <Fact k="1. Compare" v="people pick the better of two answers" />
+            <Fact k="2. Reward model" v="a network learns to predict that choice" />
+            <Fact k="3. Update" v="the LLM is trained to raise its reward" />
+            <div style={{ fontSize: 26, color: C.soft, marginTop: 20, lineHeight: 1.4 }}>
+              InstructGPT (2022) used about 33,000 prompts with human rankings for the reward model, and PPO for the update.
+            </div>
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const RLVRPage: Page = () => (
+  <Frame
+    part={5}
+    title="Stage 3, RLVR: the reward comes from a checker"
+    line="When an answer can be verified by a program, no person is needed. The model writes its steps, a checker compares the final answer, and the reward is 1 or 0."
   >
     <svg width={1700} height={690} viewBox="0 0 1700 690">
       <Arrows />
-      <Box x={60} y={200} w={520} h={170} text="Pre-training" sub="predict the next token on a huge pile of text" color={C.s2} size={40} />
-      <Arr x1={580} y1={285} x2={720} y2={285} />
-      <Box x={730} y={200} w={520} h={170} text="Post-training" sub="reinforcement learning on tasks" color={C.s1} size={40} />
-      <Arr x1={1250} y1={285} x2={1390} y2={285} />
-      <Box x={1400} y={200} w={260} h={170} text="chatbot" size={36} />
-      <text x={990} y={470} textAnchor="middle" fontSize={34} fill={C.soft}>The question for this part: what does the reward measure?</text>
+      <Box x={20} y={90} w={330} h={130} text="17 × 24 = ?" sub="a task with a known answer" />
+      <Arr x1={350} y1={155} x2={440} y2={155} />
+      <rect x={450} y={40} width={640} height={230} rx={12} fill={C.white} stroke={C.s2} strokeWidth={3} />
+      <text x={480} y={90} fontSize={26} fill={C.s2} fontWeight={600}>the model writes</text>
+      <text x={480} y={140} fontSize={30} fontFamily={mono} fill={C.soft}>17 × 20 = 340</text>
+      <text x={480} y={185} fontSize={30} fontFamily={mono} fill={C.soft}>17 × 4 = 68</text>
+      <text x={480} y={232} fontSize={30} fontFamily={mono} fill={C.ink}>340 + 68 = 408</text>
+      <Arr x1={1090} y1={155} x2={1180} y2={155} />
+      <Box x={1190} y={90} w={300} h={130} text="checker" sub="is the final answer 408?" color={C.truth} />
+      <Arr x1={1490} y1={155} x2={1560} y2={155} />
+      <Box x={1570} y={90} w={110} h={130} text="1" color={C.truth} size={56} />
+      <text x={850} y={380} textAnchor="middle" fontSize={32} fill={C.ink}>Other checkers: unit tests for code, an exact match for a proof step, a game that is won or lost.</text>
+      <text x={850} y={450} textAnchor="middle" fontSize={30} fill={C.soft}>Reasoning models are trained this way on large sets of problems with checkable answers.</text>
+      <text x={850} y={540} textAnchor="middle" fontSize={30} fill={C.loss}>The checker sees only the final answer. It never sees how sure the model was.</text>
     </svg>
   </Frame>
 );
@@ -2562,7 +3139,7 @@ const RLCard = ({ name, full, pays, side, color }: { name: string; full: string;
 const RLTwo: Page = () => (
   <Frame
     part={5}
-    title="Two rewards used today"
+    title="What the two rewards measure, and what they ignore"
     line="Neither reward looks at probabilities, so a model trained this way is never taught how sure it should be."
   >
     <div style={{ ...row, gap: 50, alignItems: 'stretch', marginTop: 16 }}>
@@ -3246,14 +3823,26 @@ const deck: [Page, string][] = [
   [EceFormula, '0.3 × 0.03 is 0.009, rounded to 0.01.'],
   [EceCode, 'Notebook 1, section 5. ECE depends on the number of bins; try 15.'],
   [Shapes, 'Curves are illustrative.'],
+  [RealSetup, 'Same model as before. AG News is a standard four-topic news dataset. The 500 items kept aside are used later to choose the temperature.'],
+  [RealOne, 'Reveal the probability column after the class has guessed the answer from the logits. Confidence means the largest of the four probabilities.'],
+  [RealSix, 'Ask whether the Microsoft item is really Sci/Tech or Business. Labels can be debatable, and the model gives 0.9997 either way.'],
   [RealNumbers, 'AG News, 4 topics, 1,000 test items, Qwen2.5-0.5B-Instruct read from letter logits.'],
   [RealBefore, 'Almost everything sits in the top bin. This is typical of an LLM read zero-shot.'],
-  [Temperature, 'Drag the slider. At T = 1 we get 0.66, 0.24, 0.10 as before.'],
+  [WhyExtreme, 'e to the 9 is about 8,100. The model has the order mostly right; the size of the gaps is what is off.'],
+  [TempWorked, 'Work the T = 2 column on the board. e to the 1 is 2.72, e to the 0.5 is 1.65, e to the 0.05 is 1.05.'],
+  [Temperature, 'Drag to 2 to match the worked example, then to 0.5 and to 10. At T = 1 we get 0.66, 0.24, 0.10 as before.'],
+  [ChooseT, 'One parameter, fitted by a simple search over 191 values. Log loss is the same loss used to train classifiers; Part 5 comes back to it.'],
+  [SameItem, 'Temperature cannot fix this answer. It only makes the model less sure about it.'],
   [RealAfter, 'T is chosen to minimise the log loss on 500 held-out items, never on the test items.'],
   [NotAccuracy, ''],
   [Recap4, ''],
   [S5, ''],
-  [TrainPipeline, ''],
+  [TrainPipeline, 'The earlier version of this slide skipped supervised fine-tuning. Labs differ in the details and often repeat or mix stages 2 and 3; these three are the common core.'],
+  [PreTrain, 'Token counts are the makers’ own figures: the GPT-3 paper, Meta’s Llama 3 announcement and the Qwen2.5 report. Our small Qwen model comes from that family.'],
+  [BaseModel, 'The continuation is illustrative. A base model has no notion of a turn ending, so it also does not know when to stop.'],
+  [SFT, 'Instruction tuning and SFT name the same stage. Dolly is from Databricks, Alpaca from Stanford, FLAN from Google. Check the counts against the dataset cards before quoting them.'],
+  [RLHFPage, 'InstructGPT is Ouyang et al., 2022. The answers shown are illustrative. Note which answer wins: the one that sounds sure.'],
+  [RLVRPage, 'RLVR means reinforcement learning with verifiable rewards. The same sum as in Part 1.'],
   [RLTwo, 'This framing follows the IBM video.'],
   [RLCD, 'Be clear that what follows is our construction with the same goal, not Jev’s method. Wikipedia notes it may be ordinary supervised learning with calibration terms in the loss.'],
   [HonestyQ, 'Any stated probability above 0.5 picks the same answer, so the accuracy reward cannot tell them apart.'],
