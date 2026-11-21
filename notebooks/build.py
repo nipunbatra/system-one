@@ -195,6 +195,78 @@ with torch.no_grad():
 print(f"write the JSON : {ms_generate:6.0f} ms")
 print(f"one forward pass: {ms_one_pass:6.0f} ms   ({ms_generate / ms_one_pass:.1f}x faster)")
 '''),
+("md", """
+### What writing costs: format and confidence
+
+Time is one cost of writing. Two more show up when a program has to use the text.
+We ask for JSON with a topic **and a confidence** for 200 news items, then try to parse what comes back.
+"""),
+("code", """
+import re
+from collections import Counter
+SHORT = ["World", "Sports", "Business", "Sci/Tech"]
+news = load_dataset("fancyzhx/ag_news", split="test").shuffle(seed=0).select(range(500, 700))
+
+def ask_json(text):
+    return chat("News: " + text[:600] + "\\n\\nReturn JSON with keys topic (World, Sports, Business or Sci/Tech) "
+                "and confidence (a number from 0 to 1).")
+
+written = []
+with torch.no_grad():
+    for i in range(0, len(news), 8):
+        xb = tok([ask_json(t) for t in news["text"][i:i + 8]], return_tensors="pt", padding=True).to(device)
+        out = model.generate(**xb, max_new_tokens=48, do_sample=False)
+        written += tok.batch_decode(out[:, xb["input_ids"].shape[1]:], skip_special_tokens=True)
+print(written[0])
+"""),
+("code", """
+def parse(text):
+    try:
+        return json.loads(text), "clean JSON"
+    except Exception:
+        pass
+    m = re.search(r"\\{.*?\\}", text, re.S)             # dig a {...} block out of the surrounding text
+    try:
+        return json.loads(m.group(0)), "JSON inside other text"
+    except Exception:
+        return None, "no JSON at all"
+
+kinds, kind_examples, stated, stated_right = Counter(), {}, [], []
+for text, label in zip(written, news["label"]):
+    d, kind = parse(text)
+    if d is not None and d.get("topic") not in SHORT:
+        kind = "topic not on the list"
+    elif d is not None and not (isinstance(d.get("confidence"), (int, float)) and 0 <= d["confidence"] <= 1):
+        kind = "confidence not between 0 and 1"
+    kinds[kind] += 1
+    kind_examples.setdefault(kind, text)
+    if kind in ("clean JSON", "JSON inside other text"):
+        stated.append(float(d["confidence"])); stated_right.append(int(SHORT.index(d["topic"]) == label))
+for kind, n in kinds.most_common():
+    print(f"{n:4d}  {kind:32s} e.g. {kind_examples[kind][:70]!r}")
+"""),
+("md", """
+Now the confidence the model **wrote**. Compare it with how often those answers were right.
+"""),
+("code", """
+print(f"usable answers          {len(stated)} of {len(written)}")
+print(f"accuracy on those       {np.mean(stated_right):.2f}")
+print(f"mean written confidence {np.mean(stated):.2f}")
+print("values it wrote        ", sorted(Counter(stated).items()))
+"""),
+("md", """
+Another way to get a confidence out of a writer is to sample the answer many times and count the votes.
+It works, and it costs one full generation per sample.
+"""),
+("code", """
+torch.manual_seed(0)
+xs = tok(chat("Email: " + email + "\\n\\nWhich team should handle this email: billing, technical or sales? "
+              "Answer with one word."), return_tensors="pt").to(device)
+with torch.no_grad():
+    out = model.generate(**xs, max_new_tokens=4, do_sample=True, temperature=1.0, top_k=0, num_return_sequences=20)
+votes = Counter(t.strip().lower().strip(".") for t in tok.batch_decode(out[:, xs["input_ids"].shape[1]:], skip_special_tokens=True))
+print(votes.most_common())
+"""),
 ("md", '''
 ## 4. Reading the answer instead
 
@@ -230,6 +302,26 @@ score = sum(i * v.item() for i, v in enumerate(p_urgency))
 print("score  " + ", ".join(f"P({l}) = {v:.3f}" for l, v in zip(levels, p_urgency)))
 print("       weighted level = " + " + ".join(f"{i} x {v:.3f}" for i, v in enumerate(p_urgency)) + f" = {score:.2f}")
 '''),
+("md", """
+Newer decision models add more answer types. Two of them can be read the same way:
+
+- **multi-select choice**: ask a yes/no question per option, so the probabilities need not sum to 1,
+- **a number with a range**: put the candidate numbers in as options, then report the median and the 10% to 90% interval.
+
+Our model is untrained for this, so expect weak answers. A trained decision model uses the same idea with a trained head.
+"""),
+("code", """
+things = ["a billing problem", "a refund", "a login problem", "a late delivery"]
+multi = [(t, round(decide("Email: " + email, f"Does the email mention {t}?", ["yes", "no"])[0].item(), 3)) for t in things]
+for t, v in multi: print(f"P(yes) = {v:.3f}  {t}")
+
+counts = ["0", "1", "2", "3", "4", "5"]
+p_count = decide("Email: " + email, "How many times was the customer charged this month?", counts)
+cdf = p_count.cumsum(0)
+at = lambda q: int(counts[int((cdf >= q).nonzero()[0])])      # first option where the running total reaches q
+print("P(count):", [round(v, 3) for v in p_count.tolist()])
+print(f"median {at(0.5)}, interval [{at(0.1)}, {at(0.9)}]")
+"""),
 ("md", '''
 ## 5. Calibration by hand
 
@@ -321,6 +413,12 @@ results = {
     "p_urgency": [round(v, 4) for v in p_urgency.tolist()], "urgency_score": round(score, 3),
     "generated": generated, "n_generated": int(n_generated), "passes": int(passes),
     "ms_generate": round(ms_generate), "ms_one_pass": round(ms_one_pass),
+    "written": {"n": len(written), "kinds": kinds.most_common(), "examples": {k: v[:200] for k, v in kind_examples.items()},
+                "usable": len(stated), "accuracy": round(float(np.mean(stated_right)), 4),
+                "mean_stated": round(float(np.mean(stated)), 4), "stated_counts": sorted(Counter(stated).items())},
+    "votes": votes.most_common(), "multi": multi,
+    "count": {"options": [int(c) for c in counts], "p": [round(v, 4) for v in p_count.tolist()],
+              "median": at(0.5), "interval": [at(0.1), at(0.9)]},
     "agnews": {"n": len(test), "accuracy": round(correct.mean().item(), 4),
                "mean_conf": round(conf.mean().item(), 4), "ece": round(ece(conf, correct), 4),
                "bins": bin_table(conf, correct), "T": round(T, 2),
@@ -656,6 +754,9 @@ model.save_pretrained("qwen_decisions")   # LoRA adapters, the decision head and
 '''),
 ]
 
-nb(nb1, "01_read_dont_write.ipynb")
-nb(nb2, "02_train_a_decision_head.ipynb")
-nb(nb3, "03_unsloth_decision_model.ipynb")
+import sys
+only = sys.argv[1:]                      # e.g. `python build.py 1` rebuilds only notebook 1 (and clears its outputs)
+for key, cells, path in (("1", nb1, "01_read_dont_write.ipynb"), ("2", nb2, "02_train_a_decision_head.ipynb"),
+                         ("3", nb3, "03_unsloth_decision_model.ipynb")):
+    if not only or key in only:
+        nb(cells, path)

@@ -275,7 +275,31 @@ const Tok = ({ t, id, color = C.ink, bg = C.white }: { t: string; id?: number; c
   </div>
 );
 
-const Code = ({ code, size = 29, hl = [] }: { code: string; size?: number; hl?: number[] }) => (
+const SYN = { com: '#8a8179', str: '#3f7d20', key: '#1d4ed8', kw: '#a626a4', num: '#b45309', fn: '#0b6e99' };
+const TOKEN =
+  /(#.*$)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\b(def|return|for|in|while|if|else|elif|import|from|as|with|break|not|and|or|lambda|class|try|except|pass|True|False|None|true|false|null)\b|(\b\d+(?:\.\d+)?\b)|([A-Za-z_][A-Za-z0-9_]*)(?=\()/g;
+
+// Colours one line of Python or JSON. Strings are matched before comments, so a "#" inside a string stays a string.
+const paint = (ln: string): ReactNode[] => {
+  const out: ReactNode[] = [];
+  let last = 0;
+  for (const m of ln.matchAll(TOKEN)) {
+    const i = m.index ?? 0;
+    if (i > last) out.push(ln.slice(last, i));
+    const isKey = m[2] !== undefined && /^\s*:/.test(ln.slice(i + m[0].length));
+    const color = m[1] ? SYN.com : m[2] ? (isKey ? SYN.key : SYN.str) : m[3] ? SYN.kw : m[4] ? SYN.num : SYN.fn;
+    out.push(
+      <span key={i} style={{ color, fontStyle: m[1] ? 'italic' : 'normal' }}>
+        {m[0]}
+      </span>,
+    );
+    last = i + m[0].length;
+  }
+  if (last < ln.length) out.push(ln.slice(last));
+  return out;
+};
+
+const Code = ({ code, size = 29, hl = [], plain }: { code: string; size?: number; hl?: number[]; plain?: boolean }) => (
   <pre
     style={{
       margin: 0,
@@ -293,17 +317,11 @@ const Code = ({ code, size = 29, hl = [] }: { code: string; size?: number; hl?: 
     {code
       .trim()
       .split('\n')
-      .map((ln, i) => {
-        const k = ln.indexOf('#');
-        const body = k >= 0 ? ln.slice(0, k) : ln;
-        const com = k >= 0 ? ln.slice(k) : '';
-        return (
-          <div key={i} style={{ background: hl.includes(i) ? '#fbe9e4' : 'transparent', margin: '0 -12px', padding: '0 12px' }}>
-            {body || (com ? '' : ' ')}
-            <span style={{ color: C.muted }}>{com}</span>
-          </div>
-        );
-      })}
+      .map((ln, i) => (
+        <div key={i} style={{ background: hl.includes(i) ? '#fbe9e4' : 'transparent', margin: '0 -12px', padding: '0 12px' }}>
+          {ln === '' ? ' ' : plain ? ln : paint(ln)}
+        </div>
+      ))}
   </pre>
 );
 
@@ -1393,6 +1411,239 @@ const ThreeCosts: Page = () => (
   </Frame>
 );
 
+const W = sci.written as unknown as {
+  n: number;
+  kinds: [string, number][];
+  examples: Record<string, string>;
+  usable: number;
+  accuracy: number;
+  mean_stated: number;
+  stated_counts: [number, number][];
+};
+const kindN = (k: string) => (W.kinds.find((r) => r[0] === k) ?? [k, 0])[1];
+const VOTES = sci.votes as unknown as [string, number][];
+const N_VOTES = VOTES.reduce((a, v) => a + v[1], 0);
+const HOURS = Math.round((sci.ms_generate * 1e6) / 3.6e6);
+
+const CalcRow = ({ what, calc, result, color = C.ink }: { what: string; calc: string; result: string; color?: string }) => (
+  <div style={{ ...row, alignItems: 'baseline', gap: 30, padding: '26px 0', borderBottom: `2px solid ${C.rule}` }}>
+    <div style={{ width: 520, fontSize: 36, fontWeight: 600 }}>{what}</div>
+    <div style={{ flex: 1, fontFamily: mono, fontSize: 32, color: C.soft }}>{calc}</div>
+    <div style={{ fontFamily: serif, fontSize: 56, fontWeight: 700, color, whiteSpace: 'nowrap' }}>{result}</div>
+  </div>
+);
+
+const CostTime: Page = () => (
+  <Frame
+    part={2}
+    title="Cost 1: the time adds up over many rows"
+    line={`On this laptop, sorting a million emails by writing JSON takes about ${HOURS} hours. Every extra output token adds one more forward pass per email.`}
+  >
+    <div style={{ ...col, justifyContent: 'center', height: '100%' }}>
+      <CalcRow what="One email" calc={`${sci.n_generated} tokens + 1 stop = ${sci.passes} passes`} result={`${sci.ms_generate} ms`} color={C.s2} />
+      <Steps>
+        <Step>
+          <CalcRow
+            what="One million emails"
+            calc={`${sci.ms_generate} ms × 1,000,000 = ${(sci.ms_generate * 1000).toLocaleString('en-US')} s`}
+            result={`${HOURS} hours`}
+            color={C.s2}
+          />
+        </Step>
+        <Step>
+          <CalcRow
+            what="With 300 thinking tokens first"
+            calc={`(300 + ${sci.passes}) / ${sci.passes} passes`}
+            result={`${((300 + sci.passes) / sci.passes).toFixed(1)} times more`}
+            color={C.loss}
+          />
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const Raw = ({ label, text, bad }: { label: string; text: string; bad?: boolean }) => (
+  <div>
+    <div style={{ fontSize: 23, fontWeight: 600, color: bad ? C.loss : C.s1, marginBottom: 6 }}>{label}</div>
+    <pre
+      style={{
+        margin: 0,
+        padding: '14px 20px',
+        height: 272,
+        overflow: 'hidden',
+        background: C.white,
+        border: `2px solid ${C.rule}`,
+        borderRadius: 'var(--osd-radius)',
+        fontFamily: mono,
+        fontSize: 22,
+        lineHeight: 1.38,
+        whiteSpace: 'pre-wrap',
+        color: C.ink,
+      }}
+    >
+      {text}
+    </pre>
+  </div>
+);
+
+const KindRow = ({ k, color }: { k: string; color: string }) => (
+  <div style={{ ...row, alignItems: 'center', gap: 18, height: 66 }}>
+    <div style={{ width: 70, fontFamily: mono, fontSize: 36, fontWeight: 700, color, textAlign: 'right' }}>{kindN(k)}</div>
+    <div style={{ width: Math.max(6, (300 * kindN(k)) / W.n), height: 30, background: color, borderRadius: 5 }} />
+    <div style={{ fontSize: 28 }}>{k}</div>
+  </div>
+);
+
+const LooseOutput: Page = () => (
+  <Frame
+    part={2}
+    title="Cost 2: the text does not always parse"
+    line={`We asked for JSON with a topic and a confidence for ${W.n} news items. ${kindN('clean JSON')} answers parsed as they were, ${kindN('JSON inside other text')} needed digging out, and ${W.n - W.usable} could not be used.`}
+  >
+    <div style={{ ...row, gap: 50, alignItems: 'center', height: '100%' }}>
+      <div style={{ width: 600, flexShrink: 0 }}>
+        <KindRow k="clean JSON" color={C.truth} />
+        <KindRow k="JSON inside other text" color={C.s1} />
+        <KindRow k="no JSON at all" color={C.loss} />
+        <KindRow k="confidence not between 0 and 1" color={C.loss} />
+        <KindRow k="topic not on the list" color={C.loss} />
+        <div style={{ fontSize: 24, color: C.muted, marginTop: 16 }}>real outputs of our model · notebook 1</div>
+      </div>
+      <Steps>
+        <Step>
+          <div style={{ display: 'grid', gridTemplateColumns: '495px 495px', gap: '16px 20px' }}>
+            <Raw label="JSON inside other text" text={W.examples['JSON inside other text']} />
+            <Raw label="no JSON at all" text={W.examples['no JSON at all']} bad />
+            <Raw label="confidence not between 0 and 1" text={W.examples['confidence not between 0 and 1']} bad />
+            <Raw label="topic not on the list" text={W.examples['topic not on the list']} bad />
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const Repairs: Page = () => (
+  <Frame
+    part={2}
+    title="Using written output takes a parser and a fallback"
+    line="Each fix is more code or more forward passes. Constrained decoding does guarantee valid JSON, but it still gives no probability."
+  >
+    <div style={{ ...row, gap: 40, alignItems: 'center', height: '100%' }}>
+      <div style={{ flexShrink: 0 }}>
+        <Code
+          size={24}
+          code={`
+def parse(text):
+    try:
+        return json.loads(text)             # clean JSON
+    except Exception:
+        pass
+    m = re.search(r"\\{.*?\\}", text, re.S)   # dig {...} out of the text
+    try:
+        d = json.loads(m.group(0))
+    except Exception:
+        return None                         # nothing usable
+    if d.get("topic") not in TOPICS:
+        return None                         # a topic we never offered
+    return d
+`}
+        />
+      </div>
+      <Steps>
+        <Step>
+          <div style={{ ...col, gap: 18 }}>
+            <Label>When parse returns None</Label>
+            {[
+              ['Retry', 'call the model again'],
+              ['Repair', 'a second LLM call rewrites the output'],
+              ['Judge', 'another LLM reads the text and decides'],
+              ['Constrain', 'allow only tokens that keep the JSON valid'],
+            ].map(([k, v]) => (
+              <div key={k} style={{ ...row, gap: 20, fontSize: 29, lineHeight: 1.3, padding: '12px 0', borderBottom: `2px solid ${C.rule}`, width: 560 }}>
+                <div style={{ width: 150, fontWeight: 700, flexShrink: 0 }}>{k}</div>
+                <div style={{ color: C.soft }}>{v}</div>
+              </div>
+            ))}
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const StatedConf: Page = () => {
+  const max = Math.max(...W.stated_counts.map((r) => r[1]));
+  return (
+    <Frame
+      part={2}
+      title="Cost 3: ask the model to write its confidence?"
+      line={`On the ${W.usable} usable answers it never wrote less than ${W.stated_counts[0][0]}, and it was right ${pct(W.accuracy)} of the time. A written confidence is just more generated text.`}
+    >
+      <div style={{ ...row, gap: 70, alignItems: 'center', height: '100%' }}>
+        <div style={{ width: 760 }}>
+          <Label color={C.pred}>The confidence values it wrote</Label>
+          <div style={{ ...col, marginTop: 14 }}>
+            {W.stated_counts.map(([v, n]) => (
+              <div key={v} style={{ ...row, alignItems: 'center', gap: 18, height: 64 }}>
+                <div style={{ width: 90, fontFamily: mono, fontSize: 32, textAlign: 'right' }}>{v.toFixed(2)}</div>
+                <div style={{ width: Math.max(4, (460 * n) / max), height: 34, background: C.pred, borderRadius: 5 }} />
+                <div style={{ fontFamily: mono, fontSize: 28, color: C.pred }}>{n}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <Steps>
+          <Step>
+            <div style={{ ...row, gap: 70 }}>
+              <Big value={f2(W.mean_stated)} label="mean written confidence" color={C.pred} />
+              <Big value={f2(W.accuracy)} label="accuracy" color={C.truth} />
+            </div>
+          </Step>
+        </Steps>
+      </div>
+    </Frame>
+  );
+};
+
+const Voting: Page = () => (
+  <Frame
+    part={2}
+    title="Cost 3: or sample the answer many times?"
+    line={`Counting votes gives a rough probability, ${VOTES[0][1]}/${N_VOTES} = ${f2(VOTES[0][1] / N_VOTES)} for ${VOTES[0][0]} here. It costs ${N_VOTES} generations for one question.`}
+  >
+    <div style={{ ...col, gap: 40, justifyContent: 'center', height: '100%' }}>
+      <div style={{ fontSize: 32, color: C.soft }}>
+        “Which team should handle this email? Answer with one word.” Sampled {N_VOTES} times:
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, width: 1500 }}>
+        {VOTES.flatMap(([word, n], k) =>
+          Array.from({ length: n }, (_, i) => (
+            <div
+              key={`${word}${i}`}
+              style={{ width: 132, height: 70, borderRadius: 10, background: k === 0 ? C.s2 : C.panel, border: `2px solid ${k === 0 ? C.s2 : C.rule}`, color: k === 0 ? C.white : C.ink, fontFamily: mono, fontSize: 26, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              {word}
+            </div>
+          )),
+        )}
+      </div>
+      <Steps>
+        <Step>
+          <div style={{ ...row, gap: 60, fontFamily: mono, fontSize: 38 }}>
+            {VOTES.map(([word, n]) => (
+              <div key={word}>
+                {word} {n}/{N_VOTES} = <span style={{ color: C.pred }}>{f2(n / N_VOTES)}</span>
+              </div>
+            ))}
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
 const RecapItem = ({ children }: { children: ReactNode }) => (
   <div style={{ ...row, gap: 24, alignItems: 'baseline', fontSize: 38, lineHeight: 1.4 }}>
     <div style={{ width: 16, height: 16, borderRadius: 8, background: 'var(--osd-accent)', flexShrink: 0 }} />
@@ -1441,8 +1692,13 @@ const LookAgain: Page = () => (
   </Frame>
 );
 
-const RCell = ({ children, w, color = C.ink }: { children: ReactNode; w: number; color?: string }) => (
-  <div style={{ width: w, height: 80, fontFamily: mono, fontSize: 36, color, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+const RHead = ({ children, w, left }: { children: ReactNode; w: number; left?: boolean }) => (
+  <div style={{ width: w, height: 64, padding: '0 30px', fontSize: 28, color: C.muted, display: 'flex', alignItems: 'center', justifyContent: left ? 'flex-start' : 'flex-end', borderBottom: `3px solid ${C.rule}`, whiteSpace: 'nowrap' }}>
+    {children}
+  </div>
+);
+const RCell = ({ children, w, color = C.ink, left }: { children: ReactNode; w: number; color?: string; left?: boolean }) => (
+  <div style={{ width: w, height: 92, padding: '0 30px', fontFamily: mono, fontSize: 38, color, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: left ? 'flex-start' : 'flex-end', borderBottom: `2px solid ${C.rule}` }}>
     {children}
   </div>
 );
@@ -1453,15 +1709,15 @@ const Readout: Page = () => (
     title="Keep the option letters, renormalise"
     line="This is the same softmax, applied to three logits. Subtracting the largest logit first does not change the result and keeps the numbers small."
   >
-    <div style={{ ...row, gap: 20, alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+    <div style={{ ...row, alignItems: 'center', justifyContent: 'center', height: '100%' }}>
       <div style={col}>
-        <SmHead w={330}>option</SmHead>
-        <RCell w={330}>A billing</RCell>
-        <RCell w={330}>B technical</RCell>
-        <RCell w={330}>C sales</RCell>
+        <RHead w={360} left>option</RHead>
+        <RCell w={360} left>A  billing</RCell>
+        <RCell w={360} left>B  technical</RCell>
+        <RCell w={360} left>C  sales</RCell>
       </div>
       <div style={col}>
-        <SmHead w={220}>logit</SmHead>
+        <RHead w={220}>logit</RHead>
         <RCell w={220}>{sci.letter_logits[0].toFixed(2)}</RCell>
         <RCell w={220}>{sci.letter_logits[1].toFixed(2)}</RCell>
         <RCell w={220}>{sci.letter_logits[2].toFixed(2)}</RCell>
@@ -1469,26 +1725,26 @@ const Readout: Page = () => (
       <Steps>
         <Step>
           <div style={col}>
-            <SmHead w={300}>minus {sci.letter_logits[1].toFixed(2)}</SmHead>
-            <RCell w={300} color={C.soft}>−0.07</RCell>
-            <RCell w={300} color={C.soft}>0.00</RCell>
-            <RCell w={300} color={C.soft}>−3.93</RCell>
+            <RHead w={270}>minus {sci.letter_logits[1].toFixed(2)}</RHead>
+            <RCell w={270} color={C.soft}>−0.07</RCell>
+            <RCell w={270} color={C.soft}>0.00</RCell>
+            <RCell w={270} color={C.soft}>−3.93</RCell>
           </div>
         </Step>
         <Step>
           <div style={col}>
-            <SmHead w={260}>e to that power</SmHead>
-            <RCell w={260} color={C.soft}>0.94</RCell>
-            <RCell w={260} color={C.soft}>1.00</RCell>
-            <RCell w={260} color={C.soft}>0.02</RCell>
+            <RHead w={290}>e to that power</RHead>
+            <RCell w={290} color={C.soft}>0.94</RCell>
+            <RCell w={290} color={C.soft}>1.00</RCell>
+            <RCell w={290} color={C.soft}>0.02</RCell>
           </div>
         </Step>
         <Step>
           <div style={col}>
-            <SmHead w={470}>divide by the total 1.96</SmHead>
-            <RCell w={470} color={C.pred}>0.94 / 1.96 = {f2(sci.p_team[0])}</RCell>
-            <RCell w={470} color={C.pred}>1.00 / 1.96 = {f2(sci.p_team[1])}</RCell>
-            <RCell w={470} color={C.pred}>0.02 / 1.96 = {f2(sci.p_team[2])}</RCell>
+            <RHead w={500}>divide by the total, 1.96</RHead>
+            <RCell w={500} color={C.pred}>0.94 / 1.96 = {f2(sci.p_team[0])}</RCell>
+            <RCell w={500} color={C.pred}>1.00 / 1.96 = {f2(sci.p_team[1])}</RCell>
+            <RCell w={500} color={C.pred}>0.02 / 1.96 = {f2(sci.p_team[2])}</RCell>
           </div>
         </Step>
       </Steps>
@@ -1692,28 +1948,92 @@ const Fact = ({ k, v }: { k: string; v: string }) => (
   </div>
 );
 
-const Jev: Page = () => (
+const MULTI = sci.multi as unknown as [string, number][];
+
+const MoreTypes: Page = () => (
   <Frame
     part={3}
-    title="Jev: what is public and what is not"
-    line="We read letter logits because the method is simple and works on any open model. TypeSafe has not published how Jev computes its probabilities."
+    title="The same readout covers some newer answer types"
+    line={`Multi-select is one yes or no question per option. A number is a choice over candidate values. Our untrained model gets the count wrong: the email says twice.`}
   >
-    <div style={{ ...row, gap: 60, marginTop: 10 }}>
-      <div style={{ flex: 1 }}>
-        <Label color={C.truth}>Public</Label>
-        <Fact k="Who, when" v="TypeSafe AI, early access from 15 Sep 2026" />
-        <Fact k="Output" v="probabilities for choice, score, noul; no text" />
-        <Fact k="Price" v="$0.042 per million input tokens, output free" />
-        <Fact k="Speed (vendor)" v="70 to 500 ms per request" />
+    <div style={{ ...row, gap: 34, alignItems: 'stretch', marginTop: 20 }}>
+      <div style={{ width: 544, display: 'flex' }}>
+        <TypeCard name="choice, multiple" what="a yes or no question per option; keep those at 0.5 or more">
+          {MULTI.map(([label, v]) => (
+            <div key={label} style={{ ...row, alignItems: 'center', gap: 14, height: 54 }}>
+              <div style={{ width: 215, fontSize: 27, textAlign: 'right', whiteSpace: 'nowrap' }}>{label.replace(/^a /, '')}</div>
+              <div style={{ width: 150, height: 30, background: C.panel, borderRadius: 5 }}>
+                <div style={{ width: 150 * v, height: 30, background: C.pred, borderRadius: 5 }} />
+              </div>
+              <div style={{ fontSize: 28, fontFamily: mono, color: C.pred }}>{f2(v)}</div>
+            </div>
+          ))}
+          <div style={{ fontSize: 24, color: C.muted, marginTop: 14 }}>these need not sum to 1</div>
+        </TypeCard>
       </div>
       <Steps>
         <Step>
-          <div style={{ width: 620 }}>
-            <Label color={C.loss}>Not published</Label>
-            <Fact k="Architecture" v="“transformer-based”" />
-            <Fact k="Size" v="unknown" />
-            <Fact k="Training data" v="described as synthetic" />
-            <Fact k="Training method" v="named RLCD; Part 5" />
+          <div style={{ width: 544, display: 'flex', height: '100%' }}>
+          <TypeCard name="number, range" what="“How many times was the customer charged?” Options 0 to 5">
+            <div style={{ ...row, alignItems: 'flex-end', gap: 14, height: 170, marginLeft: 10 }}>
+              {sci.count.p.map((v: number, i: number) => (
+                <div key={i} style={{ textAlign: 'center', width: 68 }}>
+                  <div style={{ fontFamily: mono, fontSize: 20, color: C.pred }}>{f2(v)}</div>
+                  <div style={{ height: Math.max(3, 110 * v), background: C.pred, borderRadius: 4, margin: '4px 6px' }} />
+                  <div style={{ fontFamily: mono, fontSize: 26 }}>{sci.count.options[i]}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 26, marginTop: 14 }}>
+              median <b>{sci.count.median}</b>, 10% to 90% interval [{sci.count.interval[0]}, {sci.count.interval[1]}]
+            </div>
+          </TypeCard>
+          </div>
+        </Step>
+        <Step>
+          <div style={{ width: 544, display: 'flex', height: '100%' }}>
+          <TypeCard name="text, spans, box" what="answers that point into the input">
+            <div style={{ fontSize: 28, lineHeight: 1.45, color: C.soft }}>
+              Option letters cannot give a position in a text or a rectangle in a picture. These types need a head trained to score
+              positions, which we do not build in this lecture.
+            </div>
+          </TypeCard>
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const ModelRow = ({ name, by, access, what }: { name: string; by: string; access: string; what: string }) => (
+  <div style={{ ...row, gap: 24, fontSize: 29, lineHeight: 1.3, padding: '15px 0', borderBottom: `2px solid ${C.rule}`, alignItems: 'baseline' }}>
+    <div style={{ width: 330, fontWeight: 700, flexShrink: 0 }}>{name}</div>
+    <div style={{ width: 210, color: C.soft, flexShrink: 0 }}>{by}</div>
+    <div style={{ width: 330, color: C.s1, flexShrink: 0 }}>{access}</div>
+    <div style={{ flex: 1, color: C.soft }}>{what}</div>
+  </div>
+);
+
+const Jev: Page = () => (
+  <Frame
+    part={3}
+    title="Jev came first, and more decision models have followed"
+    line="Jev’s architecture, size and training method are unpublished. We read letter logits from an open model so that every step can be inspected."
+  >
+    <div style={{ ...col, marginTop: 4 }}>
+      <ModelRow name="Jev" by="TypeSafe AI" access="hosted · September 2026" what="noul, choice and score on text; $0.042 per million input tokens" />
+      <Steps>
+        <Step>
+          <ModelRow name="d1.2 and d1.2-ultra" by="Liquid AI" access="hosted · November 2026" what="text, images and audio; five more answer types" />
+          <ModelRow name="d1-2B and d1-omni" by="Liquid AI" access="open weights" what="the earlier d1 models, which can be run locally" />
+        </Step>
+        <Step>
+          <ModelRow name="FastDecisionModel" by="Unsloth" access="train your own" what="LoRA and a decision head on an open LLM; Part 5 and notebook 3" />
+        </Step>
+        <Step>
+          <div style={{ fontSize: 27, lineHeight: 1.45, color: C.soft, marginTop: 22 }}>
+            Also named in November 2026 roundups, and not checked by us: Perplexity Decider, OpenAI’s Decisions API, Microsoft Decision-1,
+            AWS Strands Decider and Cloudflare Clef. Artificial Analysis publishes a Decision Index that ranks these models.
           </div>
         </Step>
       </Steps>
@@ -2898,7 +3218,12 @@ const deck: [Page, string][] = [
   [LoopCode, 'Run this cell in notebook 1.'],
   [Written, 'Measured with the usual key-value cache on a MacBook. The model wrote billing here.'],
   [CoT, 'The 300 is illustrative. Reasoning models often write far more.'],
-  [ThreeCosts, 'A number the model writes as text, such as "confidence": 0.9, is just more generated tokens.'],
+  [ThreeCosts, 'Overview. The next five slides take the three costs one at a time, with outputs from our own model.'],
+  [CostTime, 'Timing is from a MacBook GPU with a 0.5 B model. A hosted LLM is faster per token, and the count of passes is the same.'],
+  [LooseOutput, 'All four examples are real outputs from notebook 1. The first one also ran out of its 48-token budget in the middle of a sentence.'],
+  [Repairs, 'Constrained decoding means masking the logits so that only tokens allowed by a grammar or JSON schema can be picked.'],
+  [StatedConf, 'Compare with Part 4, where the same model read from logits has accuracy 0.79 and mean confidence 0.97 on 1,000 items. Different prompt and subset, same pattern.'],
+  [Voting, 'The sampled prompt asks for a word, so its split differs from the letter readout in Part 3. Self-consistency is the usual name for this.'],
   [Recap2, ''],
   [S3, ''],
   [LookAgain, 'Same chart as before, with the non-option tokens dimmed. "billing" as a word also appears: the model could have answered in words.'],
@@ -2908,8 +3233,9 @@ const deck: [Page, string][] = [
   [Honest, 'The small model is undecided between billing and technical, and its written JSON picked billing. An untrained model; the point is that the doubt is now visible.'],
   [Types, 'noul is the yes/no type name in Jev’s API. Its origin is not explained in the public material.'],
   [ScoreCalc, 'The model is confidently wrong about urgency. Keep this in mind for calibration.'],
+  [MoreTypes, 'How Liquid computes its newer answer types is not published. The multi-select and number readouts here are our own construction on an untrained model.'],
   [Request, 'Field names follow the Jev and Unsloth request format: state, questions, type, instructions, criteria.'],
-  [Jev, 'Facts as of November 2026 from Wikipedia and the benchmark paper. Speed and price are vendor numbers.'],
+  [Jev, 'Jev facts are from Wikipedia and the benchmark paper, Liquid facts from its docs and blog. The last line lists models named in secondary roundups that I have not checked against vendor pages.'],
   [Recap3, ''],
   [S4, ''],
   [Forecaster, 'Ask before revealing: how many rainy days would make you trust her?'],
