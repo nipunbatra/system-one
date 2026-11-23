@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Read, don't write: a decision from an off-the-shelf LLM</title>
+<meta name="description" content="An untrained Qwen model runs in your browser. Type an input and a question, see how it is encoded, and read the answer from the next-token scores.">
+<style>
+  :root { --bg:#faf7f2; --card:#fffdf9; --ink:#1f1b16; --soft:#57504a; --muted:#8a8179; --rule:#ded6c9; --panel:#f1ece3;
+    --s1:#b45309; --s2:#1d4ed8; --pred:#6d28d9; --truth:#0f766e; --loss:#be123c; --accent:#c44536; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font: 17px/1.5 -apple-system, "Helvetica Neue", "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 44px 20px 80px; }
+  h1 { font: 700 clamp(30px,5vw,46px)/1.1 "Iowan Old Style", Palatino, Georgia, serif; margin: 8px 0 12px; }
+  h2 { font: 700 25px/1.2 "Iowan Old Style", Palatino, Georgia, serif; margin: 0 0 6px; display:flex; gap:12px; align-items:baseline; }
+  h2 .n { font: 700 13px/1 -apple-system, sans-serif; color:#fff; background:var(--accent); border-radius:14px; padding:5px 10px; position:relative; top:-3px; letter-spacing:.08em; }
+  .kicker { color:var(--accent); font-weight:600; letter-spacing:.16em; text-transform:uppercase; font-size:13px; }
+  p { margin: 0 0 12px; } .sub { color:var(--soft); } .muted { color:var(--muted); font-size:14.5px; }
+  a { color: var(--s2); }
+  section { background:var(--card); border:1.5px solid var(--rule); border-radius:14px; padding:22px 24px; margin-top:18px; }
+  label { display:block; font-size:12.5px; letter-spacing:.1em; text-transform:uppercase; font-weight:600; color:var(--muted); margin: 12px 0 5px; }
+  textarea, input[type=text], select { width:100%; font: 16px/1.4 inherit; font-family:inherit; padding:9px 11px; border:1.5px solid var(--rule); border-radius:8px; background:#fff; color:var(--ink); }
+  textarea { resize: vertical; }
+  button { font: 600 16px/1 inherit; font-family:inherit; padding:11px 18px; border-radius:9px; border:1.5px solid var(--ink); background:#fff; color:var(--ink); cursor:pointer; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button:disabled { opacity:.45; cursor:default; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .tabs button { border-color:var(--rule); font-family:"SF Mono", Menlo, Consolas, monospace; font-size:15px; }
+  .tabs button.on { background:var(--s1); border-color:var(--s1); color:#fff; }
+  .chips button { font-size:14px; padding:7px 12px; border-color:var(--rule); font-weight:500; }
+  pre { margin:0; padding:14px 16px; background:#fff; border:1.5px solid var(--rule); border-radius:10px; font: 13.5px/1.5 "SF Mono", Menlo, Consolas, monospace; white-space:pre-wrap; word-break:break-word; }
+  pre .sys { color:var(--muted); } pre .opt { background:#fdf0dc; color:var(--s1); font-weight:700; border-radius:3px; padding:0 2px; }
+  pre .slot { background:var(--pred); color:#fff; border-radius:3px; padding:0 6px; }
+  table { border-collapse:collapse; width:100%; font-size:15.5px; }
+  th { text-align:left; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); padding:5px 10px 5px 0; border-bottom:1.5px solid var(--rule); font-weight:600; }
+  td { padding:7px 10px 7px 0; border-bottom:1px solid var(--rule); vertical-align:middle; }
+  .m { font-family:"SF Mono", Menlo, Consolas, monospace; font-size:14.5px; }
+  .p { color:var(--pred); } .t { color:var(--truth); } .l { color:var(--loss); font-weight:700; } .s1 { color:var(--s1); }
+  .bar { height:16px; background:var(--panel); border-radius:4px; min-width:120px; } .bar i { display:block; height:16px; border-radius:4px; background:var(--pred); }
+  .bar.g i { background:var(--muted); } .bar.o i { background:var(--s1); }
+  .tok { font-family:"SF Mono", Menlo, monospace; background:#fff; border:1.5px solid var(--rule); border-radius:6px; padding:1px 7px; white-space:pre; }
+  .tok.hit { border-color:var(--s1); color:var(--s1); font-weight:700; background:#fdf0dc; }
+  .big { font: 700 44px/1 "Iowan Old Style", Palatino, Georgia, serif; }
+  .note { background:#fbeee9; border-left:5px solid var(--accent); border-radius:8px; padding:12px 16px; margin: 12px 0 0; }
+  .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:22px; } @media (max-width:800px){ .grid2 { grid-template-columns:1fr; } }
+  .hide { display:none; }
+  progress { width:100%; height:12px; }
+  .status { font-size:14.5px; color:var(--soft); }
+</style>
+</head>
+<body>
+<main>
+  <div class="kicker">Live demo · <a href="../">System 1 models</a></div>
+  <h1>Read, don't write</h1>
+  <p class="sub" style="font-size:19px;max-width:800px">An ordinary chat LLM, with no training for this and nothing added, answers typed questions in one forward pass. You will see how the question is written for the model, the scores it produces, and the few scores we read.</p>
+
+  <section>
+    <h2><span class="n">0</span>Load a model into this page</h2>
+    <p class="sub">The model downloads once, is cached by your browser, and runs on your own machine. Nothing you type leaves the page.</p>
+    <div class="row">
+      <select id="modelSel" style="width:auto;flex:1;min-width:260px">
+        <option value="onnx-community/Qwen2.5-0.5B-Instruct">Qwen2.5-0.5B-Instruct · the lecture's model · about 790 MB</option>
+        <option value="HuggingFaceTB/SmolLM2-360M-Instruct">SmolLM2-360M-Instruct · about 390 MB</option>
+        <option value="HuggingFaceTB/SmolLM2-135M-Instruct">SmolLM2-135M-Instruct · smallest, weakest · about 180 MB</option>
+      </select>
+      <button class="primary" id="loadBtn">Load model</button>
+    </div>
+    <div id="loadBox" class="hide" style="margin-top:12px"><progress id="prog" max="100" value="0"></progress><div class="status" id="status"></div></div>
+  </section>
+
+  <section>
+    <h2><span class="n">1</span>The input and the question</h2>
+    <div class="row chips" style="margin:6px 0 2px"><span class="muted">Examples:</span>
+      <button data-ex="email">support email</button><button data-ex="review">restaurant review</button><button data-ex="news">news headline</button><button data-ex="msg">is it spam?</button>
+    </div>
+    <label>State: the input the question is about</label>
+    <textarea id="state" rows="2"></textarea>
+    <label>Answer type</label>
+    <div class="row tabs" id="tabs">
+      <button data-t="choice">choice</button><button data-t="noul">noul (yes / no)</button><button data-t="score">score</button><button data-t="multi">choice, multiple</button>
+    </div>
+    <p class="muted" id="typeHelp" style="margin-top:8px"></p>
+    <label id="qLabel">Question</label>
+    <input type="text" id="question">
+    <div id="optBox"><label id="optLabel">Options, one per line</label><textarea id="options" rows="4"></textarea></div>
+    <div class="row" style="margin-top:14px"><button class="primary" id="runBtn" disabled>Read the answer</button><span class="status" id="runStatus">Load a model first.</span></div>
+  </section>
+
+  <div id="out" class="hide">
+    <section>
+      <h2><span class="n">2</span>How the question is encoded</h2>
+      <p class="sub">There is no special input format inside the model. The question and its allowed answers are written as plain text, each option gets a <span class="s1"><b>letter</b></span>, and the text ends exactly where the answer would start.</p>
+      <pre id="promptView"></pre>
+      <p class="muted" id="promptMeta" style="margin-top:8px"></p>
+    </section>
+
+    <section id="secTop">
+      <h2><span class="n">3</span>One forward pass: a score for every token</h2>
+      <p class="sub">The model gives one score to each of the <span id="vocabN"></span> tokens it knows, for "what comes next". These are the twelve most likely. A chat model would now pick one and keep writing.</p>
+      <table id="topTable"></table>
+    </section>
+
+    <section>
+      <h2><span class="n">4</span>Read only the option tokens</h2>
+      <p class="sub" id="readHelp"></p>
+      <div style="overflow-x:auto"><table id="readTable"></table></div>
+      <div id="resultBox" style="margin-top:16px"></div>
+      <p class="muted" id="timeLine" style="margin-top:10px"></p>
+    </section>
+
+    <section id="secWrite">
+      <h2><span class="n">5</span>Compare: let the model write its answer</h2>
+      <p class="sub">The same model, the same prompt, used as a chat model: one forward pass for every token it writes.</p>
+      <div class="row"><button id="writeBtn">Write the answer</button><span class="status" id="writeStatus"></span></div>
+      <pre id="writeOut" class="hide" style="margin-top:12px"></pre>
+    </section>
+
+    <section id="secEach">
+      <h2><span class="n">6</span>A second design: score each option on its own</h2>
+      <p class="sub">Above, the options competed inside one prompt. Here the same yes or no question is asked once per option, "does this option fit?", and the yes probabilities are compared. One scorer is reused for every option, which is the idea behind a shared decision head.</p>
+      <div class="row"><button id="eachBtn">Score each option</button><span class="status" id="eachStatus"></span></div>
+      <div id="eachOut" style="margin-top:12px;overflow-x:auto"></div>
+      <div class="note hide" id="eachNote">This took one pass per option. A trained decision model gets all of these scores in a single pass, from the vector at each option's position. That step needs training, so an off-the-shelf model cannot show it.</div>
+    </section>
+
+    <section>
+      <h2>What you just saw</h2>
+      <ul style="margin:0;padding-left:20px">
+        <li>Nothing was trained and nothing was added. We chose which scores to look at.</li>
+        <li>A new question is new text. The letters are blank labels that the prompt fills in.</li>
+        <li>An untrained model is often wrong, and often too sure. Fixing the confidence is calibration, and fixing the answers is training; both are in the <a href="../s/system-one">lecture</a> and the <a href="../cheatsheet.pdf">cheatsheet</a>.</li>
+        <li>The numbers here differ somewhat from the slides, because the browser runs a copy of the model with its weights compressed to 4 bits.</li>
+      </ul>
+    </section>
+  </div>
+</main>
+
+<script type="module">
+import { AutoTokenizer, AutoModelForCausalLM } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2';
+
+const $ = (id) => document.getElementById(id);
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const f2 = (x) => x.toFixed(2), f3 = (x) => x.toFixed(3);
+let tok, model, device, type = 'choice', last = null;
+
+const TYPES = {
+  choice: { help: 'One option from a list. Each option gets a letter, and we read the scores of those letters.', q: 'Which team should handle this email?', opts: 'billing (invoices, payments, refunds)\ntechnical (bugs, outages, errors)\nsales (pricing, new plans)' },
+  noul: { help: 'A yes or no question. It is a choice with two options, A for yes and B for no, and the answer is P(yes).', q: 'Is the customer asking for money back?', opts: 'yes\nno' },
+  score: { help: 'A level on an ordered scale. Each level gets a letter. The score is each level number times its probability, added up.', q: 'How urgent is this email?', opts: 'not urgent\nsoon\ntoday' },
+  multi: { help: 'Several options can be true at once. Each option becomes its own yes or no question, so the probabilities need not add up to 1. Write {option} where the option goes.', q: 'Does the email mention {option}?', opts: 'a billing problem\na refund\na login problem\na late delivery' },
+};
+const EXAMPLES = {
+  email: { state: 'Email: I was charged twice this month, please fix it.', type: 'choice' },
+  review: { state: 'Review: The food was cold and the waiter was rude, but the dessert was lovely.', type: 'score', q: 'How positive is this review?', opts: 'very negative\nnegative\nneutral\npositive\nvery positive' },
+  news: { state: 'News: ISRO launches a new satellite to study how the monsoon forms over the Indian Ocean.', type: 'choice', q: 'Which topic is this news about?', opts: 'World\nSports\nBusiness\nScience and technology' },
+  msg: { state: 'Message: Congratulations! You have won a free phone. Click this link in the next 10 minutes to claim it.', type: 'noul', q: 'Is this message spam?', opts: 'yes\nno' },
+};
+
+function setType(t, keep) {
+  type = t;
+  for (const b of $('tabs').children) b.classList.toggle('on', b.dataset.t === t);
+  $('typeHelp').textContent = TYPES[t].help;
+  if (!keep) { $('question').value = TYPES[t].q; $('options').value = TYPES[t].opts; }
+  $('options').readOnly = t === 'noul';
+  $('optLabel').textContent = t === 'score' ? 'Levels from lowest to highest, one per line' : t === 'noul' ? 'Options (fixed)' : 'Options, one per line';
+}
+$('tabs').addEventListener('click', (e) => e.target.dataset.t && setType(e.target.dataset.t));
+document.querySelector('.chips').addEventListener('click', (e) => {
+  const ex = EXAMPLES[e.target.dataset.ex]; if (!ex) return;
+  $('state').value = ex.state; setType(ex.type); if (ex.q) { $('question').value = ex.q; $('options').value = ex.opts; }
+});
+$('state').value = EXAMPLES.email.state; setType('choice');
+
+// ---------- model
+$('loadBtn').onclick = async () => {
+  $('loadBtn').disabled = true; $('loadBox').classList.remove('hide'); $('runBtn').disabled = true;
+  const id = $('modelSel').value;
+  try {
+    device = 'wasm';
+    const want = new URLSearchParams(location.search).get('device');
+    if (want !== 'wasm' && navigator.gpu) { try { if (await navigator.gpu.requestAdapter()) device = 'webgpu'; } catch {} }
+    const dtype = new URLSearchParams(location.search).get('dtype') ?? 'q4';
+    $('status').textContent = `Fetching the tokenizer for ${id} …`;
+    tok = await AutoTokenizer.from_pretrained(id);
+    const seen = {};
+    model = await AutoModelForCausalLM.from_pretrained(id, { dtype, device, progress_callback: (p) => {
+      if (p.status === 'progress' && p.total) { seen[p.file] = [p.loaded, p.total];
+        const l = Object.values(seen).reduce((a, v) => a + v[0], 0), t = Object.values(seen).reduce((a, v) => a + v[1], 0);
+        $('prog').value = (100 * l) / t; $('status').textContent = `Downloading the weights: ${(l / 1e6).toFixed(0)} of ${(t / 1e6).toFixed(0)} MB`; }
+      if (p.status === 'ready' || p.status === 'done') $('status').textContent = 'Preparing the model …';
+    } });
+    $('status').textContent = 'Warming up with one short pass …';
+    await model(tok(chat('Hello'), { add_special_tokens: false }));
+    $('prog').value = 100;
+    $('status').textContent = `Ready: ${id.split('/')[1]} on ${device === 'webgpu' ? 'your GPU (WebGPU)' : 'the CPU (WebGPU is not available in this browser, so passes will be slow)'}.`;
+    $('runBtn').disabled = false; $('runStatus').textContent = '';
+  } catch (err) { $('status').textContent = 'Could not load the model: ' + (err?.message ?? err); console.error(err); }
+  $('loadBtn').disabled = false;
+};
+
+const chat = (user) => tok.apply_chat_template([{ role: 'user', content: user }], { tokenize: false, add_generation_prompt: true });
+const userText = (state, question, options) => `${state}\n\n${question}\n${options.map((o, i) => `${LETTERS[i]}. ${o}`).join('\n')}\n\nAnswer with one letter.`;
+const letterId = (i) => tok.encode(LETTERS[i], { add_special_tokens: false })[0];
+
+function half(h) { const s = (h & 0x8000) ? -1 : 1, e = (h >> 10) & 31, f = h & 1023;
+  return e === 0 ? s * 2 ** -14 * (f / 1024) : e === 31 ? (f ? NaN : s * Infinity) : s * 2 ** (e - 15) * (1 + f / 1024); }
+
+// One forward pass. Returns the scores for the next token, one per vocabulary entry.
+async function nextScores(text) {
+  const inputs = tok(text, { add_special_tokens: false });
+  const t0 = performance.now();
+  const out = await model(inputs);
+  const ms = performance.now() - t0;
+  const [, n, v] = out.logits.dims; const d = out.logits.data;
+  const row = d.subarray((n - 1) * v, n * v);
+  const scores = d instanceof Uint16Array ? Float32Array.from(row, half) : Float32Array.from(row);
+  return { scores, ms, nTokens: n, inputs };
+}
+function softmax(z) { let m = -Infinity; for (const x of z) if (x > m) m = x; const e = z.map((x) => Math.exp(x - m)); const s = e.reduce((a, b) => a + b, 0); return { m, e, s, p: e.map((x) => x / s) }; }
+const bar = (p, cls = '') => `<div class="bar ${cls}"><i style="width:${Math.max(1, 100 * p)}%"></i></div>`;
+const showTok = (t) => esc(t.replace(/ /g, '␣').replace(/\n/g, '⏎')) || '∅';
+
+function renderPrompt(text, nOpt) {
+  const start = text.lastIndexOf('<|im_start|>user'); const cut = start > 0 ? start : 0;
+  let body = esc(text.slice(cut)).replace(/^([A-Z])\. /gm, (m, L) => (LETTERS.indexOf(L) < nOpt ? `<span class="opt">${L}.</span> ` : m));
+  return (cut ? `<span class="sys">${esc(text.slice(0, cut))}</span>` : '') + body + '<span class="slot">the next token goes here</span>';
+}
+
+function readTable(opts, z, sm) {
+  let h = '<tr><th>Option</th><th>Token read</th><th>Score (logit)</th><th>minus ' + f2(sm.m) + '</th><th>e to that</th><th>÷ total ' + f2(sm.s) + ' = probability</th><th style="width:22%"></th></tr>';
+  opts.forEach((o, i) => { h += `<tr><td>${esc(o)}</td><td><span class="tok hit">${LETTERS[i]}</span> <span class="muted">id ${letterId(i)}</span></td><td class="m">${f2(z[i])}</td><td class="m">${f2(z[i] - sm.m)}</td><td class="m">${f3(sm.e[i])}</td><td class="m p">${f3(sm.e[i])} / ${f2(sm.s)} = <b>${f2(sm.p[i])}</b></td><td>${bar(sm.p[i])}</td></tr>`; });
+  return h;
+}
+
+async function run() {
+  const state = $('state').value.trim(), q = $('question').value.trim();
+  const opts = $('options').value.split('\n').map((s) => s.trim()).filter(Boolean).slice(0, 26);
+  if (!state || !q || opts.length < 2) { $('runStatus').textContent = 'Give a state, a question and at least two options.'; return; }
+  $('runBtn').disabled = true; $('runStatus').textContent = 'Running …';
+  $('out').classList.remove('hide'); $('writeOut').classList.add('hide'); $('writeStatus').textContent = ''; $('eachOut').innerHTML = ''; $('eachNote').classList.add('hide'); $('eachStatus').textContent = '';
+  try {
+    if (type === 'multi') await runMulti(state, q, opts);
+    else await runOne(state, q, opts);
+    $('runStatus').textContent = '';
+  } catch (err) { $('runStatus').textContent = 'Something went wrong: ' + (err?.message ?? err); console.error(err); }
+  $('runBtn').disabled = false;
+}
+
+async function runOne(state, q, opts) {
+  const text = chat(userText(state, q, opts));
+  const { scores, ms, nTokens } = await nextScores(text);
+  last = { text, state, q, opts };
+  $('promptView').innerHTML = renderPrompt(text, opts.length);
+  $('promptMeta').textContent = `${nTokens} tokens. The grey part is the chat wrapper this model was trained with. The same template is used for every question type; only the question and the lettered lines change.`;
+  // top tokens over the whole vocabulary
+  const all = softmax(Array.from(scores)); const ids = opts.map((_, i) => letterId(i));
+  const order = Array.from(all.p.keys()).sort((a, b) => all.p[b] - all.p[a]).slice(0, 12);
+  $('vocabN').textContent = scores.length.toLocaleString('en-US');
+  $('topTable').innerHTML = '<tr><th>Token</th><th>Score</th><th>Probability over all tokens</th><th style="width:40%"></th></tr>' + order.map((i) => {
+    const hit = ids.includes(i); return `<tr><td><span class="tok ${hit ? 'hit' : ''}">${showTok(tok.decode([i]))}</span>${hit ? ' <span class="muted">an option letter</span>' : ''}</td><td class="m">${f2(scores[i])}</td><td class="m">${f3(all.p[i])}</td><td>${bar(all.p[i], hit ? 'o' : 'g')}</td></tr>`; }).join('');
+  $('secTop').classList.remove('hide'); $('secWrite').classList.remove('hide'); $('secEach').classList.toggle('hide', type !== 'choice');
+  // readout
+  const z = ids.map((i) => scores[i]); const sm = softmax(z);
+  $('readHelp').innerHTML = `Of the ${scores.length.toLocaleString('en-US')} scores we keep ${opts.length}: the ones for the letters we handed out. Softmax over just these gives a probability per option.`;
+  $('readTable').innerHTML = readTable(opts, z, sm);
+  const best = sm.p.indexOf(Math.max(...sm.p));
+  let res = '';
+  if (type === 'noul') res = `<div class="big p">P(yes) = ${f2(sm.p[0])}</div><p class="sub" style="margin-top:8px">The answer is <b>${sm.p[0] >= 0.5 ? 'yes' : 'no'}</b>. A program would compare ${f2(sm.p[0])} with a threshold it chose.</p>`;
+  else if (type === 'score') { const terms = sm.p.map((p, i) => `${i} × ${f2(p)}`).join(' + '); const val = sm.p.reduce((a, p, i) => a + i * p, 0);
+    res = `<div class="m" style="font-size:17px">levels: ${opts.map((o, i) => `${esc(o)} = ${i}`).join(' · ')}</div><div class="m" style="font-size:19px;margin-top:6px">${terms} = <b class="p">${f2(val)}</b></div><p class="sub" style="margin-top:8px">Most likely level: <b>${esc(opts[best])}</b>. The score ${f2(val)} is on a scale from 0 to ${opts.length - 1}.</p>`; }
+  else res = `<div class="big s1">${esc(opts[best])}</div><p class="sub" style="margin-top:8px">with probability <b class="p">${f2(sm.p[best])}</b>. The other probabilities are kept too, so a program can see how close the call was.</p>`;
+  $('resultBox').innerHTML = res;
+  $('timeLine').textContent = `One forward pass took ${ms.toFixed(0)} ms on ${device === 'webgpu' ? 'your GPU' : 'the CPU'}. No text was generated.`;
+  last.ms = ms;
+}
+
+async function runMulti(state, q, opts) {
+  $('secTop').classList.add('hide'); $('secWrite').classList.add('hide'); $('secEach').classList.add('hide');
+  const rows = []; let total = 0, firstText = '';
+  for (const [k, o] of opts.entries()) {
+    $('runStatus').textContent = `Pass ${k + 1} of ${opts.length} …`;
+    const text = chat(userText(state, q.includes('{option}') ? q.replaceAll('{option}', o) : `${q} (${o})`, ['yes', 'no']));
+    if (!k) firstText = text;
+    const { scores, ms } = await nextScores(text); total += ms;
+    const z = [scores[letterId(0)], scores[letterId(1)]]; rows.push({ o, z, sm: softmax(z) });
+  }
+  $('promptView').innerHTML = renderPrompt(firstText, 2);
+  $('promptMeta').textContent = `This is the prompt for the first option. Each of the ${opts.length} options gets its own prompt, with the same two letters: A for yes and B for no.`;
+  $('readHelp').textContent = 'For each option we read the scores of A (yes) and B (no) and take P(yes). The options do not compete, so the column does not add up to 1.';
+  $('readTable').innerHTML = '<tr><th>Option</th><th>Score of A (yes)</th><th>Score of B (no)</th><th>P(yes)</th><th style="width:30%"></th><th>Kept?</th></tr>' + rows.map((r) => `<tr><td>${esc(r.o)}</td><td class="m">${f2(r.z[0])}</td><td class="m">${f2(r.z[1])}</td><td class="m p"><b>${f2(r.sm.p[0])}</b></td><td>${bar(r.sm.p[0])}</td><td>${r.sm.p[0] >= 0.5 ? '<b class="t">yes</b>' : '<span class="muted">no</span>'}</td></tr>`).join('');
+  const kept = rows.filter((r) => r.sm.p[0] >= 0.5).map((r) => r.o);
+  $('resultBox').innerHTML = `<p class="sub">Options with P(yes) of at least 0.5: <b>${kept.length ? esc(kept.join(', ')) : 'none'}</b>.</p>`;
+  $('timeLine').textContent = `${opts.length} forward passes took ${total.toFixed(0)} ms in total.`;
+}
+$('runBtn').onclick = run;
+
+$('writeBtn').onclick = async () => {
+  if (!last) return; $('writeBtn').disabled = true; $('writeStatus').textContent = 'Writing …';
+  try {
+    const user = `${last.state}\n\n${last.q}\nOptions: ${last.opts.join('; ')}\n\nAnswer in one short sentence.`;
+    const inputs = tok(chat(user), { add_special_tokens: false });
+    const n0 = inputs.input_ids.dims[1]; const t0 = performance.now();
+    const out = await model.generate({ ...inputs, max_new_tokens: 48, do_sample: false });
+    const ms = performance.now() - t0; const ids = Array.from(out.tolist()[0]).slice(n0).map(Number);
+    $('writeOut').textContent = tok.decode(ids, { skip_special_tokens: true }).trim(); $('writeOut').classList.remove('hide');
+    $('writeStatus').innerHTML = `${ids.length} tokens written, so ${ids.length} forward passes: <b>${ms.toFixed(0)} ms</b>` + (last.ms ? `, against ${last.ms.toFixed(0)} ms for reading. A program still has to pull the answer out of this sentence, and there is no probability.` : '.');
+  } catch (err) { $('writeStatus').textContent = 'Could not generate: ' + (err?.message ?? err); console.error(err); }
+  $('writeBtn').disabled = false;
+};
+
+$('eachBtn').onclick = async () => {
+  if (!last) return; $('eachBtn').disabled = true; const rows = []; let total = 0;
+  try {
+    for (const [k, o] of last.opts.entries()) {
+      $('eachStatus').textContent = `Pass ${k + 1} of ${last.opts.length} …`;
+      const text = chat(userText(last.state, `${last.q}\nProposed answer: ${o}\nIs the proposed answer correct?`, ['yes', 'no']));
+      const { scores, ms } = await nextScores(text); total += ms;
+      rows.push({ o, py: softmax([scores[letterId(0)], scores[letterId(1)]]).p[0] });
+    }
+    const s = rows.reduce((a, r) => a + r.py, 0);
+    $('eachOut').innerHTML = '<table><tr><th>Option</th><th>Question asked</th><th>P(yes)</th><th>÷ total ' + f2(s) + '</th><th style="width:26%"></th></tr>' + rows.map((r) => `<tr><td>${esc(r.o)}</td><td class="muted">Is “${esc(r.o)}” the correct answer?</td><td class="m">${f2(r.py)}</td><td class="m p"><b>${f2(r.py / s)}</b></td><td>${bar(r.py / s)}</td></tr>`).join('') + '</table>';
+    $('eachStatus').textContent = `${rows.length} passes, ${total.toFixed(0)} ms in total.`; $('eachNote').classList.remove('hide');
+  } catch (err) { $('eachStatus').textContent = 'Something went wrong: ' + (err?.message ?? err); console.error(err); }
+  $('eachBtn').disabled = false;
+};
+</script>
+</body>
+</html>

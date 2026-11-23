@@ -6133,10 +6133,11 @@ const LinkRow = ({ what, who, url, use }: { what: string; who: string; url: stri
 const GoFurther: Page = () => (
   <Frame part={0} title="Tutorials and lectures to go further" line="The first three are about decision models. The rest explain the background this lecture went through quickly.">
     <div style={{ ...col, marginTop: 0 }}>
+      <LinkRow what="Live demo: read a decision in your browser" who="this lecture" url="nipunbatra.github.io/system-one/demo/" use="an untrained Qwen answers choice, noul and score questions in one pass" />
       <LinkRow what="The Hitchhiker’s Guide to System 1 Models" who="Roitman, 2026" url="arxiv.org/abs/2610.33775" use="a long written guide: the five families, calibration, cascades, pitfalls" />
       <LinkRow what="Train your own Decision Model" who="Unsloth" url="unsloth.ai/docs/basics/train-your-own-decision-model-with-unsloth" use="the recipe behind notebook 3, with free Colab and Kaggle notebooks" />
       <LinkRow what="Fine-tune a decision model with SFT" who="Liquid AI cookbook" url="github.com/Liquid4All/cookbook/blob/main/finetuning/notebooks/sft_for_decision_models_with_unsloth.ipynb" use="training the answer-slot readout of d1-3B on Banking77" />
-      <LinkRow what="A decision model like Jev, on CLINC150" who="MachineLearningMastery" url="machinelearningmastery.com/how-to-train-your-own-decision-model-like-jev-using-unsloth/" use="a second worked dataset, with accuracy and ECE before and after" />
+      <LinkRow what="A decision model like Jev, on CLINC150" who="MachineLearningMastery" url="machinelearningmastery.com/how-to-train-your-own-decision-model-like-jev-using-unsloth/" use="a second dataset, with accuracy and ECE before and after" />
       <LinkRow what="Deep Dive into LLMs like ChatGPT" who="Andrej Karpathy" url="www.youtube.com/watch?v=7xTGNNLPyMI" use="three and a half hours on pre-training, fine-tuning and RL" />
       <LinkRow what="Transformers, the tech behind LLMs" who="3Blue1Brown" url="www.youtube.com/watch?v=wjZofJX0v4M" use="animated tokens, attention and softmax, for Part 2" />
       <LinkRow what="RLHF" who="Chip Huyen, 2023" url="huyenchip.com/2023/05/02/rlhf.html" use="the three training stages, with data sizes and labelling details" />
