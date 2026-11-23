@@ -2,7 +2,7 @@
 
 A 60 to 80 minute lecture on decision models such as Jev: models that read a
 state, answer a typed question, and return calibrated probabilities without
-generating text. The lecture has a 148-slide deck, three notebooks and a five-page cheatsheet.
+generating text. The lecture has a 149-slide deck, three notebooks and a five-page cheatsheet.
 
 Audience: students who have studied machine learning and a little deep
 learning, and have not looked inside an LLM.

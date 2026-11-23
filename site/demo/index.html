@@ -115,6 +115,7 @@
         <div class="row" style="justify-content:space-between;margin-bottom:10px"><h2>Questions</h2><span class="muted" id="qCount"></span></div>
         <div class="stack" id="qs" style="gap:10px"></div>
         <button class="ghost" id="addQ" style="margin-top:10px">+ Add your own question</button>
+        <p class="hint" style="margin-top:10px">You never type letters. When you press the button, the page writes each question as a prompt and labels the options A, B, C in the order you listed them. It then reads the scores of exactly those letters.</p>
         <div class="row" style="margin-top:10px"><button class="small" id="saveBtn">Save as my scenario</button><span class="muted" id="saveMsg"></span></div>
       </div>
       <div class="runbar"><button class="primary" id="runBtn" disabled>Read the answers</button><span class="muted" id="runStatus">Load a model first.</span></div>
@@ -124,15 +125,17 @@
       <div class="empty" id="empty"><b style="font-size:17px;color:var(--soft)">The answers will appear here.</b><br>Pick a scenario above or write your own, load a model, and press “Read the answers”.</div>
       <div class="stack hide" id="results"></div>
       <div class="card hide" id="jsonCard">
-        <div class="row" style="justify-content:space-between;margin-bottom:8px"><h2>As an API call</h2><div class="tabs2" id="jsonTabs"><button data-j="req" class="on">request</button><button data-j="res">response</button></div></div>
-        <p class="muted">This is the shape a decision-model API uses: one state, several typed questions, and one response with no generated text.</p>
+        <div class="row" style="justify-content:space-between;margin-bottom:8px"><h2>As an API call</h2><div class="tabs2" id="jsonTabs"><button data-j="req" class="on">1 · request</button><button data-j="how">2 · how it is read</button><button data-j="res">3 · response</button></div></div>
+        <p class="muted" id="jsonNote"></p>
         <pre class="json" id="jsonView"></pre>
+        <div id="howView" class="hide"></div>
       </div>
     </div>
   </div>
 
   <div class="facts">
     <div><b>Nothing was trained</b>The model is used as downloaded. We choose which of its next-token scores to read.</div>
+    <div><b>The letters are ours</b>Your request has none. The page assigns A, B, C to the options in order, so it knows which scores to read.</div>
     <div><b>A new question is new text</b>The letters are blank labels. The prompt says what each one means this time.</div>
     <div><b>One pass per question here</b>A trained decision model answers every question in a single pass over the input.</div>
     <div><b>Untrained means unreliable</b>Expect wrong and over-confident answers. Calibration and training fix that: see the <a href="../s/system-one">lecture</a> and the <a href="../cheatsheet.pdf">cheatsheet</a>.</div>
@@ -269,7 +272,7 @@ async function write(userMsg, max = 48) {
 
 // ---------- rendering helpers
 const showTok = (t) => esc(t.replace(/ /g, '␣').replace(/\n/g, '⏎')) || '∅';
-const barRow = (label, p, top, cls = '') => `<div class="${top ? 'top' : ''}">${esc(label)}</div><div class="bar ${cls}"><i data-w="${Math.max(1.5, 100 * p)}"></i></div><div class="m p">${f2(p)}</div>`;
+const barRow = (label, p, top, cls = '', letter = '') => `<div class="${top ? 'top' : ''}">${letter ? `<span class="tok hit" title="the token whose score was read">${letter}</span> ` : ''}${esc(label)}</div><div class="bar ${cls}"><i data-w="${Math.max(1.5, 100 * p)}"></i></div><div class="m p">${f2(p)}</div>`;
 // How much of the model's next-token probability sits on the letters we read. Low means it wanted to say something else.
 function massNote(r) {
   const pc = Math.round(100 * r.mass);
@@ -301,8 +304,9 @@ async function answer(q, state, first) {
   const det = (inner, extra = '') => `<details ${first ? 'open' : ''}><summary>Show the working</summary>${inner}${extra}</details>`;
   if (q.type === 'noul') {
     const r = await readLetters(state, q.q, ['yes', 'no'], first); const py = r.sm.p[0];
-    return { html: head(r.ms, 1) + `<div class="ans">${py >= 0.5 ? 'yes' : 'no'}<small>P(yes) = <b class="p">${f2(py)}</b>. A program compares this with a threshold it chose.</small></div><div class="bars">${barRow('yes', py, py >= 0.5)}${barRow('no', 1 - py, py < 0.5)}</div>` + massNote(r) + det(working(r, ['yes', 'no'])),
-      json: { noul: +f2(py) }, req: { type: 'noul', instructions: q.q }, passes: 1, ms: r.ms };
+    return { html: head(r.ms, 1) + `<div class="ans">${py >= 0.5 ? 'yes' : 'no'}<small>P(yes) = <b class="p">${f2(py)}</b>. A program compares this with a threshold it chose.</small></div><div class="bars">${barRow('yes', py, py >= 0.5, '', 'A')}${barRow('no', 1 - py, py < 0.5, '', 'B')}</div>` + massNote(r) + det(working(r, ['yes', 'no'])),
+      json: { noul: +f2(py) }, req: { type: 'noul', instructions: q.q }, passes: 1, ms: r.ms,
+      how: { rule: 'A yes or no question gets two fixed lines, A. yes and B. no. We read the scores of the tokens A and B, and the answer is the probability of A.', rows: [['A', 'yes', r.ids[0]], ['B', 'no', r.ids[1]]] } };
   }
   const opts = lines(q.opts); if (opts.length < 2) throw new Error(`“${q.q || 'A question'}” needs at least two options.`);
   if (q.type === 'multi') {
@@ -310,52 +314,69 @@ async function answer(q, state, first) {
     for (const [k, o] of opts.entries()) { const r = await readLetters(state, q.q.includes('{option}') ? q.q.replaceAll('{option}', o) : `${q.q} (${o})`, ['yes', 'no'], false); if (!k) r0 = r; ms += r.ms; rows.push({ o, py: r.sm.p[0] }); }
     const kept = rows.filter((r) => r.py >= 0.5).map((r) => r.o);
     return { html: head(ms, opts.length) + `<div class="ans" style="font-size:22px">${kept.length ? esc(kept.join(' · ')) : 'none of them'}<small>Each option is its own yes or no question, so these need not add up to 1. Kept: P(yes) of at least 0.5.</small></div><div class="bars">${rows.map((r) => barRow(r.o, r.py, r.py >= 0.5)).join('')}</div>` + det(`<p class="muted" style="margin-top:10px">The prompt for the first option. Every option gets its own prompt with the same two letters.</p>` + working(r0, ['yes', 'no'])),
-      json: { choices: kept, probabilities: Object.fromEntries(rows.map((r) => [r.o, +f2(r.py)])) }, req: { type: 'choice', multiple: true, instructions: q.q, criteria: opts }, passes: opts.length, ms };
+      json: { choices: kept, probabilities: Object.fromEntries(rows.map((r) => [r.o, +f2(r.py)])) }, req: { type: 'choice', multiple: true, instructions: q.q, criteria: opts }, passes: opts.length, ms,
+      how: { rule: `Each of the ${opts.length} options gets its own prompt, with the option written into the question and the two fixed lines A. yes and B. no. We read A and B in each, and keep P(A) per option.`, rows: [['A', 'yes', r0.ids[0]], ['B', 'no', r0.ids[1]]] } };
   }
   const isTool = q.type === 'tool'; const parts = opts.map(toolParts);
   const shown = isTool ? parts.map(([n, d]) => (d ? `${n} (${d})` : n)) : opts; const names = isTool ? parts.map((p) => p[0]) : opts;
   const r = await readLetters(state, q.q, shown, first); const best = r.sm.p.indexOf(Math.max(...r.sm.p));
   let body, json;
   if (q.type === 'score') { const val = r.sm.p.reduce((a, p, i) => a + i * p, 0);
-    body = `<div class="ans">${esc(opts[best])}<small>score <b class="p">${f2(val)}</b> on a scale from 0 to ${opts.length - 1}</small></div><div class="bars">${opts.map((o, i) => barRow(`${i} · ${o}`, r.sm.p[i], i === best)).join('')}</div><p class="m" style="margin:10px 0 0">${r.sm.p.map((p, i) => `${i} × ${f2(p)}`).join(' + ')} = <b class="p">${f2(val)}</b></p>`;
+    body = `<div class="ans">${esc(opts[best])}<small>score <b class="p">${f2(val)}</b> on a scale from 0 to ${opts.length - 1}</small></div><div class="bars">${opts.map((o, i) => barRow(`level ${i} · ${o}`, r.sm.p[i], i === best, '', LETTERS[i])).join('')}</div><p class="m" style="margin:10px 0 0">${r.sm.p.map((p, i) => `${i} × ${f2(p)}`).join(' + ')} = <b class="p">${f2(val)}</b></p>`;
     json = { score: +f2(val), probabilities: Object.fromEntries(r.sm.p.map((p, i) => [i, +f2(p)])) };
   } else if (isTool) {
-    body = `<div class="call"><span>→ the agent calls</span> <b>${esc(names[best])}</b>(<span id="args-${q.id}">…</span>)</div><div class="bars">${names.map((o, i) => barRow(o, r.sm.p[i], i === best)).join('')}</div>
+    body = `<div class="call"><span>→ the agent calls</span> <b>${esc(names[best])}</b>(<span id="args-${q.id}">…</span>)</div><div class="bars">${names.map((o, i) => barRow(o, r.sm.p[i], i === best, '', LETTERS[i])).join('')}</div>
       <div class="row" style="margin-top:12px"><button class="small" data-args="${q.id}">Write the arguments</button><span class="muted" style="flex:1;min-width:220px">Choosing the tool is a decision. Filling in its arguments is writing, so that part needs the LLM to generate.</span></div><div id="argsOut-${q.id}"></div>`;
     json = { choice: names[best], probabilities: Object.fromEntries(names.map((o, i) => [o, +f2(r.sm.p[i])])) };
   } else {
-    body = `<div class="ans">${esc(opts[best])}<small>with probability <b class="p">${f2(r.sm.p[best])}</b></small></div><div class="bars">${opts.map((o, i) => barRow(o, r.sm.p[i], i === best)).join('')}</div>`;
+    body = `<div class="ans">${esc(opts[best])}<small>with probability <b class="p">${f2(r.sm.p[best])}</b></small></div><div class="bars">${opts.map((o, i) => barRow(o, r.sm.p[i], i === best, '', LETTERS[i])).join('')}</div>`;
     json = { choice: opts[best], probabilities: Object.fromEntries(opts.map((o, i) => [o, +f2(r.sm.p[i])])) };
   }
   const extra = q.type === 'choice' ? `<div class="work"><h4>Compare</h4><div class="row"><button class="small" data-write="${q.id}">Let the model write its answer</button><button class="small" data-each="${q.id}">Score each option on its own</button></div><div id="cmp-${q.id}"></div></div>` : '';
   q._ctx = { state, opts: shown, names, best, ms: r.ms };
-  return { html: head(r.ms, 1) + body + massNote(r) + det(working(r, shown), extra), json, req: { type: q.type === 'score' ? 'score' : 'choice', instructions: q.q, criteria: q.type === 'score' ? opts : isTool ? Object.fromEntries(parts) : opts }, passes: 1, ms: r.ms };
+  return { html: head(r.ms, 1) + body + massNote(r) + det(working(r, shown), extra), json, req: { type: q.type === 'score' ? 'score' : 'choice', instructions: q.q, criteria: q.type === 'score' ? opts : isTool ? Object.fromEntries(parts) : opts }, passes: 1, ms: r.ms,
+    how: { rule: `The options become lettered lines in the order they are listed: the first is A, the second B, and so on. We read the scores of those ${shown.length} letter tokens and take a softmax over them.${q.type === 'score' ? ' The score is each level number times its probability, added up.' : ''}`, rows: names.map((n, i) => [LETTERS[i], n, r.ids[i]]) } };
 }
 
 async function run() {
   const state = $('state').value.trim(); const qs = questions.filter((q) => q.q.trim());
   if (!state || !qs.length) { $('runStatus').textContent = 'Write a state and at least one question.'; return; }
   $('runBtn').disabled = true; $('empty').classList.add('hide'); $('results').classList.remove('hide'); $('results').innerHTML = '';
-  const req = { state, questions: {} }, res = { answers: {}, usage: { output_tokens: 0, forward_passes: 0, ms: 0 } };
+  const req = { state, questions: {} }, res = { answers: {}, usage: { output_tokens: 0, forward_passes: 0, ms: 0 } }, how = [];
   try {
     for (const [k, q] of qs.entries()) {
       $('runStatus').textContent = `Question ${k + 1} of ${qs.length} …`;
       const a = await answer(q, state, k === 0);
       const el = document.createElement('div'); el.className = 'card'; el.innerHTML = a.html; $('results').appendChild(el); animate(el);
-      req.questions['q' + (k + 1)] = a.req; res.answers['q' + (k + 1)] = a.json; res.usage.forward_passes += a.passes; res.usage.ms += Math.round(a.ms);
+      req.questions['q' + (k + 1)] = a.req; res.answers['q' + (k + 1)] = a.json; how.push({ name: 'q' + (k + 1), type: TYPES[q.type].label, q: q.q, ...a.how }); res.usage.forward_passes += a.passes; res.usage.ms += Math.round(a.ms);
     }
     $('runStatus').textContent = `${res.usage.forward_passes} forward passes, ${res.usage.ms} ms, and no generated text.`;
-    lastJson = { req, res }; $('jsonCard').classList.remove('hide'); showJson();
+    lastJson = { req, res, how }; $('jsonCard').classList.remove('hide'); showJson();
   } catch (err) { $('runStatus').textContent = err?.message ?? String(err); console.error(err); }
   $('runBtn').disabled = false;
 }
 $('runBtn').onclick = run;
 $('results').addEventListener('toggle', (e) => e.target.open && animate(e.target), true);
 
+const JSON_NOTES = {
+  req: 'What a program sends: one state and several typed questions. Notice that there are no letters in it.',
+  how: 'The step in between. This page (in a product, the vendor’s server) writes each question as a prompt and hands out the letters itself. That is how it knows which token scores to read.',
+  res: 'What comes back: an answer and probabilities per question, keyed by the option names again, and no generated text.',
+};
 function showJson() {
+  $('jsonNote').textContent = JSON_NOTES[jsonTab];
+  for (const b of $('jsonTabs').children) b.classList.toggle('on', b.dataset.j === jsonTab);
+  const isHow = jsonTab === 'how'; $('jsonView').classList.toggle('hide', isHow); $('howView').classList.toggle('hide', !isHow);
+  if (isHow) {
+    $('howView').innerHTML = (lastJson.how ?? []).map((h) => `<div style="border-top:1px solid var(--rule);padding:12px 0">
+      <div class="row" style="gap:8px;margin-bottom:6px"><b class="m">${h.name}</b><span class="chip">${h.type}</span><span>${esc(h.q)}</span></div>
+      <p class="sub" style="font-size:14.5px;margin-bottom:8px">${esc(h.rule)}</p>
+      <table><tr><th>Letter we assign</th><th>Stands for</th><th>Token id we read</th></tr>${h.rows.map(([l, o, id]) => `<tr><td><span class="tok hit">${l}</span></td><td>${esc(o)}</td><td class="m">${id}</td></tr>`).join('')}</table></div>`).join('')
+      + '<p class="muted" style="margin-top:10px">A model with a trained decision head needs no letters: the head gives each option a score directly. An untrained LLM has no such head, so we borrow letter tokens it already knows.</p>';
+    return;
+  }
   const s = JSON.stringify(lastJson[jsonTab], null, 2);
   $('jsonView').innerHTML = s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"([^"\\]*(?:\\.[^"\\]*)*)"(\s*:)?/g, (m, k, c) => (c ? `<span class="k">"${k}"</span>:` : `<span class="s">"${k}"</span>`)).replace(/: (-?\d+(?:\.\d+)?)/g, ': <span class="n">$1</span>');
-  for (const b of $('jsonTabs').children) b.classList.toggle('on', b.dataset.j === jsonTab);
 }
 $('jsonTabs').addEventListener('click', (e) => { if (e.target.dataset.j) { jsonTab = e.target.dataset.j; showJson(); } });
 

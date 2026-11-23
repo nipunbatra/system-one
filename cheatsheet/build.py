@@ -156,6 +156,7 @@ a {{ color:var(--s2); text-decoration:none; }}
    "urgency": {{"score": {f2(sci['urgency_score'])}, "probabilities":
                {{"0": {f2(sci['p_urgency'][0])}, "1": {f2(sci['p_urgency'][1])}, "2": {f2(sci['p_urgency'][2])}}}}}}},
  "usage": {{"output_tokens": 0}}}}</pre>
+<p><b>In between.</b> The request has no letters. Our code writes each question as a prompt, labels the options A, B, C in the order given, and reads the scores of exactly those letter tokens. In a hosted model this happens inside the service.</p>
 <p class="muted">Field names follow the Jev, Liquid and Unsloth formats. The numbers are from our small open model (Qwen2.5-0.5B-Instruct, 494 M parameters), read with no training for this task, so they show the format and not good answers.</p>
 
 <h3>Who makes them</h3>

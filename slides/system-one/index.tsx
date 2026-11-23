@@ -5905,6 +5905,72 @@ const CostThreshold: Page = () => (
 );
 
 
+
+// ---------------------------------------------------------------- from the request to the letters
+
+const Bridge: Page = () => (
+  <Frame
+    part={3}
+    title="Between request and response: who assigns the letters"
+    line="The request has no letters in it. Our code hands them out in the order of the options, so it knows which scores to read. In Jev or Liquid this step happens inside the service."
+    nb={1}
+  >
+    <div style={{ ...row, gap: 18, alignItems: 'flex-start', marginTop: 20 }}>
+      <div style={{ width: 520, flexShrink: 0 }}>
+        <Label>1 · The request says</Label>
+        <div style={{ height: 12 }} />
+        <Code size={26} code={`"team": {
+  "type": "choice",
+  "instructions": "Which team?",
+  "criteria": {
+    "billing": "...",
+    "technical": "...",
+    "sales": "..."
+  }
+}`} />
+      </div>
+      <Steps>
+        <Step>
+          <div style={{ width: 640, flexShrink: 0 }}>
+            <Label color={C.s1}>2 · Our code writes this prompt</Label>
+            <div style={{ height: 12 }} />
+            <pre style={{ margin: 0, padding: '20px 24px', background: C.white, border: `2px solid ${C.s1}`, borderRadius: 'var(--osd-radius)', fontFamily: mono, fontSize: 25, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+              {`Email: ${EMAIL}\n\nWhich team should handle this email?\n`}
+              {TEAMS.map((t, i) => (
+                <span key={t}>
+                  <b style={{ color: C.s1, background: '#fdf1de', padding: '0 4px', borderRadius: 4 }}>{'ABC'[i]}.</b> {t}
+                  {'\n'}
+                </span>
+              ))}
+              {'\nAnswer with one letter.'}
+            </pre>
+            <div style={{ fontSize: 26, color: C.s1, marginTop: 12 }}>first option → A, second → B, third → C</div>
+          </div>
+        </Step>
+        <Step>
+          <div style={{ flex: 1 }}>
+            <Label color={C.pred}>3 · And reads these three scores</Label>
+            <div style={{ height: 12 }} />
+            <div style={{ ...col, background: C.white, border: `2px solid ${C.pred}`, borderRadius: 'var(--osd-radius)', padding: '14px 22px' }}>
+              {TEAMS.map((t, i) => (
+                <div key={t} style={{ ...row, alignItems: 'center', gap: 14, fontSize: 28, padding: '16px 0', borderBottom: i < 2 ? `2px solid ${C.rule}` : 'none' }}>
+                  <b style={{ fontFamily: mono, color: C.s1, width: 30 }}>{'ABC'[i]}</b>
+                  <span style={{ fontFamily: mono, fontSize: 20, color: C.muted, width: 110 }}>token {32 + i}</span>
+                  <span style={{ flex: 1 }}>{t}</span>
+                  <b style={{ fontFamily: mono, color: C.pred }}>{f2(sci.p_team[i])}</b>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 26, lineHeight: 1.4, color: C.soft, marginTop: 12 }}>
+              The response then names the options again: billing, technical, sales.
+            </div>
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
 // ---------------------------------------------------------------- the definition, and training on one page
 
 const IO = ({ head, color, children }: { head: string; color: string; children: ReactNode }) => (
@@ -6256,6 +6322,7 @@ const deck: [Page, string][] = [
   [ScoreCalc, 'The model is confidently wrong about urgency. Keep this in mind for calibration. Liquid’s pages define score in two ways, the weighted level and the median level; we use the weighted one.'],
   [MoreTypes, 'How Liquid computes its newer answer types is not published. The multi-select and number readouts here are our own construction on an untrained model.'],
   [Request, 'Field names follow the Jev and Unsloth request format: state, questions, type, instructions, criteria.'],
+  [Bridge, 'This answers the question of how we know to look at A, B and C: we chose them. Token ids 32, 33 and 34 are the letters A, B and C in the Qwen tokenizer. A model with a trained head needs no letters, because the head scores each option directly; that comes in Parts 5 and 6. The live demo shows this mapping for any question, under how it is read.'],
   [Response, 'Field names follow the Jev and Liquid docs: choice with probabilities, noul as one number, score with its probabilities. I left out the confidence field because its formula is not documented.'],
   [Taxonomy, 'The taxonomy is from a single-author practical guide, not a peer-reviewed survey, and the author calls the families overlapping. Latency and size ranges are as printed in its Table 3. Reading letter logits from an LLM, as we do, is what the guide calls LLM-as-Jev and files under family III as a migration path.'],
   [Jev, 'Jev facts are from Wikipedia and the benchmark paper, Liquid facts from its docs and blog. Laya, System One Gemma and the last line are as described in Roitman’s guide, which I have not checked against the model cards. The guide also reports that Jev 1.14 added image input and a box answer.'],
