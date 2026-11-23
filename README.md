@@ -39,7 +39,8 @@ Then open `http://localhost:5173/s/system-one`.
 ## Live demo
 
 <https://nipunbatra.github.io/system-one/demo/> runs an off-the-shelf Qwen2.5-0.5B (or a smaller SmolLM2) in the browser with transformers.js and WebGPU.
-You type an input and a question, see the exact prompt, the next-token scores, and the option letters that are read, for choice, noul, score and multi-select questions.
+You write an input and any number of your own questions (choice, noul, score, multi-select, or a tool call), and for each one see the exact prompt, the next-token scores and the option letters that are read.
+It warns when little of the model's probability is on the option letters, and can save your scenarios in the browser.
 It is one file, `site/demo/index.html`. It loads the `q4` weights: the `fp16` variants gave wrong scores on WebGPU when tested.
 
 ## Cheatsheet
