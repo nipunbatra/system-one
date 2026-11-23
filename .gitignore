@@ -4,3 +4,7 @@ dist
 
 .venv/
 shots/
+science/shared_head/feats.npy
+science/shared_head/rows.json
+science/shared_head/*.pt
+science/shared_head/q4_feats.npy

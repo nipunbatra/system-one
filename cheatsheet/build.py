@@ -11,6 +11,11 @@ ROOT = Path(__file__).resolve().parent.parent
 sci = json.loads((ROOT / "slides/system-one/assets/science.json").read_text())
 zs, head, cc = sci["zs"], sci["head"], sci["conf_compare"]
 f2 = lambda x: f"{x:.2f}"
+_sh = json.loads((ROOT / "slides/system-one/assets/shared_head.json").read_text())
+_u = ["banking77", "film_recommend", "trec"]
+sh5 = ", ".join(f2(_sh["narrow"]["tasks"][k]["head_acc"]) for k in _u)
+sh13 = ", ".join(f2(_sh["wide"]["tasks"][k]["head_acc"]) for k in _u)
+shl = ", ".join(f2(_sh["wide"]["tasks"][k]["letter_acc"]) for k in _u)
 
 # ---- the letter readout, worked
 z = sci["letter_logits"]
@@ -367,6 +372,9 @@ FDM.predict(model, tok, email, questions)</pre>
 <li><b>If the accuracy is short, train.</b> Fine-tune on labelled rows, or train a head on frozen vectors.</li>
 </ol>
 <p>A general decision model takes the question as input, so a new question needs new text and no new training. Training happens once, on many kinds of question.</p>
+<h3>A head that takes any question</h3>
+<p>Write the options one per line and read the model's vector at the end of each line. One small trained scorer turns each vector into a score, then softmax. It has one output, so it works for any number of options and any question.</p>
+<p class="muted">Our experiment on the frozen Qwen2.5-0.5B, 57,473 trained numbers, tested on three kinds of question it never saw. Trained on 5 kinds: {sh5}. Trained on 13 kinds: {sh13}. Letters, untrained: {shl}. Variety of training questions is what makes it general.</p>
 <h3>Thresholds from costs</h3>
 <div class="eq">act when <i class="p">p</i> &gt; c / (c + b)</div>
 <p>b is the benefit of a right automatic action and c the cost of a wrong one. A wanted refund saves ₹50, an unwanted one costs ₹450 to undo: 450 / (450 + 50) = <b>0.90</b>. Our email reads {f2(sci['p_refund_yes'])}, so a person looks at it. The rule holds only for calibrated probabilities.</p>

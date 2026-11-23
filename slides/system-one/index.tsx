@@ -8,6 +8,7 @@ import {
 } from '@open-slide/core';
 import { type CSSProperties, type ReactNode, useState } from 'react';
 import sci from './assets/science.json';
+import sh from './assets/shared_head.json';
 import kahnemanPhoto from './assets/kahneman.jpg';
 import bookCover from './assets/thinking-fast-and-slow.jpg';
 
@@ -89,11 +90,17 @@ const nbUrl = (n: number) =>
   `https://colab.research.google.com/github/nipunbatra/system-one/blob/main/notebooks/${NB_FILES[n - 1]}.ipynb`;
 
 // The small line under the story line: where a slide's content comes from, and which notebook runs it.
-const Foot = ({ src, nb }: { src?: ReactNode; nb?: number }) => (
+const DEMO_URL = 'https://nipunbatra.github.io/system-one/demo/';
+const Foot = ({ src, nb, demo }: { src?: ReactNode; nb?: number; demo?: boolean }) => (
   <div style={{ position: 'absolute', left: 110, right: 280, bottom: 16, height: 30, display: 'flex', gap: 26, alignItems: 'center', fontSize: 21, color: C.muted, whiteSpace: 'nowrap' }}>
     {nb && (
       <a href={nbUrl(nb)} target="_blank" rel="noreferrer" style={{ color: C.s1, fontWeight: 600, textDecoration: 'none', border: `2px solid ${C.s1}`, borderRadius: 8, padding: '1px 12px' }}>
         Run it: notebook {nb} ↗
+      </a>
+    )}
+    {demo && (
+      <a href={DEMO_URL} target="_blank" rel="noreferrer" style={{ color: C.pred, fontWeight: 600, textDecoration: 'none', border: `2px solid ${C.pred}`, borderRadius: 8, padding: '1px 12px' }}>
+        Try it: live demo ↗
       </a>
     )}
     {src && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>Source: {src}</span>}
@@ -107,6 +114,7 @@ const Frame = ({
   children,
   src,
   nb,
+  demo,
 }: {
   part: number;
   title: ReactNode;
@@ -114,6 +122,7 @@ const Frame = ({
   children?: ReactNode;
   src?: ReactNode;
   nb?: number;
+  demo?: boolean;
 }) => (
   <div style={fill}>
     <div
@@ -167,7 +176,7 @@ const Frame = ({
         <span>{line}</span>
       </div>
     )}
-    {(src || nb) && <Foot src={src} nb={nb} />}
+    {(src || nb || demo) && <Foot src={src} nb={nb} demo={demo} />}
     <PageNo />
   </div>
 );
@@ -1888,6 +1897,7 @@ const S3: Page = () => (
 const LookAgain: Page = () => (
   <Frame
     part={3}
+    demo
     title="Look again at the first distribution"
     line="Before it wrote any token, the model had already split its probability between A and B."
   >
@@ -1924,6 +1934,7 @@ const f3 = (x: number) => x.toFixed(3);
 const Readout: Page = () => (
   <Frame
     part={3}
+    demo
     nb={1}
     title="Keep the option letters, renormalise"
     line="This is the same softmax, applied to three logits. Subtracting the largest logit first does not change the result and keeps the numbers small."
@@ -2205,6 +2216,7 @@ const Mini = ({ label, p }: { label: string; p: number }) => (
 const Types: Page = () => (
   <Frame
     part={3}
+    demo
     title="Three question types, all read the same way"
     line="Jev and similar decision models support these three question types. The numbers are our small model’s answers for the email."
   >
@@ -5911,6 +5923,7 @@ const CostThreshold: Page = () => (
 const Bridge: Page = () => (
   <Frame
     part={3}
+    demo
     title="Between request and response: who assigns the letters"
     line="The request has no letters in it. Our code hands them out in the order of the options, so it knows which scores to read. In Jev or Liquid this step happens inside the service."
     nb={1}
@@ -5964,6 +5977,221 @@ const Bridge: Page = () => (
             <div style={{ fontSize: 26, lineHeight: 1.4, color: C.soft, marginTop: 12 }}>
               The response then names the options again: billing, technical, sales.
             </div>
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+
+// ---------------------------------------------------------------- the trained shared head, on our email
+
+const SH_TEAM = sh.email[0];
+const SH_Z = SH_TEAM.scores.map((z) => z / sh.T);
+const SH_MAX = Math.max(...SH_Z);
+const SH_E = SH_Z.map((z) => Math.exp(z - SH_MAX));
+const SH_TOT = SH_E.reduce((a, b) => a + b, 0);
+const Here = ({ children }: { children: ReactNode }) => (
+  <b style={{ background: C.truth, color: C.white, borderRadius: 4, padding: '0 8px', fontWeight: 700 }}>{children}</b>
+);
+const PromptBox = ({ color, children }: { color: string; children: ReactNode }) => (
+  <pre style={{ margin: 0, padding: '18px 22px', background: C.white, border: `2px solid ${color}`, borderRadius: 'var(--osd-radius)', fontFamily: mono, fontSize: 23, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{children}</pre>
+);
+
+const HeadWhere: Page = () => (
+  <Frame
+    part={6}
+    demo
+    title="Two places to read: the end, or each option"
+    line="The letter readout reads once, at the end. The shared head reads at the end of every option line, and gives each of those outputs to the same small scorer."
+  >
+    <div style={{ ...row, gap: 30, alignItems: 'flex-start' }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontFamily: serif, fontSize: 34, fontWeight: 700, color: C.s1 }}>Letter readout</div>
+        <div style={{ fontSize: 24, color: C.soft, margin: '2px 0 12px' }}>nothing trained · the model’s own scores for A, B, C</div>
+        <PromptBox color={C.s1}>
+          {`Email: ${EMAIL}\n\nWhich team should handle this email?\n`}
+          <b style={{ color: C.s1 }}>A.</b>{' billing\n'}
+          <b style={{ color: C.s1 }}>B.</b>{' technical\n'}
+          <b style={{ color: C.s1 }}>C.</b>{' sales\n\nAnswer with one letter. '}
+          <Here>read here</Here>
+        </PromptBox>
+        <div style={{ fontSize: 25, marginTop: 12 }}>1 place · 3 scores, picked from the 151,936</div>
+      </div>
+      <Steps>
+        <Step>
+          <div style={{ width: 835 }}>
+            <div style={{ fontFamily: serif, fontSize: 34, fontWeight: 700, color: C.truth }}>Shared head</div>
+            <div style={{ fontSize: 24, color: C.soft, margin: '2px 0 12px' }}>one trained scorer · no letters</div>
+            <PromptBox color={C.truth}>
+              {`Email: ${EMAIL}\n\nWhich team should handle this email?\nOptions:\n- billing `}
+              <Here>read here</Here>
+              {'\n- technical '}
+              <Here>read here</Here>
+              {'\n- sales '}
+              <Here>read here</Here>
+              {'\nEnd of options.'}
+            </PromptBox>
+            <div style={{ fontSize: 25, marginTop: 12 }}>3 places · 1 score at each, from the same scorer</div>
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const HeadSteps: Page = () => (
+  <Frame
+    part={6}
+    demo
+    title="The shared head on our email, step by step"
+    line={`One forward pass, three outputs, one scorer used three times. The scorer has ${sh.params.toLocaleString('en-US')} numbers and has never seen a support email.`}
+    src="our experiment, science/shared_head.py in the repository · frozen Qwen2.5-0.5B"
+  >
+    <div style={{ ...row, gap: 16, alignItems: 'center', fontSize: 25, marginBottom: 18 }}>
+      <div style={{ border: `2px solid ${C.s2}`, borderRadius: 10, padding: '10px 16px', background: C.white }}>the model’s vector at the end of an option line<div style={{ fontFamily: mono, fontSize: 22, color: C.s2 }}>{sci.hidden} numbers</div></div>
+      <span style={{ fontSize: 34, color: C.muted }}>→</span>
+      <div style={{ border: `2px solid ${C.truth}`, borderRadius: 10, padding: '10px 16px', background: C.white }}>the trained scorer<div style={{ fontFamily: mono, fontSize: 22, color: C.truth }}>{sci.hidden} → {sh.hidden} → 1</div></div>
+      <span style={{ fontSize: 34, color: C.muted }}>→</span>
+      <div style={{ border: `2px solid ${C.pred}`, borderRadius: 10, padding: '10px 16px', background: C.white }}>one number<div style={{ fontFamily: mono, fontSize: 22, color: C.pred }}>how well this option fits</div></div>
+    </div>
+    <div style={{ ...row, alignItems: 'center' }}>
+      <div style={col}>
+        <RHead w={300} left>option</RHead>
+        {TEAMS.map((t) => <RCell key={t} w={300} left>{t}</RCell>)}
+      </div>
+      <div style={col}>
+        <RHead w={210}>read at token</RHead>
+        {SH_TEAM.positions.map((v) => <RCell key={v} w={210} color={C.soft}>{v} of {SH_TEAM.n_tokens}</RCell>)}
+      </div>
+      <Steps>
+        <Step>
+          <div style={col}>
+            <RHead w={230}>score from head</RHead>
+            {SH_TEAM.scores.map((v, i) => <RCell key={i} w={230} color={C.truth}>{v.toFixed(2).replace('-', '−')}</RCell>)}
+          </div>
+        </Step>
+        <Step>
+          <div style={col}>
+            <RHead w={330}>÷ T = {sh.T}, e to that</RHead>
+            {SH_Z.map((v, i) => <RCell key={i} w={330} color={C.soft}>{v.toFixed(2).replace('-', '−')} → {f3(Math.exp(v))}</RCell>)}
+          </div>
+        </Step>
+        <Step>
+          <div style={col}>
+            <RHead w={470}>share of the total = probability</RHead>
+            {SH_E.map((v, i) => <RCell key={i} w={470} color={C.pred}>{f3(Math.exp(SH_Z[i]))} / {f3(SH_Z.reduce((a, z) => a + Math.exp(z), 0))} = {f2(v / SH_TOT)}</RCell>)}
+          </div>
+        </Step>
+      </Steps>
+    </div>
+    <Steps>
+      <Step>
+        <div style={{ fontSize: 27, lineHeight: 1.45, color: C.soft, marginTop: 20 }}>
+          On the other two questions the head and the letters disagree. Refund: letters say yes ({f2(sci.p_refund_yes)}), the head says no (yes {f2(sh.email[1].probs[0])}).
+          Urgency: letters say not urgent ({f2(sci.p_urgency[0])}), the head says today ({f2(sh.email[2].probs[2])}).
+        </div>
+      </Step>
+    </Steps>
+  </Frame>
+);
+
+const KINDS: Record<string, string> = { ag_news: 'news topic', ag_yesno: 'yes or no about news', arc: 'school science', boolq: 'yes or no about a passage', cola: 'is it grammatical', commonsense_qa: 'common sense', dbpedia: 'what a text describes', emotion: 'emotion', mrpc: 'same meaning?', newsgroups: 'discussion group', snli: 'does it follow', sst2: 'review sentiment', tweet_sentiment: 'mood of a post' };
+
+const HeadTraining: Page = () => (
+  <Frame
+    part={6}
+    title="Where the training is"
+    line="The LLM stays frozen. Only the scorer learns, and because the questions and options keep changing, the one thing it can learn is to recognise an option that fits."
+    src="our experiment, science/shared_head.py in the repository"
+  >
+    <svg width={1700} height={190} viewBox="0 0 1700 190">
+      <Arrows />
+      <Box x={0} y={24} w={330} h={112} text={`${sh.wide.n_train.toLocaleString('en-US')} labelled rows`} sub={`${sh.wide.kinds.length} kinds of question`} size={27} />
+      <Arr x1={330} y1={80} x2={372} y2={80} />
+      <Box x={380} y={24} w={300} h={112} text="frozen LLM" sub="one pass per row" color={C.s2} size={27} />
+      <Arr x1={680} y1={80} x2={722} y2={80} />
+      <Box x={730} y={24} w={320} h={112} text="vector per option" sub="at the end of its line" color={C.s2} size={27} />
+      <Arr x1={1050} y1={80} x2={1092} y2={80} />
+      <Box x={1100} y={24} w={270} h={112} text="the scorer" sub={`${sh.params.toLocaleString('en-US')} numbers`} color={C.truth} size={27} />
+      <Arr x1={1370} y1={80} x2={1412} y2={80} />
+      <Box x={1420} y={24} w={280} h={112} text="cross-entropy" sub="over the options" color={C.loss} size={27} />
+      <path d="M1560,136 L1560,176 L1235,176 L1235,142" fill="none" stroke={C.loss} strokeWidth={3} markerEnd="url(#ahr)" />
+      <text x={1398} y={170} textAnchor="middle" fontSize={21} fill={C.loss}>adjust the scorer, repeat</text>
+    </svg>
+    <Steps>
+      <Step>
+        <div style={{ marginTop: 8 }}>
+          <Label>The {sh.wide.kinds.length} kinds it trained on</Label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+            {sh.wide.kinds.map((k) => (
+              <span key={k} style={{ fontSize: 24, border: `2px solid ${C.rule}`, borderRadius: 20, padding: '4px 16px', background: C.white }}>{KINDS[k] ?? k}</span>
+            ))}
+          </div>
+        </div>
+      </Step>
+      <Step>
+        <div style={{ ...row, gap: 30, marginTop: 22 }}>
+          <Card style={{ flex: 1, padding: '18px 24px' }}>
+            <Label>One training row</Label>
+            <div style={{ fontFamily: mono, fontSize: 22, lineHeight: 1.5, marginTop: 8 }}>
+              Review: a gripping, beautifully acted film<br />Is the feeling positive or negative?<br />- negative<br />- positive <span style={{ color: C.truth, fontWeight: 700 }}>← correct</span>
+            </div>
+          </Card>
+          <Card color={C.truth} style={{ flex: 1, padding: '18px 24px' }}>
+            <Label color={C.truth}>What the loss does</Label>
+            <div style={{ fontSize: 26, lineHeight: 1.45, marginTop: 8 }}>
+              It raises the score at the correct option’s line and lowers the others. After many rows about many things, a high score means “this option fits what came before”.
+            </div>
+          </Card>
+        </div>
+      </Step>
+    </Steps>
+  </Frame>
+);
+
+const UNSEEN: [string, string, number][] = [['banking77', 'What does this bank customer want? (5 options)', 0.2], ['film_recommend', 'Would the writer recommend this film? (yes or no)', 0.5], ['trec', 'What kind of answer does this question ask for? (6 options)', 1 / 6]];
+const UCell = ({ v, color, bold }: { v: number; color: string; bold?: boolean }) => (
+  <div style={{ width: 250, flexShrink: 0, ...row, alignItems: 'center', gap: 10 }}>
+    <div style={{ width: 140, height: 22, background: C.panel, borderRadius: 5 }}><div style={{ width: 140 * v, height: 22, background: color, borderRadius: 5 }} /></div>
+    <span style={{ fontFamily: mono, fontSize: 27, color, fontWeight: bold ? 700 : 400 }}>{f2(v)}</span>
+  </div>
+);
+
+const HeadUnseen: Page = () => (
+  <Frame
+    part={6}
+    title="Does it work on questions it never saw?"
+    line="Trained on five kinds of question, the head is no better than the untrained letters on any new kind. Trained on thirteen, it matches or beats them. Variety is what makes a head general."
+    src={`our experiment, science/shared_head.py · one run, 500 to 600 test rows per kind, so differences of a few points are noise`}
+  >
+    <div style={{ ...col, marginTop: 6 }}>
+      <div style={{ ...row, fontSize: 21, letterSpacing: '0.08em', color: C.muted, fontWeight: 600, paddingBottom: 10, borderBottom: `2px solid ${C.rule}` }}>
+        <div style={{ flex: 1 }}>A KIND OF QUESTION NOT IN TRAINING</div>
+        <div style={{ width: 250 }}>GUESSING</div>
+        <div style={{ width: 250 }}>HEAD, {sh.narrow.kinds.length} KINDS</div>
+        <div style={{ width: 250 }}>HEAD, {sh.wide.kinds.length} KINDS</div>
+        <div style={{ width: 250 }}>LETTERS, UNTRAINED</div>
+      </div>
+      {UNSEEN.map(([k, label, chance], i) => {
+        const w = (sh.wide.tasks as Record<string, { head_acc: number; letter_acc: number }>)[k];
+        const n = (sh.narrow.tasks as Record<string, { head_acc: number }>)[k];
+        const rowEl = (
+          <div key={k} style={{ ...row, alignItems: 'center', padding: '22px 0', borderBottom: `2px solid ${C.rule}` }}>
+            <div style={{ flex: 1, fontSize: 28, lineHeight: 1.3, paddingRight: 20 }}>{label}</div>
+            <UCell v={chance} color={C.muted} />
+            <UCell v={n.head_acc} color={C.loss} />
+            <UCell v={w.head_acc} color={C.truth} bold />
+            <UCell v={w.letter_acc} color={C.s1} />
+          </div>
+        );
+        return i === 0 ? rowEl : <Steps key={k}><Step>{rowEl}</Step></Steps>;
+      })}
+      <Steps>
+        <Step>
+          <div style={{ fontSize: 28, lineHeight: 1.45, marginTop: 24 }}>
+            Accuracy on each unseen kind. The numbers trained: {sh.params.toLocaleString('en-US')}, on top of a frozen {sci.params_M} M model, with {sh.narrow.n_train.toLocaleString('en-US')} rows (5 kinds) or {sh.wide.n_train.toLocaleString('en-US')} rows (13 kinds).
           </div>
         </Step>
       </Steps>
@@ -6397,6 +6625,10 @@ const deck: [Page, string][] = [
   [PerQuestion, 'This is the question students ask at this point. Our Part 5 head has four fixed outputs. General models take the question as input.'],
   [OnePrompt, 'Unsloth describes its head as one that “looks at the LLM’s output over each question and option and scores every option”. How the heads inside Jev and Liquid are built is not published.'],
   [TypedHeads, 'The formulas are the ones Roitman’s guide gives for this family. The score z and the cut points are picked so that the results match what our model read for the email; they are not taken from any trained head. e to the minus 1.05 is 0.35, e to the 2.75 is 15.6, e to the 3.9 is 49.4.'],
+  [HeadWhere, 'This is the dynamic head made concrete. Same email, same question. On the left we read one place and trust the model\u2019s own output layer. On the right there are no letters: we read where each option ends. The live demo has a switch between the two.'],
+  [HeadSteps, 'The three scores are real outputs of the head we trained. T = 1.2 was fitted on rows kept out of training. On this email the head agrees with the letters about the team, and still says technical, which is arguably wrong. A head with 57 thousand numbers on a frozen 0.5 B model is a teaching example, not a product.'],
+  [HeadTraining, 'This answers where training comes in. Nothing here is specific to support emails: there is no email in the training rows at all. Real decision models do the same thing at far larger scale and also adjust the LLM with LoRA.'],
+  [HeadUnseen, 'The key experiment. Letters use the model\u2019s pre-trained knowledge and need no training, so they are a strong baseline on any question. A head has to learn the skill of judging fit, and five kinds of question do not teach it. This is one run with one seed; I would not read much into gaps of three or four points. In the browser demo the head is retrained on the 4-bit model the browser runs, and its numbers are a little different.'],
   [TrainOnce, 'The 30 to 37% and 73% are Unsloth’s figures for Qwen3.5-0.8B on its typed-decisions set. The docs do not say when to fine-tune; the last two rows are our advice.'],
   [Recipe, 'The quoted advice is on Liquid’s model pages. The size of the test set in step 2 is our suggestion, not a documented rule.'],
   [AppEmail, 'The running example, now as a build plan. All three questions go in one request.'],

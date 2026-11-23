@@ -1,0 +1,171 @@
+{
+ "params": 57473,
+ "T": 1.2,
+ "hidden": 64,
+ "email": [
+  {
+   "question": "Which team should handle this email?",
+   "options": [
+    "billing (invoices, payments, refunds)",
+    "technical (bugs, outages, errors)",
+    "sales (pricing, new plans)"
+   ],
+   "n_tokens": 84,
+   "positions": [
+    56,
+    66,
+    74
+   ],
+   "scores": [
+    0.032,
+    0.55,
+    -4.323
+   ],
+   "probs": [
+    0.3896,
+    0.6001,
+    0.0103
+   ]
+  },
+  {
+   "question": "Is the customer asking for money back?",
+   "options": [
+    "yes",
+    "no"
+   ],
+   "n_tokens": 64,
+   "positions": [
+    51,
+    54
+   ],
+   "scores": [
+    -1.202,
+    -0.538
+   ],
+   "probs": [
+    0.365,
+    0.635
+   ]
+  },
+  {
+   "question": "How urgent is this email?",
+   "options": [
+    "not urgent",
+    "soon",
+    "today"
+   ],
+   "n_tokens": 66,
+   "positions": [
+    50,
+    53,
+    56
+   ],
+   "scores": [
+    -0.487,
+    1.6,
+    2.218
+   ],
+   "probs": [
+    0.0616,
+    0.3509,
+    0.5874
+   ]
+  }
+ ],
+ "wide": {
+  "kinds": [
+   "ag_news",
+   "ag_yesno",
+   "arc",
+   "boolq",
+   "cola",
+   "commonsense_qa",
+   "dbpedia",
+   "emotion",
+   "mrpc",
+   "newsgroups",
+   "snli",
+   "sst2",
+   "tweet_sentiment"
+  ],
+  "n_train": 13562,
+  "tasks": {
+   "seen kinds, rows kept out of training": {
+    "n": 1938,
+    "options": 4,
+    "head_acc": 0.745,
+    "head_ece": 0.016,
+    "letter_acc": 0.614,
+    "letter_ece": 0.204
+   },
+   "banking77": {
+    "n": 600,
+    "options": 5,
+    "head_acc": 0.725,
+    "head_ece": 0.057,
+    "letter_acc": 0.735,
+    "letter_ece": 0.048
+   },
+   "film_recommend": {
+    "n": 500,
+    "options": 2,
+    "head_acc": 0.846,
+    "head_ece": 0.14,
+    "letter_acc": 0.798,
+    "letter_ece": 0.062
+   },
+   "trec": {
+    "n": 500,
+    "options": 6,
+    "head_acc": 0.63,
+    "head_ece": 0.14,
+    "letter_acc": 0.486,
+    "letter_ece": 0.389
+   }
+  }
+ },
+ "narrow": {
+  "kinds": [
+   "ag_news",
+   "ag_yesno",
+   "emotion",
+   "snli",
+   "sst2"
+  ],
+  "n_train": 6562,
+  "tasks": {
+   "seen kinds, rows kept out of training": {
+    "n": 938,
+    "options": 4,
+    "head_acc": 0.789,
+    "head_ece": 0.042,
+    "letter_acc": 0.587,
+    "letter_ece": 0.226
+   },
+   "banking77": {
+    "n": 600,
+    "options": 5,
+    "head_acc": 0.505,
+    "head_ece": 0.12,
+    "letter_acc": 0.735,
+    "letter_ece": 0.048
+   },
+   "film_recommend": {
+    "n": 500,
+    "options": 2,
+    "head_acc": 0.586,
+    "head_ece": 0.261,
+    "letter_acc": 0.798,
+    "letter_ece": 0.062
+   },
+   "trec": {
+    "n": 500,
+    "options": 6,
+    "head_acc": 0.48,
+    "head_ece": 0.096,
+    "letter_acc": 0.486,
+    "letter_ece": 0.389
+   }
+  }
+ }
+}

@@ -1,0 +1,56 @@
+{
+ "model": "Qwen2.5-0.5B-Instruct, 4-bit ONNX",
+ "params": 65665,
+ "T": 1.4,
+ "n_train": 6500,
+ "K": 1024,
+ "train_kinds": [
+  "ag_news",
+  "ag_yesno",
+  "arc",
+  "boolq",
+  "cola",
+  "commonsense_qa",
+  "dbpedia",
+  "emotion",
+  "mrpc",
+  "newsgroups",
+  "snli",
+  "sst2",
+  "tweet_sentiment"
+ ],
+ "tasks": {
+  "seen kinds, rows kept out of training": {
+   "n": 780,
+   "options": 4,
+   "head_acc": 0.6474358974358975,
+   "head_ece": 0.02728090293896504,
+   "letter_acc": 0.5897435897435898,
+   "letter_ece": 0.21892948964467415
+  },
+  "banking77": {
+   "n": 600,
+   "options": 5,
+   "head_acc": 0.695,
+   "head_ece": 0.16316314583023392,
+   "letter_acc": 0.6366666666666667,
+   "letter_ece": 0.14130640437205633
+  },
+  "film_recommend": {
+   "n": 500,
+   "options": 2,
+   "head_acc": 0.672,
+   "head_ece": 0.11434266042709346,
+   "letter_acc": 0.704,
+   "letter_ece": 0.07564122045040128
+  },
+  "trec": {
+   "n": 500,
+   "options": 6,
+   "head_acc": 0.636,
+   "head_ece": 0.04154864287376403,
+   "letter_acc": 0.528,
+   "letter_ece": 0.3926666918992996
+  }
+ }
+}

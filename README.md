@@ -2,7 +2,7 @@
 
 A 60 to 80 minute lecture on decision models such as Jev: models that read a
 state, answer a typed question, and return calibrated probabilities without
-generating text. The lecture has a 149-slide deck, three notebooks and a five-page cheatsheet.
+generating text. The lecture has a 153-slide deck, three notebooks and a five-page cheatsheet.
 
 Audience: students who have studied machine learning and a little deep
 learning, and have not looked inside an LLM.
@@ -41,7 +41,15 @@ Then open `http://localhost:5173/s/system-one`.
 <https://nipunbatra.github.io/system-one/demo/> runs an off-the-shelf Qwen2.5-0.5B (or a smaller SmolLM2) in the browser with transformers.js and WebGPU.
 You write an input and any number of your own questions (choice, noul, score, multi-select, or a tool call), and for each one see the exact prompt, the next-token scores and the option letters that are read.
 It warns when little of the model's probability is on the option letters, and can save your scenarios in the browser.
+A switch changes the method from reading letters to a trained shared head, and shows that head's working the same way.
 It is one file, `site/demo/index.html`. It loads the `q4` weights: the `fp16` variants gave wrong scores on WebGPU when tested.
+
+## The shared-head experiment
+
+`science/shared_head.py` trains one small scorer on a frozen Qwen2.5-0.5B that is reused for every option of every question, on 13 kinds of question, and tests it on three kinds it never saw.
+`python science/shared_head.py extract` then `train mlp` reproduces the slide numbers (`KINDS=5` gives the five-kinds comparison); `shared_head_assets.py` writes them for the deck.
+`science/shared_head_export.py` trains the same head on the 4-bit ONNX model the browser runs (it needs `onnxruntime`) and writes `site/demo/head.json` for the demo.
+A head trained on the full-precision model lost 7 to 10 points when moved to the 4-bit one, which is why the demo's head is trained separately.
 
 ## Cheatsheet
 

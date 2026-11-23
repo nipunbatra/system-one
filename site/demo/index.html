@@ -80,6 +80,11 @@
   .tabs2 { display:flex; gap:6px; } .tabs2 button { font-size:13px; padding:6px 11px; } .tabs2 button.on { background:var(--ink); border-color:var(--ink); color:#fff; }
   .empty { text-align:center; color:var(--muted); padding:46px 20px; border:1.5px dashed var(--rule); border-radius:16px; }
   .note { background:#fbeee9; border-left:4px solid var(--accent); border-radius:8px; padding:10px 14px; font-size:14.5px; margin-top:10px; }
+  .method { display:flex; gap:0; border:1.5px solid var(--rule); border-radius:12px; overflow:hidden; background:#fff; }
+  .method button { border:none; border-radius:0; text-align:left; padding:10px 14px; line-height:1.3; flex:1; } .method button b { display:block; font-size:14.5px; } .method button span { font-size:12.5px; font-weight:400; color:var(--muted); }
+  .method button.on { background:var(--s1bg); box-shadow: inset 0 -3px 0 var(--s1); } .method button + button { border-left:1.5px solid var(--rule); }
+  pre .here { background:var(--truth); color:#fff; border-radius:3px; padding:0 6px; font-weight:700; }
+  .pipe { display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:13.5px; margin:8px 0; } .pipe span { border:1.5px solid var(--rule); border-radius:8px; padding:6px 9px; background:#fff; } .pipe i { color:var(--muted); font-style:normal; }
   .hide { display:none !important; }
   .facts { display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:12px; margin: 26px 0 60px; } .facts div { background:var(--panel); border-radius:12px; padding:13px 15px; font-size:14.5px; color:var(--soft); } .facts b { color:var(--ink); display:block; margin-bottom:3px; }
 </style>
@@ -118,6 +123,14 @@
         <p class="hint" style="margin-top:10px">You never type letters. When you press the button, the page writes each question as a prompt and labels the options A, B, C in the order you listed them. It then reads the scores of exactly those letters.</p>
         <div class="row" style="margin-top:10px"><button class="small" id="saveBtn">Save as my scenario</button><span class="muted" id="saveMsg"></span></div>
       </div>
+      <div class="card" style="padding:14px 16px">
+        <div class="lab">How to get the answer</div>
+        <div class="method" id="method">
+          <button data-m="letters" class="on"><b>Read the letters</b><span>nothing trained · the model's own scores for A, B, C</span></button>
+          <button data-m="head"><b>Trained shared head</b><span>one small scorer, reused for every option</span></button>
+        </div>
+        <p class="hint" id="methodHint"></p>
+      </div>
       <div class="runbar"><button class="primary" id="runBtn" disabled>Read the answers</button><span class="muted" id="runStatus">Load a model first.</span></div>
     </div>
 
@@ -137,6 +150,7 @@
     <div><b>Nothing was trained</b>The model is used as downloaded. We choose which of its next-token scores to read.</div>
     <div><b>The letters are ours</b>Your request has none. The page assigns A, B, C to the options in order, so it knows which scores to read.</div>
     <div><b>A new question is new text</b>The letters are blank labels. The prompt says what each one means this time.</div>
+    <div><b>Two ways to get scores</b>Read the model’s own scores for letters, with no training. Or read at each option and use one small trained scorer, which works for any question.</div>
     <div><b>One pass per question here</b>A trained decision model answers every question in a single pass over the input.</div>
     <div><b>Untrained means unreliable</b>Expect wrong and over-confident answers. Calibration and training fix that: see the <a href="../s/system-one">lecture</a> and the <a href="../cheatsheet.pdf">cheatsheet</a>.</div>
   </div>
@@ -149,7 +163,7 @@ const $ = (id) => document.getElementById(id);
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const f2 = (x) => x.toFixed(2), f3 = (x) => x.toFixed(3);
-let tok, model, device, questions = [], current = null, lastJson = { req: {}, res: {} }, jsonTab = 'req', uid = 0;
+let tok, model, device, questions = [], current = null, lastJson = { req: {}, res: {} }, jsonTab = 'req', uid = 0, method = 'letters', HEAD = null, modelId = '';
 
 const TYPES = {
   choice: { label: 'choice', help: 'One option from a list. One per line.' },
@@ -219,6 +233,22 @@ $('saveBtn').onclick = () => {
   saveMine([...mine(), s]); current = s.key; renderScen(); $('saveMsg').textContent = 'Saved.'; setTimeout(() => ($('saveMsg').textContent = ''), 2000);
 };
 
+// ---------- the two methods
+const KIND_NAMES = { ag_news: 'news topic', ag_yesno: 'yes or no about news', arc: 'school science', boolq: 'yes or no about a passage', cola: 'is it grammatical', commonsense_qa: 'common sense', dbpedia: 'what a text describes', emotion: 'emotion', mrpc: 'same meaning', newsgroups: 'discussion group', snli: 'does it follow', sst2: 'review sentiment', tweet_sentiment: 'mood of a post' };
+const HINTS = {
+  letters: 'The options get letters, and we read the model\u2019s own next-token scores for those letters. No training is involved.',
+  head: 'The options are written one per line. At the end of each line we take the model\u2019s output and pass it through one small trained scorer. The same scorer serves every option and every question.',
+};
+function setMethod(m) {
+  method = m; for (const b of $('method').children) b.classList.toggle('on', b.dataset.m === m);
+  const ok = m === 'letters' || /Qwen2\.5-0\.5B/.test(modelId || $('modelSel').value);
+  $('methodHint').innerHTML = HINTS[m] + (m === 'head' ? (HEAD ? ` It has ${HEAD.params.toLocaleString('en-US')} numbers and was trained by us on ${HEAD.n_train.toLocaleString('en-US')} rows covering ${HEAD.train_kinds.length} kinds of question. Your questions were not among them.` : '') + (ok ? '' : ' <b style="color:var(--loss)">It was trained for Qwen2.5-0.5B, so load that model to use it.</b>') : '');
+}
+$('method').addEventListener('click', async (e) => { const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.m === 'head' && !HEAD) { try { HEAD = await (await fetch('head.json')).json(); } catch { $('methodHint').textContent = 'Could not load the trained head.'; return; } }
+  setMethod(b.dataset.m); });
+setMethod('letters');
+
 // ---------- model
 function setStatus(text, cls = '') { $('status').textContent = text; $('pill').className = 'pill ' + cls; }
 $('loadBtn').onclick = async () => {
@@ -228,7 +258,7 @@ $('loadBtn').onclick = async () => {
     device = 'wasm';
     if (params.get('device') !== 'wasm' && navigator.gpu) { try { if (await navigator.gpu.requestAdapter()) device = 'webgpu'; } catch {} }
     setStatus('Fetching the tokenizer …', 'busy');
-    tok = await AutoTokenizer.from_pretrained(id);
+    tok = await AutoTokenizer.from_pretrained(id); modelId = id; setMethod(method);
     const seen = {};
     // The fp16 weight files gave wrong scores on WebGPU when tested, so the page uses q4 (4-bit weights, full-precision arithmetic).
     model = await AutoModelForCausalLM.from_pretrained(id, { dtype: params.get('dtype') ?? 'q4', device, progress_callback: (p) => {
@@ -263,6 +293,38 @@ async function readLetters(state, question, options, wantTop) {
   if (wantTop) top = Array.from(all.p.keys()).sort((a, b) => all.p[b] - all.p[a]).slice(0, 10).map((i) => ({ t: tok.decode([i]), z: scores[i], p: all.p[i], hit: ids.includes(i) }));
   return { text, nTokens: n, vocab: v, ids, z, sm, ms, top, mass, first: ids.includes(bi) ? null : tok.decode([bi]) };
 }
+// The trained shared head. One forward pass; at the end of each option line we take the scores of
+// 1,024 fixed tokens (a linear picture of the model's vector there) and run the same small network on each.
+const headText = (state, question, options) => `${state}\n\n${question}\nOptions:\n${options.map((o) => `- ${o}\n`).join('')}End of options.`;
+async function readHead(state, question, options) {
+  const text = chat(headText(state, question, options));
+  const inputs = tok(text, { add_special_tokens: false });
+  const pos = []; let cut = text.indexOf('Options:\n') + 9;
+  for (const o of options) { cut += `- ${o}\n`.length; pos.push(tok(text.slice(0, cut), { add_special_tokens: false }).input_ids.dims[1] - 1); }
+  const t0 = performance.now(); const out = await model(inputs); const ms = performance.now() - t0;
+  const [, n, v] = out.logits.dims; const d = out.logits.data; const K = HEAD.tokens.length, Hn = HEAD.hidden;
+  const z = pos.map((p) => { const x = new Float32Array(K); for (let k = 0; k < K; k++) x[k] = (d[p * v + HEAD.tokens[k]] - HEAD.mu[k]) / HEAD.sd[k];
+    let s = HEAD.b2; for (let j = 0; j < Hn; j++) { let a = HEAD.b1[j]; const off = j * K; for (let k = 0; k < K; k++) a += HEAD.w1[off + k] * x[k]; if (a > 0) s += HEAD.w2[j] * a; } return s; });
+  const sm = softmax(z.map((s) => s / HEAD.T));
+  return { text, nTokens: n, pos, z, sm, ms, head: true };
+}
+function headWorking(r, state, question, labels) {
+  const text = r.text; const cut = Math.max(0, text.lastIndexOf('<|im_start|>user'));
+  let body = esc(text.slice(cut)); labels.forEach((o, i) => { body = body.replace(esc(`- ${o}\n`), `- ${esc(o)} <span class="here">read here \u2192 score ${i + 1}</span>\n`); });
+  return `<div class="work">
+    <h4><em>1</em>How the question is written for the model \u00b7 ${r.nTokens} tokens \u00b7 no letters</h4><pre>${cut ? `<span class="sys">${esc(text.slice(0, cut))}</span>` : ''}${body}</pre>
+    <h4><em>2</em>One forward pass, then the same scorer at each marked place</h4>
+    <div class="pipe"><span>the model's output at the end of an option line<br><b class="m">scores of ${HEAD.tokens.length.toLocaleString('en-US')} fixed tokens</b></span><i>\u2192</i><span>trained scorer<br><b class="m">${HEAD.tokens.length.toLocaleString('en-US')} \u2192 ${HEAD.hidden} \u2192 1</b></span><i>\u2192</i><span>one number:<br><b class="m">how well this option fits</b></span></div>
+    <p class="muted">By the time the model reaches the end of an option line it has already read the state and the question, so its output there describes this option in this context. The scorer never sees the option's words, only that output.</p>
+    <h4><em>3</em>One score per option, divided by T = ${HEAD.T}, then softmax</h4>
+    <div style="overflow-x:auto"><table><tr><th>Option</th><th>Read at token</th><th>Score from the head</th><th>\u00f7 ${HEAD.T}, minus ${f2(r.sm.m)}</th><th>e to that</th><th>\u00f7 ${f2(r.sm.s)} = probability</th></tr>
+    ${labels.map((o, i) => `<tr><td>${esc(o)}</td><td class="m">${r.pos[i]}</td><td class="m">${f2(r.z[i])}</td><td class="m">${f2(r.z[i] / HEAD.T - r.sm.m)}</td><td class="m">${f3(r.sm.e[i])}</td><td class="m p">${f3(r.sm.e[i])} / ${f2(r.sm.s)} = <b>${f2(r.sm.p[i])}</b></td></tr>`).join('')}</table></div>
+    <h4><em>4</em>Where the training is</h4>
+    <p class="muted">The scorer's ${HEAD.params.toLocaleString('en-US')} numbers started random. We trained them on ${HEAD.n_train.toLocaleString('en-US')} labelled rows from ${HEAD.train_kinds.length} kinds of question (${HEAD.train_kinds.map((k) => KIND_NAMES[k] ?? k).join(', ')}), with the model itself frozen. Each row marks the correct option, and the loss pushes that option's score above the others. None of those rows is about your input.</p>
+    ${HEAD.results ? `<p class="muted">How good is it? On three kinds of question it never trained on, it was right ${['banking77', 'film_recommend', 'trec'].map((k) => Math.round(100 * HEAD.results[k].head_acc) + '%').join(', ')} of the time, against ${['banking77', 'film_recommend', 'trec'].map((k) => Math.round(100 * HEAD.results[k].letter_acc) + '%').join(', ')} for reading the letters on the same model. It is a small teaching example on a frozen model, so expect mistakes.</p>` : ''}</div>`;
+}
+const headNote = () => `<div class="mass"><b>Trained head.</b><span>One scorer, ${HEAD.params.toLocaleString('en-US')} numbers, reused for every option. It has never seen this question.</span></div>`;
+
 async function write(userMsg, max = 48) {
   const inputs = tok(chat(userMsg), { add_special_tokens: false }); const n0 = inputs.input_ids.dims[1]; const t0 = performance.now();
   const out = await model.generate({ ...inputs, max_new_tokens: max, do_sample: false }); const ms = performance.now() - t0;
@@ -303,44 +365,45 @@ async function answer(q, state, first) {
   const head = (ms, passes) => `<div class="rhead"><span class="chip">${TYPES[q.type].label}</span><span class="q">${esc(q.q)}</span><span class="ms">${passes} pass${passes > 1 ? 'es' : ''} · ${ms.toFixed(0)} ms</span></div>`;
   const det = (inner, extra = '') => `<details ${first ? 'open' : ''}><summary>Show the working</summary>${inner}${extra}</details>`;
   if (q.type === 'noul') {
-    const r = await readLetters(state, q.q, ['yes', 'no'], first); const py = r.sm.p[0];
-    return { html: head(r.ms, 1) + `<div class="ans">${py >= 0.5 ? 'yes' : 'no'}<small>P(yes) = <b class="p">${f2(py)}</b>. A program compares this with a threshold it chose.</small></div><div class="bars">${barRow('yes', py, py >= 0.5, '', 'A')}${barRow('no', 1 - py, py < 0.5, '', 'B')}</div>` + massNote(r) + det(working(r, ['yes', 'no'])),
+    const r = method === 'head' ? await readHead(state, q.q, ['yes', 'no']) : await readLetters(state, q.q, ['yes', 'no'], first); const py = r.sm.p[0];
+    return { html: head(r.ms, 1) + `<div class="ans">${py >= 0.5 ? 'yes' : 'no'}<small>P(yes) = <b class="p">${f2(py)}</b>. A program compares this with a threshold it chose.</small></div><div class="bars">${barRow('yes', py, py >= 0.5, '', r.head ? '' : 'A')}${barRow('no', 1 - py, py < 0.5, '', r.head ? '' : 'B')}</div>` + (r.head ? headNote() + det(headWorking(r, state, q.q, ['yes', 'no'])) : massNote(r) + det(working(r, ['yes', 'no']))),
       json: { noul: +f2(py) }, req: { type: 'noul', instructions: q.q }, passes: 1, ms: r.ms,
-      how: { rule: 'A yes or no question gets two fixed lines, A. yes and B. no. We read the scores of the tokens A and B, and the answer is the probability of A.', rows: [['A', 'yes', r.ids[0]], ['B', 'no', r.ids[1]]] } };
+      how: r.head ? { head: true, rule: 'The two options, yes and no, are written on their own lines. We read the model\u2019s output at the end of each line and give it to the trained scorer.', rows: [['line 1', 'yes', r.pos[0]], ['line 2', 'no', r.pos[1]]] } : { rule: 'A yes or no question gets two fixed lines, A. yes and B. no. We read the scores of the tokens A and B, and the answer is the probability of A.', rows: [['A', 'yes', r.ids[0]], ['B', 'no', r.ids[1]]] } };
   }
   const opts = lines(q.opts); if (opts.length < 2) throw new Error(`“${q.q || 'A question'}” needs at least two options.`);
   if (q.type === 'multi') {
     const rows = []; let ms = 0, r0;
-    for (const [k, o] of opts.entries()) { const r = await readLetters(state, q.q.includes('{option}') ? q.q.replaceAll('{option}', o) : `${q.q} (${o})`, ['yes', 'no'], false); if (!k) r0 = r; ms += r.ms; rows.push({ o, py: r.sm.p[0] }); }
+    for (const [k, o] of opts.entries()) { const qq = q.q.includes('{option}') ? q.q.replaceAll('{option}', o) : `${q.q} (${o})`; const r = method === 'head' ? await readHead(state, qq, ['yes', 'no']) : await readLetters(state, qq, ['yes', 'no'], false); if (!k) { r0 = r; r0.qq = qq; } ms += r.ms; rows.push({ o, py: r.sm.p[0] }); }
     const kept = rows.filter((r) => r.py >= 0.5).map((r) => r.o);
-    return { html: head(ms, opts.length) + `<div class="ans" style="font-size:22px">${kept.length ? esc(kept.join(' · ')) : 'none of them'}<small>Each option is its own yes or no question, so these need not add up to 1. Kept: P(yes) of at least 0.5.</small></div><div class="bars">${rows.map((r) => barRow(r.o, r.py, r.py >= 0.5)).join('')}</div>` + det(`<p class="muted" style="margin-top:10px">The prompt for the first option. Every option gets its own prompt with the same two letters.</p>` + working(r0, ['yes', 'no'])),
+    return { html: head(ms, opts.length) + `<div class="ans" style="font-size:22px">${kept.length ? esc(kept.join(' · ')) : 'none of them'}<small>Each option is its own yes or no question, so these need not add up to 1. Kept: P(yes) of at least 0.5.</small></div><div class="bars">${rows.map((r) => barRow(r.o, r.py, r.py >= 0.5)).join('')}</div>` + (r0.head ? headNote() : '') + det(`<p class="muted" style="margin-top:10px">The prompt for the first option. Every option gets its own prompt.</p>` + (r0.head ? headWorking(r0, state, r0.qq, ['yes', 'no']) : working(r0, ['yes', 'no']))),
       json: { choices: kept, probabilities: Object.fromEntries(rows.map((r) => [r.o, +f2(r.py)])) }, req: { type: 'choice', multiple: true, instructions: q.q, criteria: opts }, passes: opts.length, ms,
-      how: { rule: `Each of the ${opts.length} options gets its own prompt, with the option written into the question and the two fixed lines A. yes and B. no. We read A and B in each, and keep P(A) per option.`, rows: [['A', 'yes', r0.ids[0]], ['B', 'no', r0.ids[1]]] } };
+      how: { rule: `Each of the ${opts.length} options gets its own prompt, with the option written into the question and the two fixed lines A. yes and B. no. We read A and B in each, and keep P(A) per option.`, rows: r0.head ? [['line 1', 'yes', r0.pos[0]], ['line 2', 'no', r0.pos[1]]] : [['A', 'yes', r0.ids[0]], ['B', 'no', r0.ids[1]]], head: !!r0.head } };
   }
   const isTool = q.type === 'tool'; const parts = opts.map(toolParts);
   const shown = isTool ? parts.map(([n, d]) => (d ? `${n} (${d})` : n)) : opts; const names = isTool ? parts.map((p) => p[0]) : opts;
-  const r = await readLetters(state, q.q, shown, first); const best = r.sm.p.indexOf(Math.max(...r.sm.p));
+  const r = method === 'head' ? await readHead(state, q.q, shown) : await readLetters(state, q.q, shown, first); const best = r.sm.p.indexOf(Math.max(...r.sm.p)); const LT = (i) => (r.head ? '' : LETTERS[i]);
   let body, json;
   if (q.type === 'score') { const val = r.sm.p.reduce((a, p, i) => a + i * p, 0);
-    body = `<div class="ans">${esc(opts[best])}<small>score <b class="p">${f2(val)}</b> on a scale from 0 to ${opts.length - 1}</small></div><div class="bars">${opts.map((o, i) => barRow(`level ${i} · ${o}`, r.sm.p[i], i === best, '', LETTERS[i])).join('')}</div><p class="m" style="margin:10px 0 0">${r.sm.p.map((p, i) => `${i} × ${f2(p)}`).join(' + ')} = <b class="p">${f2(val)}</b></p>`;
+    body = `<div class="ans">${esc(opts[best])}<small>score <b class="p">${f2(val)}</b> on a scale from 0 to ${opts.length - 1}</small></div><div class="bars">${opts.map((o, i) => barRow(`level ${i} · ${o}`, r.sm.p[i], i === best, '', LT(i))).join('')}</div><p class="m" style="margin:10px 0 0">${r.sm.p.map((p, i) => `${i} × ${f2(p)}`).join(' + ')} = <b class="p">${f2(val)}</b></p>`;
     json = { score: +f2(val), probabilities: Object.fromEntries(r.sm.p.map((p, i) => [i, +f2(p)])) };
   } else if (isTool) {
-    body = `<div class="call"><span>→ the agent calls</span> <b>${esc(names[best])}</b>(<span id="args-${q.id}">…</span>)</div><div class="bars">${names.map((o, i) => barRow(o, r.sm.p[i], i === best, '', LETTERS[i])).join('')}</div>
+    body = `<div class="call"><span>→ the agent calls</span> <b>${esc(names[best])}</b>(<span id="args-${q.id}">…</span>)</div><div class="bars">${names.map((o, i) => barRow(o, r.sm.p[i], i === best, '', LT(i))).join('')}</div>
       <div class="row" style="margin-top:12px"><button class="small" data-args="${q.id}">Write the arguments</button><span class="muted" style="flex:1;min-width:220px">Choosing the tool is a decision. Filling in its arguments is writing, so that part needs the LLM to generate.</span></div><div id="argsOut-${q.id}"></div>`;
     json = { choice: names[best], probabilities: Object.fromEntries(names.map((o, i) => [o, +f2(r.sm.p[i])])) };
   } else {
-    body = `<div class="ans">${esc(opts[best])}<small>with probability <b class="p">${f2(r.sm.p[best])}</b></small></div><div class="bars">${opts.map((o, i) => barRow(o, r.sm.p[i], i === best, '', LETTERS[i])).join('')}</div>`;
+    body = `<div class="ans">${esc(opts[best])}<small>with probability <b class="p">${f2(r.sm.p[best])}</b></small></div><div class="bars">${opts.map((o, i) => barRow(o, r.sm.p[i], i === best, '', LT(i))).join('')}</div>`;
     json = { choice: opts[best], probabilities: Object.fromEntries(opts.map((o, i) => [o, +f2(r.sm.p[i])])) };
   }
-  const extra = q.type === 'choice' ? `<div class="work"><h4>Compare</h4><div class="row"><button class="small" data-write="${q.id}">Let the model write its answer</button><button class="small" data-each="${q.id}">Score each option on its own</button></div><div id="cmp-${q.id}"></div></div>` : '';
+  const extra = q.type === 'choice' && !r.head ? `<div class="work"><h4>Compare</h4><div class="row"><button class="small" data-write="${q.id}">Let the model write its answer</button><button class="small" data-each="${q.id}">Score each option on its own</button></div><div id="cmp-${q.id}"></div></div>` : '';
   q._ctx = { state, opts: shown, names, best, ms: r.ms };
-  return { html: head(r.ms, 1) + body + massNote(r) + det(working(r, shown), extra), json, req: { type: q.type === 'score' ? 'score' : 'choice', instructions: q.q, criteria: q.type === 'score' ? opts : isTool ? Object.fromEntries(parts) : opts }, passes: 1, ms: r.ms,
-    how: { rule: `The options become lettered lines in the order they are listed: the first is A, the second B, and so on. We read the scores of those ${shown.length} letter tokens and take a softmax over them.${q.type === 'score' ? ' The score is each level number times its probability, added up.' : ''}`, rows: names.map((n, i) => [LETTERS[i], n, r.ids[i]]) } };
+  return { html: head(r.ms, 1) + body + (r.head ? headNote() + det(headWorking(r, state, q.q, shown)) : massNote(r) + det(working(r, shown), extra)), json, req: { type: q.type === 'score' ? 'score' : 'choice', instructions: q.q, criteria: q.type === 'score' ? opts : isTool ? Object.fromEntries(parts) : opts }, passes: 1, ms: r.ms,
+    how: { rule: `The options become lettered lines in the order they are listed: the first is A, the second B, and so on. We read the scores of those ${shown.length} letter tokens and take a softmax over them.${q.type === 'score' ? ' The score is each level number times its probability, added up.' : ''}`, rows: names.map((n, i) => (r.head ? [`line ${i + 1}`, n, r.pos[i]] : [LETTERS[i], n, r.ids[i]])), head: !!r.head, ...(r.head ? { rule: `The ${shown.length} options are written one per line, with no letters. We read the model\u2019s output at the end of each line and give it to the same trained scorer, then take a softmax over the ${shown.length} scores.${q.type === 'score' ? ' The score is each level number times its probability, added up.' : ''}` } : {}) } };
 }
 
 async function run() {
   const state = $('state').value.trim(); const qs = questions.filter((q) => q.q.trim());
   if (!state || !qs.length) { $('runStatus').textContent = 'Write a state and at least one question.'; return; }
+  if (method === 'head' && !/Qwen2\.5-0\.5B/.test(modelId)) { $('runStatus').textContent = 'The trained head needs the Qwen2.5-0.5B model. Load it, or switch to reading the letters.'; return; }
   $('runBtn').disabled = true; $('empty').classList.add('hide'); $('results').classList.remove('hide'); $('results').innerHTML = '';
   const req = { state, questions: {} }, res = { answers: {}, usage: { output_tokens: 0, forward_passes: 0, ms: 0 } }, how = [];
   try {
@@ -371,7 +434,7 @@ function showJson() {
     $('howView').innerHTML = (lastJson.how ?? []).map((h) => `<div style="border-top:1px solid var(--rule);padding:12px 0">
       <div class="row" style="gap:8px;margin-bottom:6px"><b class="m">${h.name}</b><span class="chip">${h.type}</span><span>${esc(h.q)}</span></div>
       <p class="sub" style="font-size:14.5px;margin-bottom:8px">${esc(h.rule)}</p>
-      <table><tr><th>Letter we assign</th><th>Stands for</th><th>Token id we read</th></tr>${h.rows.map(([l, o, id]) => `<tr><td><span class="tok hit">${l}</span></td><td>${esc(o)}</td><td class="m">${id}</td></tr>`).join('')}</table></div>`).join('')
+      <table><tr><th>${h.head ? 'Where we read' : 'Letter we assign'}</th><th>Stands for</th><th>${h.head ? 'Token position in the prompt' : 'Token id we read'}</th></tr>${h.rows.map(([l, o, id]) => `<tr><td><span class="tok hit">${l}</span></td><td>${esc(o)}</td><td class="m">${id}</td></tr>`).join('')}</table></div>`).join('')
       + '<p class="muted" style="margin-top:10px">A model with a trained decision head needs no letters: the head gives each option a score directly. An untrained LLM has no such head, so we borrow letter tokens it already knows.</p>';
     return;
   }

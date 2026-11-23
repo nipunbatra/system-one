@@ -1,0 +1,55 @@
+{
+ "kind": "pair",
+ "params": 1793,
+ "T": 1.2,
+ "n_train": 13562,
+ "train_kinds": [
+  "ag_news",
+  "ag_yesno",
+  "arc",
+  "boolq",
+  "cola",
+  "commonsense_qa",
+  "dbpedia",
+  "emotion",
+  "mrpc",
+  "newsgroups",
+  "snli",
+  "sst2",
+  "tweet_sentiment"
+ ],
+ "tasks": {
+  "seen kinds, rows kept out of training": {
+   "n": 1938,
+   "options": 4,
+   "head_acc": 0.7306501547987616,
+   "head_ece": 0.03062489980945151,
+   "letter_acc": 0.6140350877192983,
+   "letter_ece": 0.2039131973211733
+  },
+  "banking77": {
+   "n": 600,
+   "options": 5,
+   "head_acc": 0.765,
+   "head_ece": 0.15334502364198366,
+   "letter_acc": 0.735,
+   "letter_ece": 0.047599034359057706
+  },
+  "film_recommend": {
+   "n": 500,
+   "options": 2,
+   "head_acc": 0.538,
+   "head_ece": 0.21647710406780243,
+   "letter_acc": 0.798,
+   "letter_ece": 0.06215210103988651
+  },
+  "trec": {
+   "n": 500,
+   "options": 6,
+   "head_acc": 0.684,
+   "head_ece": 0.08109564036130905,
+   "letter_acc": 0.486,
+   "letter_ece": 0.3888147268891334
+  }
+ }
+}

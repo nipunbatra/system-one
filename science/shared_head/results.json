@@ -1,0 +1,89 @@
+{
+ "params": 65665,
+ "T": 1.2,
+ "n_train": 13562,
+ "K": 1024,
+ "train_kinds": [
+  "ag_news",
+  "ag_yesno",
+  "arc",
+  "boolq",
+  "cola",
+  "commonsense_qa",
+  "dbpedia",
+  "emotion",
+  "mrpc",
+  "newsgroups",
+  "snli",
+  "sst2",
+  "tweet_sentiment"
+ ],
+ "full_precision": {
+  "seen kinds, rows kept out of training": {
+   "n": 1938,
+   "options": 4,
+   "head_acc": 0.7327141382868937,
+   "head_ece": 0.013680626010624107,
+   "letter_acc": 0.6140350877192983,
+   "letter_ece": 0.2039131973211733
+  },
+  "banking77": {
+   "n": 600,
+   "options": 5,
+   "head_acc": 0.7583333333333333,
+   "head_ece": 0.14094632615645727,
+   "letter_acc": 0.735,
+   "letter_ece": 0.047599034359057706
+  },
+  "film_recommend": {
+   "n": 500,
+   "options": 2,
+   "head_acc": 0.774,
+   "head_ece": 0.08382168221473695,
+   "letter_acc": 0.798,
+   "letter_ece": 0.06215210103988651
+  },
+  "trec": {
+   "n": 500,
+   "options": 6,
+   "head_acc": 0.636,
+   "head_ece": 0.14945442092418673,
+   "letter_acc": 0.486,
+   "letter_ece": 0.3888147268891334
+  }
+ },
+ "browser_model": {
+  "seen kinds, rows kept out of training": {
+   "n": 300,
+   "options": 4,
+   "head_acc": 0.72,
+   "head_ece": 0.13399074614048004,
+   "letter_acc": 0.7833333333333333,
+   "letter_ece": 0.17750222374995545
+  },
+  "banking77": {
+   "n": 300,
+   "options": 5,
+   "head_acc": 0.6866666666666666,
+   "head_ece": 0.11818912019332253,
+   "letter_acc": 0.78,
+   "letter_ece": 0.04365900566180548
+  },
+  "film_recommend": {
+   "n": 300,
+   "options": 2,
+   "head_acc": 0.6633333333333333,
+   "head_ece": 0.09202603360017143,
+   "letter_acc": 0.7866666666666666,
+   "letter_ece": 0.07752425213654834
+  },
+  "trec": {
+   "n": 300,
+   "options": 6,
+   "head_acc": 0.5333333333333333,
+   "head_ece": 0.21762302428483965,
+   "letter_acc": 0.5,
+   "letter_ece": 0.36795872479677194
+  }
+ }
+}
