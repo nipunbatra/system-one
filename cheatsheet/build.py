@@ -139,7 +139,7 @@ a {{ color:var(--s2); text-decoration:none; }}
 
 <div>
 <h3 style="margin-top:0">One request</h3>
-<pre>{{"state": "I was charged twice this month, please fix it.",
+<pre>{{"state": "{sci['email']}",
  "questions": {{
    "team":    {{"type": "choice", "instructions": "Which team?",
                "criteria": {{"billing": "...", "technical": "...",

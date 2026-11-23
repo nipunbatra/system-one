@@ -157,6 +157,8 @@ const TYPES = {
 };
 const Q = (type, q, opts = '') => ({ id: ++uid, type, q, opts });
 const SCENARIOS = [
+  { key: 'lecture', title: 'The lecture’s example', sub: 'electricity bill, 3 questions', state: 'Email: My electricity bill was charged twice this month, please fix it.',
+    qs: [['choice', 'Which team should handle this email?', 'billing (invoices, payments, refunds)\ntechnical (bugs, outages, errors)\nsales (pricing, new plans)'], ['noul', 'Is the customer asking for money back?'], ['score', 'How urgent is this email?', 'not urgent\nsoon\ntoday']] },
   { key: 'upi', title: 'UPI double debit', sub: 'support message, 3 questions', state: 'Message: My UPI payment of ₹1,499 to the electricity board was debited twice from my account. Please reverse one of them.',
     qs: [['choice', 'Which team should handle this message?', 'payments (failed or duplicate transactions, refunds)\ntechnical (app crashes, login, OTP problems)\nsales (new accounts, offers, upgrades)'], ['noul', 'Is the customer asking for money back?'], ['score', 'How urgent is this message?', 'not urgent\nsoon\ntoday']] },
   { key: 'tool', title: 'Agent: which tool?', sub: 'tool call', state: 'User: What is 18% GST on a bill of ₹2,450?',
@@ -384,7 +386,7 @@ $('results').addEventListener('click', async (e) => {
   b.disabled = false;
 });
 
-loadScen('upi');
+loadScen('lecture');
 </script>
 </body>
 </html>

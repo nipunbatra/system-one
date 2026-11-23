@@ -124,7 +124,7 @@ Runs on a free Colab runtime. A T4 GPU (Runtime → Change runtime type) makes s
 Our running example is one support email. The model never sees letters or words, only token ids.
 '''),
 ("code", '''
-email = "I was charged twice this month, please fix it."
+email = "My electricity bill was charged twice this month, please fix it."
 ids = tok(email)["input_ids"]
 tokens = [tok.decode([i]) for i in ids]
 print(len(ids), "tokens")
@@ -312,7 +312,7 @@ Newer decision models add more answer types. Two of them can be read the same wa
 Our model is untrained for this, so expect weak answers. A trained decision model uses the same idea with a trained head.
 """),
 ("code", """
-things = ["a billing problem", "a refund", "a login problem", "a late delivery"]
+things = ["a billing problem", "a refund", "a login problem", "a power cut"]
 multi = [(t, round(decide("Email: " + email, f"Does the email mention {t}?", ["yes", "no"])[0].item(), 3)) for t in things]
 for t, v in multi: print(f"P(yes) = {v:.3f}  {t}")
 

@@ -81,7 +81,7 @@ a { color:var(--s2); text-decoration:none; }
 
 <div>
 <h3 style="margin-top:0">One request</h3>
-<pre>{"state": "I was charged twice this month, please fix it.",
+<pre>{"state": "My electricity bill was charged twice this month, please fix it.",
  "questions": {
    "team":    {"type": "choice", "instructions": "Which team?",
                "criteria": {"billing": "...", "technical": "...",
@@ -93,10 +93,10 @@ a { color:var(--s2); text-decoration:none; }
 <h3>One response</h3>
 <pre>{"answers": {
    "team":    {"choice": "technical", "probabilities":
-               {"billing": 0.48, "technical": 0.51, "sales": 0.01}},
+               {"billing": 0.43, "technical": 0.57, "sales": 0.00}},
    "refund":  {"noul": 0.74},
-   "urgency": {"score": 0.09, "probabilities":
-               {"0": 0.93, "1": 0.05, "2": 0.02}}},
+   "urgency": {"score": 0.08, "probabilities":
+               {"0": 0.94, "1": 0.04, "2": 0.02}}},
  "usage": {"output_tokens": 0}}</pre>
 <p class="muted">Field names follow the Jev, Liquid and Unsloth formats. The numbers are from our small open model (Qwen2.5-0.5B-Instruct, 494 M parameters), read with no training for this task, so they show the format and not good answers.</p>
 
@@ -116,7 +116,7 @@ a { color:var(--s2); text-decoration:none; }
 <div>
 <h2><span class="n">PART 2</span>How an LLM answers</h2>
 <ol>
-<li><b>Tokens.</b> Text becomes integers. Our email is 11 tokens from a vocabulary of 151,936.</li>
+<li><b>Tokens.</b> Text becomes integers. Our email is 13 tokens from a vocabulary of 151,936.</li>
 <li><b>Vectors.</b> Each id picks a row of a table: 896 numbers.</li>
 <li><b>Attention.</b> Each token's vector becomes a weighted mix of the tokens before it.</li>
 <li><b>Blocks.</b> Attention and a small network, repeated 24 times. Keep the vector at the last position.</li>
@@ -131,7 +131,7 @@ a { color:var(--s2); text-decoration:none; }
 
 <h3>Three costs of writing a quick decision</h3>
 <table><tr><th>Cost</th><th>Measured on our model</th></tr>
-<tr><td>Time</td><td>23 tokens + 1 stop = 24 passes = 233 ms. A million emails: about 65 hours.</td></tr>
+<tr><td>Time</td><td>23 tokens + 1 stop = 24 passes = 259 ms. A million emails: about 72 hours.</td></tr>
 <tr><td>Format</td><td>Of 200 JSON answers, 22 could not be used. Fixes: retry, repair, an LLM judge, constrained decoding.</td></tr>
 <tr><td>Confidence</td><td>Written confidence averaged 0.89; it was right 0.71 of the time.</td></tr></table>
 <p class="muted">A reasoning model that writes 300 thinking tokens and a 40-token answer runs 341 passes.</p>
@@ -140,7 +140,7 @@ a { color:var(--s2); text-decoration:none; }
 <div>
 <h2><span class="n">PART 3</span>Read, don't write</h2>
 <div class="key"><b class="t">THE IDEA</b>The answer is already in the first forward pass. Keep the logits of the option letters, apply softmax, and skip the writing.</div>
-<table><tr><th>option</th><th>logit</th><th>minus 23.33</th><th>e to that</th><th>probability</th></tr><tr><td>A billing</td><td>23.26</td><td>-0.07</td><td>0.94</td><td class='p'>0.94 / 1.95 = 0.48</td></tr><tr><td>B technical</td><td>23.33</td><td>0.00</td><td>1.00</td><td class='p'>1.00 / 1.95 = 0.51</td></tr><tr><td>C sales</td><td>19.40</td><td>-3.93</td><td>0.02</td><td class='p'>0.02 / 1.95 = 0.01</td></tr></table>
+<table><tr><th>option</th><th>logit</th><th>minus 23.98</th><th>e to that</th><th>probability</th></tr><tr><td>A billing</td><td>23.69</td><td>-0.29</td><td>0.75</td><td class='p'>0.75 / 1.75 = 0.43</td></tr><tr><td>B technical</td><td>23.98</td><td>0.00</td><td>1.00</td><td class='p'>1.00 / 1.75 = 0.57</td></tr><tr><td>C sales</td><td>17.96</td><td>-6.03</td><td>0.00</td><td class='p'>0.00 / 1.75 = 0.00</td></tr></table>
 <pre>letter_ids = [tok.encode(c)[0] for c in "ABCDEFGH"]
 
 def decide(state, question, options):
@@ -148,8 +148,8 @@ def decide(state, question, options):
     logits = model(**x).logits[0, -1]            # one forward pass
     keep = logits[letter_ids[:len(options)]]     # only the options
     return keep.softmax(-1)                      # renormalise</pre>
-<p>Reading took 33 ms against 233 ms for writing: 7.1 times faster. Counting written answers instead needs 97 samples for ±0.10 (1.96² × 0.25 / 0.10² = 96.04).</p>
-<p><b>Score.</b> The probability-weighted level: 0 × 0.93 + 1 × 0.05 + 2 × 0.02 = 0.09.</p>
+<p>Reading took 36 ms against 259 ms for writing: 7.2 times faster. Counting written answers instead needs 97 samples for ±0.10 (1.96² × 0.25 / 0.10² = 96.04).</p>
+<p><b>Score.</b> The probability-weighted level: 0 × 0.94 + 1 × 0.04 + 2 × 0.02 = 0.08.</p>
 
 <h3>Three designs, the same transformer blocks</h3>
 <table><tr><th></th><th>Top of the model</th><th>Passes</th><th>Trained?</th></tr>

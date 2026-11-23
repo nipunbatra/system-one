@@ -450,7 +450,7 @@ const EMAIL = sci.email;
 const EmailCard = ({ width = 760 }: { width?: number }) => (
   <div style={{ width, background: C.white, border: `2px solid ${C.rule}`, borderRadius: 'var(--osd-radius)', overflow: 'hidden' }}>
     <div style={{ background: C.panel, padding: '16px 30px', fontSize: 26, color: C.soft, ...row, justifyContent: 'space-between' }}>
-      <span>To: support</span>
+      <span>To: electricity helpdesk</span>
       <span>09:12</span>
     </div>
     <div style={{ padding: '34px 30px', fontFamily: serif, fontSize: 44, lineHeight: 1.3 }}>“{EMAIL}”</div>
@@ -637,15 +637,15 @@ const TwoSystems: Page = () => (
         color={C.s1}
         how="fast and automatic"
         a="recognising a friend’s face"
-        b="reading a signboard"
+        b="reading a station signboard"
         c="2 × 2"
       />
       <SysCard
         name="System 2"
         color={C.s2}
         how="slow and deliberate"
-        a="parking in a tight spot"
-        b="filling a tax form"
+        a="parking in a narrow lane"
+        b="filing an income tax return"
         c="17 × 24"
       />
     </div>
@@ -739,7 +739,7 @@ const MLExamples: Page = () => (
         items={[
           'Is this chest X-ray normal?',
           'Which digit is in this image?',
-          'Is this transaction fraudulent?',
+          'Is this UPI transaction fraudulent?',
           'Does this passage answer the query?',
           'Should the agent call a tool now?',
         ]}
@@ -836,7 +836,7 @@ const SoftwareCalls: Page = () => (
         type="noul"
         means="yes or no"
         items={[
-          { q: 'Is this message spam?' },
+          { q: 'Is this SMS a KYC scam?' },
           { q: 'Is this prompt a jailbreak?' },
           { q: 'Does this log line need a person to look at it?' },
         ]}
@@ -858,7 +858,7 @@ const SoftwareCalls: Page = () => (
             type="score"
             means="a level on an ordered scale"
             items={[
-              { q: 'How positive is this review?', a: '1 · 2 · 3 · 4 · 5' },
+              { q: 'How positive is this dosa review?', a: '1 · 2 · 3 · 4 · 5' },
               { q: 'How urgent is this email?', a: 'not urgent · soon · today' },
               { q: 'How relevant is this passage to the query?', a: '0 · 1 · 2 · 3' },
             ]}
@@ -891,8 +891,8 @@ const VisionCalls: Page = () => (
             type="choice"
             means="one option from a list"
             items={[
-              { q: 'Which disease is on this leaf?', a: 'healthy · rust · blight', kind: 'image' },
-              { q: 'What kind of document is this scan?', a: 'invoice · receipt · ID · other', kind: 'image' },
+              { q: 'Which disease is on this cotton leaf?', a: 'healthy · rust · blight', kind: 'image' },
+              { q: 'What kind of document is this scan?', a: 'Aadhaar · PAN · bill · other', kind: 'image' },
               { q: 'Which language does the caller speak?', a: 'hi · gu · en · ta · …', kind: 'audio' },
             ]}
           />
@@ -1172,7 +1172,7 @@ const Tokens: Page = () => (
       <div style={{ fontFamily: serif, fontSize: 52 }}>“{EMAIL}”</div>
       <Steps>
         <Step>
-          <div style={{ ...row, gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <div style={{ ...row, gap: 8, justifyContent: 'center', zoom: 0.84 }}>
             {sci.tokens.map((t, i) => (
               <Tok key={i} t={t} id={sci.token_ids[i]} />
             ))}
@@ -1254,7 +1254,7 @@ const Attention: Page = () => (
       <AttArc from={9} to={3} w={0.27} />
       <AttArc from={9} to={5} w={0.08} />
       <AttArc from={9} to={8} w={0.15} />
-      <AttTok i={0} t="I" />
+      <AttTok i={0} t="bill" />
       <AttTok i={1} t="was" />
       <AttTok i={2} t="charged" />
       <AttTok i={3} t="twice" />
@@ -1267,7 +1267,7 @@ const Attention: Page = () => (
       <AttTok i={10} t="." />
       <text x={1456} y={600} textAnchor="middle" fontSize={26} fill={C.muted}>updating this token</text>
       <text x={850} y={650} textAnchor="middle" fontSize={26} fill={C.muted}>
-        weights are illustrative; the remaining 0.08 is spread over the other tokens. Nothing to the right of “it” is visible.
+        weights are illustrative; the remaining 0.08 is spread over the other tokens, including “My electricity”, left out here. Nothing to the right of “it” is visible.
       </text>
     </svg>
   </Frame>
@@ -1324,7 +1324,7 @@ const EncDec: Page = () => (
       <EDArc x1={265} x2={390} y={300} color={C.truth} />
       <EDArc x1={555} x2={410} y={300} color={C.truth} />
       <EDArc x1={705} x2={420} y={300} color={C.truth} />
-      <EDTok x={50} y={305} t="I" />
+      <EDTok x={50} y={305} t="bill" />
       <EDTok x={200} y={305} t="was" />
       <EDTok x={350} y={305} t="charged" on />
       <EDTok x={500} y={305} t="twice" />
@@ -1338,7 +1338,7 @@ const EncDec: Page = () => (
       <text x={1300} y={100} textAnchor="middle" fontSize={30} fill={C.soft}>a token sees only its left</text>
       <EDArc x1={1015} x2={1295} y={300} color={C.s2} />
       <EDArc x1={1165} x2={1305} y={300} color={C.s2} />
-      <EDTok x={950} y={305} t="I" />
+      <EDTok x={950} y={305} t="bill" />
       <EDTok x={1100} y={305} t="was" />
       <EDTok x={1250} y={305} t="charged" on />
       <EDTok x={1400} y={305} t="twice" />
@@ -1448,7 +1448,7 @@ const Softmax: Page = () => (
 );
 
 const NT = ({ i, dim }: { i: number; dim?: boolean }) => (
-  <Bar label={`"${sci.next_tokens[i][0]}"`} p={sci.next_tokens[i][1] as number} max={0.5} width={900} mono dim={dim} />
+  <Bar label={`"${sci.next_tokens[i][0]}"`} p={sci.next_tokens[i][1] as number} max={0.6} width={900} mono dim={dim} />
 );
 
 const NextToken: Page = () => (
@@ -1889,7 +1889,7 @@ const LookAgain: Page = () => (
   <Frame
     part={3}
     title="Look again at the first distribution"
-    line="Before it wrote any token, the model had already given A and B nearly equal probability."
+    line="Before it wrote any token, the model had already split its probability between A and B."
   >
     <div style={{ ...col, gap: 12, justifyContent: 'center', height: '100%' }}>
       <NT i={0} />
@@ -1916,6 +1916,11 @@ const RCell = ({ children, w, color = C.ink, left }: { children: ReactNode; w: n
   </div>
 );
 
+const RO_MAX = Math.max(...sci.letter_logits);
+const RO_E = sci.letter_logits.map((z) => Math.exp(z - RO_MAX));
+const RO_TOT = RO_E.reduce((a, b) => a + b, 0);
+const f3 = (x: number) => x.toFixed(3);
+
 const Readout: Page = () => (
   <Frame
     part={3}
@@ -1939,26 +1944,26 @@ const Readout: Page = () => (
       <Steps>
         <Step>
           <div style={col}>
-            <RHead w={270}>minus {sci.letter_logits[1].toFixed(2)}</RHead>
-            <RCell w={270} color={C.soft}>−0.07</RCell>
-            <RCell w={270} color={C.soft}>0.00</RCell>
-            <RCell w={270} color={C.soft}>−3.93</RCell>
+            <RHead w={270}>minus {RO_MAX.toFixed(2)}</RHead>
+            <RCell w={270} color={C.soft}>{(sci.letter_logits[0] - RO_MAX).toFixed(2).replace('-', '−')}</RCell>
+            <RCell w={270} color={C.soft}>{(sci.letter_logits[1] - RO_MAX).toFixed(2).replace('-', '−')}</RCell>
+            <RCell w={270} color={C.soft}>{(sci.letter_logits[2] - RO_MAX).toFixed(2).replace('-', '−')}</RCell>
           </div>
         </Step>
         <Step>
           <div style={col}>
             <RHead w={290}>e to that power</RHead>
-            <RCell w={290} color={C.soft}>0.94</RCell>
-            <RCell w={290} color={C.soft}>1.00</RCell>
-            <RCell w={290} color={C.soft}>0.02</RCell>
+            <RCell w={290} color={C.soft}>{f3(RO_E[0])}</RCell>
+            <RCell w={290} color={C.soft}>{f3(RO_E[1])}</RCell>
+            <RCell w={290} color={C.soft}>{f3(RO_E[2])}</RCell>
           </div>
         </Step>
         <Step>
           <div style={col}>
-            <RHead w={500}>divide by the total, 1.96</RHead>
-            <RCell w={500} color={C.pred}>0.94 / 1.96 = {f2(sci.p_team[0])}</RCell>
-            <RCell w={500} color={C.pred}>1.00 / 1.96 = {f2(sci.p_team[1])}</RCell>
-            <RCell w={500} color={C.pred}>0.02 / 1.96 = {f2(sci.p_team[2])}</RCell>
+            <RHead w={500}>divide by the total, {f3(RO_TOT)}</RHead>
+            <RCell w={500} color={C.pred}>{f3(RO_E[0])} / {f3(RO_TOT)} = {f2(sci.p_team[0])}</RCell>
+            <RCell w={500} color={C.pred}>{f3(RO_E[1])} / {f3(RO_TOT)} = {f2(sci.p_team[1])}</RCell>
+            <RCell w={500} color={C.pred}>{f3(RO_E[2])} / {f3(RO_TOT)} = {f2(sci.p_team[2])}</RCell>
           </div>
         </Step>
       </Steps>
@@ -2139,7 +2144,7 @@ const Honest: Page = () => (
   <Frame
     part={3}
     title="The probabilities show doubt that the text hid"
-    line="The written answer looked certain, but the probabilities are almost equal for billing and technical. A program can see that and act on it."
+    line={`The written answer looked certain, but the probabilities are split: ${f2(sci.p_team[0])} for billing and ${f2(sci.p_team[1])} for technical. A program can see that and act on it.`}
   >
     <div style={{ ...row, gap: 50, alignItems: 'center' }}>
       <Card color={C.s2} style={{ width: 620, flexShrink: 0, padding: '24px 32px' }}>
@@ -3853,11 +3858,11 @@ const OneAmbiguous: Page = () => (
           <div style={{ ...col, gap: 22, width: 800 }}>
             <Card color={C.truth} style={{ padding: '20px 28px' }}>
               <Label color={C.truth}>The customer may mean</Label>
-              <div style={{ fontSize: 31, marginTop: 6 }}>“Send the extra charge back to my card.” <b>Yes, a refund.</b></div>
+              <div style={{ fontSize: 31, marginTop: 6 }}>“Send the extra ₹1,499 back to my account.” <b>Yes, a refund.</b></div>
             </Card>
             <Card style={{ padding: '20px 28px' }}>
               <Label>Or may mean</Label>
-              <div style={{ fontSize: 31, marginTop: 6 }}>“Count it towards next month and stop charging twice.” <b>No refund.</b></div>
+              <div style={{ fontSize: 31, marginTop: 6 }}>“Adjust it against next month’s bill.” <b>No refund.</b></div>
             </Card>
             <div style={{ fontSize: 30, color: C.pred }}>The model has to answer with one number, P(yes).</div>
           </div>
@@ -4649,7 +4654,7 @@ const OnePrompt: Page = () => (
       {[230, 695, 1110, 1485].map((x) => (
         <Arr key={x} x1={x} y1={544} x2={x} y2={488} />
       ))}
-      <Seg x={20} w={420} head="STATE" body="“I was charged twice this…”" />
+      <Seg x={20} w={420} head="STATE" body="“My electricity bill was…”" />
       <Seg x={470} w={442} head="QUESTION 1 · choice" body="Which team? 3 options" color={C.ink} />
       <Seg x={960} w={292} head="QUESTION 2 · noul" body="Asking for a refund?" color={C.ink} />
       <Seg x={1290} w={382} head="QUESTION 3 · score" body="How urgent? 3 levels" color={C.ink} />
@@ -5482,7 +5487,7 @@ const Toks4 = ({ color, arcs, label }: { color: string; arcs: [number, number][]
     {arcs.map(([x1, x2]) => (
       <EDArc key={x1} x1={x1} x2={x2} y={110} color={color} />
     ))}
-    {['I', 'was', 'charged', 'twice'].map((t, i) => (
+    {['bill', 'was', 'charged', 'twice'].map((t, i) => (
       <g key={t}>
         <rect x={10 + i * 78} y={114} width={70} height={44} rx={7} fill={i === 2 ? C.panel : C.white} stroke={i === 2 ? C.ink : C.rule} strokeWidth={2} />
         <text x={45 + i * 78} y={143} textAnchor="middle" fontSize={17} fontFamily={mono}>{t}</text>
@@ -5839,20 +5844,20 @@ const TypedHeads: Page = () => (
       <Steps>
         <Step>
           <HeadCalc type="choice" pic="A contest" how="One score per option. Softmax makes them compete, so the probabilities sum to 1.">
-            scores 23.26 · 23.33 · 19.40
+            scores {sci.letter_logits.map((v) => v.toFixed(2)).join(' · ')}
             <br />
             softmax (as in Part 3)
             <br />
-            = <P>0.48</P> · <P>0.51</P> · <P>0.01</P>
+            = <P>{f2(sci.p_team[0])}</P> · <P>{f2(sci.p_team[1])}</P> · <P>{f2(sci.p_team[2])}</P>
           </HeadCalc>
         </Step>
         <Step>
-          <HeadCalc type="score" pic="Cut points on a line" how="One design: a score z and a cut point per step up the scale. Our Part 3 readout used a softmax over the levels instead.">
-            P(≥ soon) &nbsp;= sig(0 − 2.6) = 0.07
+          <HeadCalc type="score" pic="Cut points on a line" how="One design: a score z minus a cut point for each step up the scale. Our Part 3 readout used a softmax over the levels instead.">
+            P(≥ soon) &nbsp;= sig(−2.75) = 0.06
             <br />
-            P(≥ today) = sig(0 − 3.9) = 0.02
+            P(≥ today) = sig(−3.9) = 0.02
             <br />
-            <P>0.93</P> · 0.07 − 0.02 = <P>0.05</P> · <P>0.02</P>
+            <P>0.94</P> · 0.06 − 0.02 = <P>0.04</P> · <P>0.02</P>
           </HeadCalc>
         </Step>
       </Steps>
@@ -6236,7 +6241,7 @@ const deck: [Page, string][] = [
   [Repairs, 'Constrained decoding means masking the logits so that only tokens allowed by a grammar or JSON schema can be picked.'],
   [StatedConf, 'Compare with Part 4, where the same model read from logits has accuracy 0.79 and mean confidence 0.97 on 1,000 items. Different prompt and subset, same pattern.'],
   [Voting, 'The sampled prompt asks for a word, so its split differs from the letter readout in Part 3. Self-consistency is the usual name for this.'],
-  [Check2, 'The per-pass time is our measured 233 ms over 24 passes. A hosted model is faster per pass, and the count of passes is the same.'],
+  [Check2, 'The per-pass time is our measured generation time divided by its 24 passes. A hosted model is faster per pass, and the count of passes is the same.'],
   [Recap2, ''],
   [S3, ''],
   [LookAgain, 'Same chart as before, with the non-option tokens dimmed. "billing" as a word also appears: the model could have answered in words.'],
@@ -6324,7 +6329,7 @@ const deck: [Page, string][] = [
   [S6, ''],
   [PerQuestion, 'This is the question students ask at this point. Our Part 5 head has four fixed outputs. General models take the question as input.'],
   [OnePrompt, 'Unsloth describes its head as one that “looks at the LLM’s output over each question and option and scores every option”. How the heads inside Jev and Liquid are built is not published.'],
-  [TypedHeads, 'The formulas are the ones Roitman’s guide gives for this family. The score z and the cut points are picked so that the results match what our model read for the email; they are not taken from any trained head. e to the minus 1.05 is 0.35, e to the 2.6 is 13.5, e to the 3.9 is 49.4.'],
+  [TypedHeads, 'The formulas are the ones Roitman’s guide gives for this family. The score z and the cut points are picked so that the results match what our model read for the email; they are not taken from any trained head. e to the minus 1.05 is 0.35, e to the 2.75 is 15.6, e to the 3.9 is 49.4.'],
   [TrainOnce, 'The 30 to 37% and 73% are Unsloth’s figures for Qwen3.5-0.8B on its typed-decisions set. The docs do not say when to fine-tune; the last two rows are our advice.'],
   [Recipe, 'The quoted advice is on Liquid’s model pages. The size of the test set in step 2 is our suggestion, not a documented rule.'],
   [AppEmail, 'The running example, now as a build plan. All three questions go in one request.'],
