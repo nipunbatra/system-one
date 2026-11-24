@@ -44,7 +44,9 @@ It warns when little of the model's probability is on the option letters, and ca
 A switch changes the method from reading letters to a trained shared head, and shows that head's working the same way.
 It is one file, `site/demo/index.html`. It loads the `q4` weights: the `fp16` variants gave wrong scores on WebGPU when tested.
 
-A second page, `site/demo/vision.html`, runs SmolVLM-500M the same way on a picture: yes/no, choice and score questions, a count asked as a ladder of yes/no questions, and detection by asking a yes/no of every tile.
+A second page, `site/demo/vision.html`, runs SmolVLM-500M the same way on a picture: yes/no, choice and score questions, a count asked as a ladder of yes/no questions, and detection by asking a yes/no of every tile. It has ten sample photos, each with its own questions; nine were made with image models for the course's other decks.
+
+A third page, `site/demo/draw.html`, draws a 500 × 500 single-channel picture with the text model and no training: it asks "dark or bright?" for 25 named regions (or 100, or 784 by coordinates), stretches the answers and blends between them. The finer grids are there to show that more questions do not help when the model cannot tell which place is meant.
 No training is involved; a one-pass "which tile?" question is included to show that the untrained model cannot point directly.
 
 ## The shared-head experiment

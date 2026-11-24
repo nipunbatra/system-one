@@ -53,13 +53,18 @@
   details { margin-top:10px; border-top:1px dashed var(--rule); padding-top:8px; } summary { cursor:pointer; font-weight:600; font-size:14px; color:var(--soft); }
   .note { background:#fbeee9; border-left:4px solid var(--accent); border-radius:8px; padding:10px 14px; font-size:14.5px; margin-top:12px; }
   .good { background:var(--truthbg); border-left-color:var(--truth); }
+  .gallery { display:grid; grid-template-columns: repeat(5, 1fr); gap:7px; margin-top:12px; }
+  .gallery button { padding:0; border:2.5px solid transparent; border-radius:10px; overflow:hidden; background:var(--panel); position:relative; line-height:0; transition: transform .12s; }
+  .gallery button:hover { transform: translateY(-2px); } .gallery button.on { border-color:var(--accent); }
+  .gallery img { width:100%; aspect-ratio: 3/2; object-fit:cover; display:block; }
+  .gallery span { position:absolute; left:0; right:0; bottom:0; font: 600 11px/1.2 -apple-system, sans-serif; color:#fff; background:linear-gradient(transparent, #000c); padding:12px 6px 5px; text-align:left; }
   .hide { display:none !important; }
   .facts { display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:12px; margin: 26px 0 60px; } .facts div { background:var(--panel); border-radius:12px; padding:13px 15px; font-size:14.5px; color:var(--soft); } .facts b { color:var(--ink); display:block; margin-bottom:3px; }
 </style>
 </head>
 <body>
 <div class="hero"><div class="wrap">
-  <div class="kicker">Live demo · <a href="../">System 1 models</a> · <a href="./">text demo</a></div>
+  <div class="kicker">Live demo · <a href="../">System 1 models</a> · <a href="./">text demo</a> · <a href="draw.html">draw demo</a></div>
   <h1>See, don't write</h1>
   <p class="sub" style="font-size:18.5px;max-width:840px;margin:0">A small model that can see, used as downloaded with no training. Ask typed questions about a picture, then find an object by splitting detection into many yes or no questions.</p>
   <div class="loader">
@@ -80,11 +85,12 @@
         <span class="lab">State: the picture</span>
         <div class="stage" id="stage"><img id="img" alt="the picture being judged"><canvas id="overlay"></canvas></div>
         <div class="row" style="margin-top:10px">
-          <button class="small" id="sampleBtn">Sample photo</button>
           <label class="small" style="display:inline-block"><input type="file" id="file" accept="image/*" class="hide"><span id="fileBtn" style="display:inline-block;font:500 13.5px/1 inherit;padding:8px 11px;border:1.5px solid var(--rule);border-radius:10px;background:#fff;cursor:pointer">Choose your own picture</span></label>
           <button class="small" id="camBtn">Use the camera</button>
         </div>
         <p class="hint" id="credit"></p>
+        <span class="lab" style="margin-top:14px">Sample pictures: each brings its own questions</span>
+        <div class="gallery" id="gallery"></div>
       </div>
     </div>
 
@@ -106,6 +112,7 @@
           <button class="primary" id="scanBtn" disabled>Scan the tiles</button>
         </div>
         <p class="muted" id="scanStatus" style="margin-top:8px"></p>
+        <div class="row hide" id="thRow" style="margin-top:6px"><span class="muted">Threshold for yes</span><input type="range" id="th" min="0.2" max="0.9" step="0.05" value="0.5" style="flex:1;max-width:260px"><span class="m p" id="thVal">0.50</span><span class="muted">Moving it redraws the boxes without asking the model again.</span></div>
         <div id="scanOut"></div>
         <div class="row hide" id="onePassRow" style="margin-top:10px"><button class="small" id="onePassBtn">Compare: ask “which tile?” in one pass</button><span class="muted" id="onePassStatus"></span></div>
         <div id="onePassOut"></div>
@@ -115,7 +122,7 @@
 
   <div class="facts">
     <div><b>Nothing was trained</b>The model is used as downloaded. Every answer is the score of a letter token, read in one pass.</div>
-    <div><b>Detection, split up</b>“Where is it?” became one yes or no per tile. The box is drawn around the tiles that said yes.</div>
+    <div><b>Detection, split up</b>“Where is it?” became one yes or no per tile. Boxes are drawn around the groups of tiles that said yes, so several objects can be found.</div>
     <div><b>What training buys</b>A trained decision model such as Liquid’s d1.2 gives the four edges of a box in a single pass, without tiles.</div>
     <div><b>Expect mistakes</b>This is a half-billion-parameter model with 4-bit weights. See the <a href="../s/system-one">lecture</a> for calibration and training.</div>
   </div>
@@ -133,7 +140,33 @@ let processor, model, tok, image = null, uid = 0, lastScan = null, questions = [
 const TYPES = { noul: 'noul', choice: 'choice', score: 'score', count: 'count' };
 const HELP = { noul: 'Yes or no. The answer is P(yes).', choice: 'One option per line.', score: 'Levels, lowest first, one per line.', count: 'Write one thing to count, in the singular. It is asked as a ladder of yes or no questions: at least one? at least two? and so on, stopping at the first no. On a small untrained model the wording changes the answer a lot.' };
 const Q = (type, q, opts = '') => ({ id: ++uid, type, q, opts });
-questions = [Q('noul', 'Is there a person in this picture?'), Q('choice', 'Where was this picture taken?', 'indoors\noutdoors'), Q('count', 'person'), Q('score', 'How formal are the clothes?', 'casual\nsmart\nformal')];
+const MADE = 'Sample made with an image model for the course.';
+const SAMPLES = [
+  { file: 'kahneman', title: 'Portrait', credit: 'Sample: Daniel Kahneman. Photo by nrkbeta, CC BY-SA 2.0, via Wikimedia Commons.', thing: 'a human face', grid: 4,
+    qs: [['noul', 'Is there a person in this picture?'], ['choice', 'Where was this picture taken?', 'indoors\noutdoors'], ['count', 'person'], ['score', 'How formal are the clothes?', 'casual\nsmart\nformal']] },
+  { file: 'cat-dog', title: 'Cat and dog', thing: 'a cat', grid: 3,
+    qs: [['noul', 'Is there a cat in this picture?'], ['choice', 'Which animal is bigger?', 'the cat\nthe dog'], ['count', 'animal'], ['choice', 'What colour is the dog?', 'black\ngolden\nwhite\ngrey']] },
+  { file: 'street', title: 'Campus street', thing: 'a dog', grid: 4,
+    qs: [['noul', 'Is this a street?'], ['choice', 'What time of day is it?', 'day\nnight'], ['count', 'car'], ['score', 'How busy is the road?', 'empty\na few people\ncrowded']] },
+  { file: 'cows', title: 'Cows grazing', thing: 'a cow', grid: 4,
+    qs: [['noul', 'Are there cows in this picture?'], ['choice', 'Where is this?', 'a city\na village\na beach'], ['count', 'cow'], ['score', 'How green is the field?', 'dry\npatchy\nlush']] },
+  { file: 'cricket', title: 'Cricket', thing: 'a person', grid: 4,
+    qs: [['choice', 'Which sport is this?', 'football\ncricket\nhockey\ntennis'], ['noul', 'Is this a cricket match?'], ['count', 'player'], ['choice', 'What colour are the players wearing?', 'white\nblue\nred']] },
+  { file: 'fruit-stall', title: 'Fruit stall', thing: 'bananas', grid: 4,
+    qs: [['noul', 'Are there bananas in this picture?'], ['choice', 'What is being sold?', 'books\nfruit\nclothes\nphones'], ['score', 'How crowded is the street?', 'empty\na few people\ncrowded'], ['noul', 'Is this a supermarket?']] },
+  { file: 'traffic', title: 'Traffic', thing: 'a bus', grid: 4,
+    qs: [['noul', 'Is the road crowded?'], ['score', 'How heavy is the traffic?', 'light\nmoderate\nheavy'], ['choice', 'Which vehicle is most common here?', 'bicycles\nauto rickshaws and scooters\ntrucks'], ['noul', 'Is it raining?']] },
+  { file: 'yoga', title: 'Yoga class', thing: 'a person', grid: 5,
+    qs: [['choice', 'What are these people doing?', 'cooking\nyoga\nplaying cricket\nshopping'], ['count', 'person'], ['noul', 'Are these people exercising?'], ['choice', 'Where is this?', 'indoors\noutdoors']] },
+  { file: 'station-sign', title: 'Railway station', thing: 'a train', grid: 4,
+    qs: [['choice', 'Which place does the sign name?', 'Ahmedabad\nGandhinagar\nSurat\nVadodara'], ['noul', 'Is this a railway station?'], ['choice', 'What colour is the sign board?', 'yellow\ngreen\nblue\nred']] },
+  { file: 'camera-trap', title: 'Camera trap', thing: 'a leopard', grid: 4,
+    qs: [['choice', 'Which animal is at the front?', 'a deer\na leopard\na dog\na cow'], ['noul', 'Was this picture taken at night?'], ['noul', 'Is there a person in this picture?']] },
+];
+async function pickSample(i) {
+  const s = SAMPLES[i]; questions = s.qs.map(([t, q, o]) => Q(t, q, o ?? '')); renderQs(); $('thing').value = s.thing; $('grid').value = s.grid;
+  [...$('gallery').children].forEach((b, k) => b.classList.toggle('on', k === i)); await setImage(`img/${s.file}.jpg`, s.credit ?? MADE);
+}
 
 function setStatus(text, cls = '') { $('status').textContent = text; $('pill').className = 'pill ' + cls; }
 function softmax(z) { let m = -Infinity; for (const x of z) if (x > m) m = x; const e = z.map((x) => Math.exp(x - m)); const s = e.reduce((a, b) => a + b, 0); return e.map((x) => x / s); }
@@ -142,15 +175,17 @@ function softmax(z) { let m = -Infinity; for (const x of z) if (x > m) m = x; co
 async function setImage(src, credit = '') {
   $('img').src = src; await $('img').decode(); image = await load_image(src); $('credit').textContent = credit;
   const c = $('overlay'); c.width = $('img').naturalWidth; c.height = $('img').naturalHeight; c.getContext('2d').clearRect(0, 0, c.width, c.height);
-  $('scanOut').innerHTML = ''; $('onePassOut').innerHTML = ''; $('onePassRow').classList.add('hide'); $('answers').innerHTML = ''; lastScan = null;
+  $('scanOut').innerHTML = ''; $('onePassOut').innerHTML = ''; $('onePassRow').classList.add('hide'); $('thRow').classList.add('hide'); $('answers').innerHTML = ''; $('scanStatus').textContent = ''; lastScan = null;
 }
-$('sampleBtn').onclick = () => setImage('img/kahneman.jpg', 'Sample: Daniel Kahneman. Photo by nrkbeta, CC BY-SA 2.0, via Wikimedia Commons.');
+$('gallery').innerHTML = SAMPLES.map((s, i) => `<button data-i="${i}" title="${s.title}"><img src="img/${s.file}.jpg" alt="${s.title}" loading="lazy"><span>${s.title}</span></button>`).join('');
+$('gallery').onclick = (e) => { const b = e.target.closest('button'); if (b) pickSample(+b.dataset.i); };
+const unpick = () => [...$('gallery').children].forEach((b) => b.classList.remove('on'));
 $('fileBtn').onclick = () => $('file').click();
-$('file').onchange = (e) => { const f = e.target.files[0]; if (f) setImage(URL.createObjectURL(f), 'Your picture. It stays in this browser tab.'); };
+$('file').onchange = (e) => { const f = e.target.files[0]; if (f) { unpick(); setImage(URL.createObjectURL(f), 'Your picture. It stays in this browser tab.'); } };
 $('camBtn').onclick = async () => {
   try { const stream = await navigator.mediaDevices.getUserMedia({ video: true }); const v = document.createElement('video'); v.srcObject = stream; await v.play();
     await new Promise((r) => setTimeout(r, 700)); const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v, 0, 0);
-    stream.getTracks().forEach((t) => t.stop()); await setImage(c.toDataURL('image/jpeg', 0.9), 'A frame from your camera. It stays in this browser tab.');
+    stream.getTracks().forEach((t) => t.stop()); unpick(); await setImage(c.toDataURL('image/jpeg', 0.9), 'A frame from your camera. It stays in this browser tab.');
   } catch (err) { $('credit').textContent = 'Could not use the camera: ' + (err?.message ?? err); }
 };
 
@@ -233,25 +268,33 @@ $('askBtn').onclick = async () => {
 };
 
 // ---------- 2 · detection as a yes or no per tile
-function drawGrid(g, probs, box) {
+function drawGrid(g, probs, boxes, now = -1) {
   const c = $('overlay'), ctx = c.getContext('2d'), w = c.width / g, h = c.height / g; ctx.clearRect(0, 0, c.width, c.height);
   ctx.font = `${Math.max(14, Math.round(h / 5))}px "SF Mono", Menlo, monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (let y = 0; y < g; y++) for (let x = 0; x < g; x++) {
     const p = probs[y * g + x]; ctx.strokeStyle = '#ffffffaa'; ctx.lineWidth = Math.max(1, c.width / 600); ctx.strokeRect(x * w, y * h, w, h);
-    if (p === undefined) continue;
-    ctx.fillStyle = `rgba(109, 40, 217, ${0.08 + 0.55 * p})`; ctx.fillRect(x * w, y * h, w, h);
+    if (y * g + x === now) { ctx.strokeStyle = '#c44536'; ctx.lineWidth = Math.max(4, c.width / 160); ctx.strokeRect(x * w + 3, y * h + 3, w - 6, h - 6); }
+    if (p === undefined) { if (y * g + x !== now) { ctx.fillStyle = '#00000055'; ctx.fillRect(x * w, y * h, w, h); } continue; }
+    ctx.fillStyle = `rgba(109, 40, 217, ${0.06 + 0.55 * p})`; ctx.fillRect(x * w, y * h, w, h);
     ctx.fillStyle = '#fff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 6; ctx.fillText(f2(p), x * w + w / 2, y * h + h / 2); ctx.shadowBlur = 0;
   }
-  if (box) { ctx.strokeStyle = '#0f766e'; ctx.lineWidth = Math.max(4, c.width / 150); ctx.strokeRect(box.x0 * w, box.y0 * h, (box.x1 - box.x0 + 1) * w, (box.y1 - box.y0 + 1) * h); }
+  for (const box of boxes ?? []) { ctx.strokeStyle = '#0f766e'; ctx.lineWidth = Math.max(4, c.width / 150); ctx.strokeRect(box.x0 * w, box.y0 * h, (box.x1 - box.x0 + 1) * w, (box.y1 - box.y0 + 1) * h); }
 }
-// the largest group of touching tiles at 0.5 or more that contains the best tile
-function boxFrom(g, probs) {
-  const best = probs.indexOf(Math.max(...probs)); if (probs[best] < 0.5) return null;
-  const seen = new Set([best]), todo = [best];
-  while (todo.length) { const i = todo.pop(), x = i % g, y = Math.floor(i / g);
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, j = ny * g + nx; if (nx >= 0 && ny >= 0 && nx < g && ny < g && !seen.has(j) && probs[j] >= 0.5) { seen.add(j); todo.push(j); } } }
-  const xs = [...seen].map((i) => i % g), ys = [...seen].map((i) => Math.floor(i / g));
-  return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), n: seen.size };
+// every group of touching tiles at the threshold or more gets its own box, strongest group first
+function boxesFrom(g, probs, th) {
+  const seen = new Set(), out = [];
+  for (let s0 = 0; s0 < g * g; s0++) { if (seen.has(s0) || probs[s0] < th) continue; const grp = [s0], todo = [s0]; seen.add(s0);
+    while (todo.length) { const i = todo.pop(), x = i % g, y = Math.floor(i / g);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, j = ny * g + nx; if (nx >= 0 && ny >= 0 && nx < g && ny < g && !seen.has(j) && probs[j] >= th) { seen.add(j); todo.push(j); grp.push(j); } } }
+    const xs = grp.map((i) => i % g), ys = grp.map((i) => Math.floor(i / g));
+    out.push({ x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), n: grp.length, best: Math.max(...grp.map((i) => probs[i])) }); }
+  return out.sort((a, b) => b.best - a.best);
+}
+function showScan() {
+  if (!lastScan) return; const { g, thing, probs } = lastScan, th = +$('th').value; $('thVal').textContent = f2(th); const boxes = boxesFrom(g, probs, th); lastScan.boxes = boxes; drawGrid(g, probs, boxes);
+  $('scanOut').innerHTML = boxes.length
+    ? `<div class="note good"><b>${boxes.length === 1 ? 'Found one group.' : `Found ${boxes.length} groups.`}</b> Tiles at ${f2(th)} or more that touch are joined, and each group gets a green box. The strongest: left ${f2(boxes[0].x0 / g)}, right ${f2((boxes[0].x1 + 1) / g)}, top ${f2(boxes[0].y0 / g)}, bottom ${f2((boxes[0].y1 + 1) / g)}, as fractions of the picture. Edges can only fall on tile borders, and two objects in touching tiles merge into one box.</div>`
+    : `<div class="note"><b>Not found.</b> No tile reached ${f2(th)} for “${esc(thing)}”. Lower the threshold, or try a coarser grid: when an object is larger than a tile, no single tile shows enough of it.</div>`;
 }
 $('scanBtn').onclick = async () => {
   if (!image) { $('scanStatus').textContent = 'Choose a picture first.'; return; }
@@ -260,14 +303,12 @@ $('scanBtn').onclick = async () => {
   try {
     for (let y = 0; y < g; y++) for (let x = 0; x < g; x++) {
       $('scanStatus').textContent = `Tile ${y * g + x + 1} of ${g * g}: “${question}”`;
+      if (!probs.length) drawGrid(g, probs, null, 0);
       const tile = await image.crop([x * w, y * h, (x + 1) * w - 1, (y + 1) * h - 1]);
-      const r = await readLetters(tile, question, ['yes', 'no']); total += r.ms; probs.push(r.p[0]); drawGrid(g, probs, null);
+      const r = await readLetters(tile, question, ['yes', 'no']); total += r.ms; probs.push(r.p[0]); drawGrid(g, probs, null, y * g + x + 1);
     }
-    const box = boxFrom(g, probs); drawGrid(g, probs, box); lastScan = { g, thing, box, probs };
+    lastScan = { g, thing, probs }; $('thRow').classList.remove('hide'); showScan();
     $('scanStatus').textContent = `${g * g} forward passes, ${(total / 1000).toFixed(1)} s. Each number is P(yes) for that tile.`;
-    $('scanOut').innerHTML = box
-      ? `<div class="note good"><b>Found.</b> ${box.n} tile${box.n > 1 ? 's' : ''} said yes with 0.5 or more, and the green box is drawn around them: left ${f2(box.x0 / g)}, right ${f2((box.x1 + 1) / g)}, top ${f2(box.y0 / g)}, bottom ${f2((box.y1 + 1) / g)}, as fractions of the picture. Its edges can only fall on tile borders, so a finer grid gives a tighter box and costs more passes.</div>`
-      : `<div class="note"><b>Not found.</b> No tile reached 0.5 for “${esc(thing)}”. Try a coarser grid: when an object is larger than a tile, no single tile shows enough of it.</div>`;
     $('onePassRow').classList.remove('hide'); $('onePassStatus').textContent = '';
   } catch (err) { $('scanStatus').textContent = 'Something went wrong: ' + (err?.message ?? err); console.error(err); }
   $('scanBtn').disabled = false;
@@ -282,8 +323,8 @@ $('onePassBtn').onclick = async () => {
   $('onePassBtn').disabled = false;
 };
 
-renderQs();
-setImage('img/kahneman.jpg', 'Sample: Daniel Kahneman. Photo by nrkbeta, CC BY-SA 2.0, via Wikimedia Commons.');
+$('th').oninput = showScan;
+pickSample(0);
 </script>
 </body>
 </html>

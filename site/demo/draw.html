@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Draw, don't write: a grey picture from yes or no questions</title>
+<meta name="description" content="An off-the-shelf language model, with no training, draws a 500 by 500 single-channel picture. It answers dark or bright for each cell of a grid and the page fills in the rest.">
+<style>
+  :root { --bg:#faf7f2; --card:#fffdf9; --ink:#1f1b16; --soft:#57504a; --muted:#8a8179; --rule:#e4dccf; --panel:#f3eee5;
+    --s1:#b45309; --s1bg:#fdf1de; --s2:#1d4ed8; --pred:#6d28d9; --truth:#0f766e; --truthbg:#e4f3f0; --loss:#be123c; --accent:#c44536;
+    --shadow: 0 1px 2px #1f1b160a, 0 6px 20px #1f1b160d; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font: 16px/1.5 -apple-system, "Helvetica Neue", "Segoe UI", system-ui, sans-serif; }
+  .hero { background: radial-gradient(1200px 300px at 20% -40%, #e6e3dc 0%, transparent 70%), radial-gradient(900px 260px at 90% -30%, #fbe3c4 0%, transparent 70%); border-bottom:1px solid var(--rule); }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 22px; } .hero .wrap { padding-top: 34px; padding-bottom: 24px; }
+  h1 { font: 700 clamp(30px,4.6vw,46px)/1.08 "Iowan Old Style", Palatino, Georgia, serif; margin: 6px 0 10px; }
+  h2 { font: 700 21px/1.2 "Iowan Old Style", Palatino, Georgia, serif; margin: 0 0 4px; }
+  .kicker { color:var(--accent); font-weight:700; letter-spacing:.16em; text-transform:uppercase; font-size:12.5px; } .kicker a { color:inherit; }
+  p { margin: 0 0 10px; } .sub { color:var(--soft); } .muted { color:var(--muted); font-size:14px; } a { color: var(--s2); }
+  .card { background:var(--card); border:1px solid var(--rule); border-radius:16px; padding:18px 20px; box-shadow:var(--shadow); }
+  .lab { display:block; font-size:11.5px; letter-spacing:.11em; text-transform:uppercase; font-weight:700; color:var(--muted); margin: 0 0 5px; }
+  textarea, select { width:100%; font: 15.5px/1.45 inherit; font-family:inherit; padding:9px 11px; border:1.5px solid var(--rule); border-radius:10px; background:#fff; color:var(--ink); }
+  textarea:focus, select:focus { outline:none; border-color:var(--s1); box-shadow:0 0 0 3px #b4530922; }
+  button { font: 600 15px/1 inherit; font-family:inherit; padding:10px 16px; border-radius:10px; border:1.5px solid var(--rule); background:#fff; color:var(--ink); cursor:pointer; }
+  button:hover:not(:disabled) { border-color:var(--ink); } button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.small { font-size:13.5px; padding:7px 11px; font-weight:500; } button:disabled { opacity:.45; cursor:default; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .loader { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:16px; background:#ffffffb8; border:1px solid var(--rule); border-radius:14px; padding:10px 12px; }
+  .pill { display:inline-flex; align-items:center; gap:7px; font-size:13.5px; font-weight:600; padding:6px 11px; border-radius:20px; background:var(--panel); color:var(--soft); }
+  .pill i { width:9px; height:9px; border-radius:5px; background:var(--muted); flex:none; } .pill.ok { background:var(--truthbg); color:var(--truth); } .pill.ok i { background:var(--truth); }
+  .pill.busy i { background:var(--s1); animation:pulse 1s infinite; } @keyframes pulse { 50% { opacity:.3; } }
+  .track { height:6px; background:var(--panel); border-radius:3px; overflow:hidden; flex-basis:100%; } .track b { display:block; height:6px; width:0; background:var(--accent); transition:width .2s; }
+  .cols { display:grid; grid-template-columns: minmax(0, 540px) minmax(0, 1fr); gap:22px; align-items:start; margin-top:20px; }
+  @media (max-width: 960px) { .cols { grid-template-columns: 1fr; } }
+  .stack { display:flex; flex-direction:column; gap:14px; }
+  #final { width:100%; height:auto; display:block; border-radius:12px; background:#777; image-rendering:auto; }
+  .steps3 { display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin-top:12px; } .steps3 canvas { width:100%; height:auto; display:block; border-radius:8px; image-rendering:pixelated; background:#777; } .steps3 div { font-size:12.5px; color:var(--muted); text-align:center; } .steps3 b { color:var(--ink); display:block; margin-top:5px; }
+  .presets { display:flex; gap:6px; flex-wrap:wrap; margin: 8px 0 0; } .presets button { font-size:13px; font-weight:500; padding:6px 10px; border-radius:16px; }
+  .grid5 { display:grid; grid-template-columns: repeat(5, 1fr); gap:4px; margin-top:10px; max-width:460px; }
+  .grid5 div { aspect-ratio: 1.5; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; font: 700 15px/1.1 "SF Mono", Menlo, monospace; background:var(--panel); color:var(--muted); border:2px solid transparent; }
+  .grid5 div small { font: 500 10px/1.2 -apple-system, sans-serif; opacity:.8; margin-top:3px; } .grid5 div.now { border-color:var(--accent); }
+  .m { font-family:"SF Mono", Menlo, Consolas, monospace; font-size:13.5px; } .p { color:var(--pred); }
+  pre { margin:8px 0 0; padding:12px 14px; background:#fff; border:1px solid var(--rule); border-radius:10px; font: 12.8px/1.5 "SF Mono", Menlo, Consolas, monospace; white-space:pre-wrap; word-break:break-word; }
+  .tok { font-family:"SF Mono", Menlo, monospace; background:var(--s1bg); border:1.5px solid var(--s1); color:var(--s1); font-weight:700; border-radius:6px; padding:0 6px; }
+  .note { background:#fbeee9; border-left:4px solid var(--accent); border-radius:8px; padding:10px 14px; font-size:14.5px; margin-top:12px; }
+  .hide { display:none !important; }
+  .facts { display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:12px; margin: 26px 0 60px; } .facts div { background:var(--panel); border-radius:12px; padding:13px 15px; font-size:14.5px; color:var(--soft); } .facts b { color:var(--ink); display:block; margin-bottom:3px; }
+  label.check { font-size:14px; color:var(--soft); display:inline-flex; gap:7px; align-items:center; }
+</style>
+</head>
+<body>
+<div class="hero"><div class="wrap">
+  <div class="kicker">Live demo · <a href="../">System 1 models</a> · <a href="./">text demo</a> · <a href="vision.html">picture demo</a></div>
+  <h1>Draw, don't write</h1>
+  <p class="sub" style="font-size:18.5px;max-width:860px;margin:0">Can a model that only answers questions make a picture? Here an off-the-shelf language model, with no training, draws a 500 × 500 picture with one channel (grey). It answers “dark or bright?” once per cell of a grid, 25, 100 or 784 times, and the page blends the pixels between.</p>
+  <div class="loader">
+    <button class="primary" id="loadBtn">Load model</button>
+    <span class="pill" id="pill"><i></i><span id="status">Qwen2.5-0.5B-Instruct, about 480 MB, the same model as the text demo. It downloads once and runs on your machine.</span></span>
+    <div class="track hide" id="track"><b id="prog"></b></div>
+  </div>
+</div></div>
+
+<div class="wrap">
+  <div class="cols">
+    <div class="stack">
+      <div class="card">
+        <span class="lab">The picture: 500 × 500 pixels, one channel</span>
+        <canvas id="final" width="500" height="500"></canvas>
+        <div class="steps3">
+          <div><canvas id="c1" width="5" height="5"></canvas><b id="n1">1 · 25 answers</b>P(bright) as a grey level</div>
+          <div><canvas id="c2" width="5" height="5"></canvas><b>2 · Stretched</b>lowest to black, highest to white</div>
+          <div><canvas id="c3" width="500" height="500" style="image-rendering:auto"></canvas><b>3 · Filled in</b>pixels between are blended</div>
+        </div>
+        <div class="row" style="margin-top:12px"><button class="small" id="saveBtn" disabled>Save as PNG</button><span class="muted" id="range"></span></div>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="card">
+        <h2>Describe a grey picture</h2>
+        <p class="muted">Simple layouts work best: what is dark, what is bright, and where.</p>
+        <textarea id="desc" rows="2">A dark sea at the bottom and a bright sky at the top.</textarea>
+        <div class="presets" id="presets"></div>
+        <div class="row" style="margin-top:12px">
+          <select id="mode" style="width:auto" aria-label="how many questions"><option value="5">5 × 5 · 25 named regions</option><option value="10">10 × 10 · 100 regions, two-step names</option><option value="28">28 × 28 · 784 pixels, by coordinates</option></select>
+          <button class="primary" id="drawBtn" disabled>Draw it</button><button class="small hide" id="stopBtn">Stop</button>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <label class="check"><input type="checkbox" id="base"> Subtract the answers for a plain grey picture (asked once per grid, then kept)</label>
+        </div>
+        <p class="muted" id="drawStatus" style="margin-top:8px">Load the model first.</p>
+      </div>
+
+      <div class="card">
+        <h2 id="qTitle">The 25 questions</h2>
+        <p class="muted">One forward pass each. The same question every time, with a different place named. We read the scores of two letters and keep P(bright).</p>
+        <div class="grid5" id="cells"></div>
+        <pre id="prompt"></pre>
+        <div id="out"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="facts">
+    <div><b>Nothing was trained</b>Every pixel comes from two-way choices read off a chat model, then arithmetic. No image model is involved.</div>
+    <div><b>Do more questions help?</b>Try it: 100 and 784 questions are in the menu. The model has to know which place you mean. It follows words such as “top left”, but it barely follows “36% from the left”, so the 28 × 28 picture is mostly noise.</div>
+    <div><b>Why it is blurry</b>The useful answers are the 25 named ones. The last step only blends between cells, so nothing finer than a region can appear. Full size, one question per pixel, would be 250,000 passes.</div>
+    <div><b>What training buys</b>A trained model picks 128 picture codes out of 8,192 in one pass, and a trained decoder turns the codes into sharp pixels (Liu et al., arXiv 2611.24738). Same building block, a choice, but learned.</div>
+  </div>
+</div>
+
+<script type="module">
+import { AutoTokenizer, AutoModelForCausalLM } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const f2 = (x) => x.toFixed(2);
+const ID = 'onnx-community/Qwen2.5-0.5B-Instruct';
+const ROWS = ['top', 'upper middle', 'middle', 'lower middle', 'bottom'], COLS = ['far left', 'left', 'centre', 'right', 'far right'];
+const SUB = [['top left', 'top right'], ['bottom left', 'bottom right']];
+const part = (r, c) => (ROWS[r] === 'middle' && COLS[c] === 'centre' ? 'middle' : `${ROWS[r]} ${COLS[c]}`);
+// Three ways to name a place. Each is one yes-or-no style question per cell.
+const MODES = {
+  5: { n: 5, name: '25 named regions', where: (r, c) => `Look only at the ${part(r, c)} of the picture. Is that part dark or bright?`, label: (r, c) => `the ${part(r, c)}` },
+  10: { n: 10, name: '100 regions, named in two steps', where: (r, c) => `Look only at the ${part(r >> 1, c >> 1)} of the picture, and inside it only at its ${SUB[r % 2][c % 2]} corner. Is that spot dark or bright?`, label: (r, c) => `the ${SUB[r % 2][c % 2]} corner of the ${part(r >> 1, c >> 1)}` },
+  28: { n: 28, name: '784 pixels, by coordinates', where: (r, c) => `Look at one point of the picture: ${Math.round((100 * (c + 0.5)) / 28)}% of the way from the left edge and ${Math.round((100 * (r + 0.5)) / 28)}% of the way from the top edge. Is that point dark or bright?`, label: (r, c) => `row ${r + 1}, column ${c + 1}` },
+};
+const PLAIN = 'It is plain grey everywhere.';
+const PRESETS = ['A dark sea at the bottom and a bright sky at the top.', 'It fades smoothly from black at the top to white at the bottom.', 'A black night sky with one bright full moon in the centre.', 'The left half is black and the right half is white.', 'A dark Diwali night with a row of bright diyas along the bottom.', 'A bright white road runs down the middle between dark fields.'];
+let tok, model, ids, busy = false, stop = false; const baseCache = {};
+const mode = () => MODES[$('mode').value];
+
+function setStatus(text, cls = '') { $('status').textContent = text; $('pill').className = 'pill ' + cls; }
+$('presets').innerHTML = PRESETS.map((p, i) => `<button data-i="${i}">${esc(p.length > 44 ? p.slice(0, 42) + '…' : p)}</button>`).join('');
+$('presets').onclick = (e) => { if (e.target.dataset.i !== undefined) { $('desc').value = PRESETS[+e.target.dataset.i]; showPrompt(); if (model && !busy) draw(); } };
+const question = (desc, r, c) => `A black and white picture. ${desc.trim()}\n${mode().where(r, c)}\nA. dark\nB. bright\nAnswer with one letter.`;
+function showPrompt(r = 0, c = 0) { $('prompt').textContent = question($('desc').value, r, c); }
+$('desc').oninput = () => showPrompt();
+
+function cells(p, now = -1) {
+  $('cells').classList.toggle('hide', mode().n !== 5); if (mode().n !== 5) return;
+  $('cells').innerHTML = Array.from({ length: 25 }, (_, i) => { const v = p[i]; const g = v === undefined ? null : Math.round(255 * v);
+    return `<div class="${i === now ? 'now' : ''}" style="${g === null ? '' : `background:rgb(${g},${g},${g});color:${g > 140 ? '#1f1b16' : '#fff'}`}">${v === undefined ? '·' : f2(v)}<small>${part(Math.floor(i / 5), i % 5)}</small></div>`; }).join('');
+}
+function paint(canvas, vals, n) { if (canvas.width !== n) { canvas.width = n; canvas.height = n; } const ctx = canvas.getContext('2d'), im = ctx.createImageData(n, n);
+  for (let i = 0; i < n * n; i++) { const v = vals[i]; const g = Math.round(255 * Math.min(1, Math.max(0, v ?? 0.47))); im.data.set(v === undefined ? [196, 69, 54, 40] : [g, g, g, 255], 4 * i); } ctx.putImageData(im, 0, 0); }
+// Blend between the cell centres (bilinear), one grey value per pixel of the 500 x 500 picture.
+function fill(canvas, s, n) {
+  const N = 500, k = N / n, ctx = canvas.getContext('2d'), im = ctx.createImageData(N, N);
+  for (let y = 0; y < N; y++) { const fy = Math.min(n - 1, Math.max(0, (y + 0.5) / k - 0.5)), y0 = Math.min(n - 2, Math.floor(fy)), ty = fy - y0;
+    for (let x = 0; x < N; x++) { const fx = Math.min(n - 1, Math.max(0, (x + 0.5) / k - 0.5)), x0 = Math.min(n - 2, Math.floor(fx)), tx = fx - x0;
+      const v = (1 - ty) * ((1 - tx) * s[y0 * n + x0] + tx * s[y0 * n + x0 + 1]) + ty * ((1 - tx) * s[(y0 + 1) * n + x0] + tx * s[(y0 + 1) * n + x0 + 1]);
+      const g = Math.round(255 * v); im.data.set([g, g, g, 255], 4 * (y * N + x)); } }
+  ctx.putImageData(im, 0, 0);
+}
+function reset() { const n = mode().n, flat = Array(n * n).fill(0.47); cells([]); paint($('c1'), flat, n); paint($('c2'), flat, n); fill($('c3'), flat, n); fill($('final'), flat, n); showPrompt(); $('out').innerHTML = ''; $('range').textContent = '';
+  $('qTitle').textContent = `The ${n * n} questions`; $('n1').textContent = `1 · ${n * n} answers`; $('base').checked = n !== 5; if (model) $('drawStatus').textContent = `${n * n} forward passes per picture${n === 28 ? ', about a minute on a laptop GPU' : ''}.`; }
+$('mode').onchange = () => { if (!busy) reset(); };
+
+$('loadBtn').onclick = async () => {
+  $('loadBtn').disabled = true; $('track').classList.remove('hide'); const params = new URLSearchParams(location.search);
+  try {
+    let device = 'wasm'; if (params.get('device') !== 'wasm' && navigator.gpu) { try { if (await navigator.gpu.requestAdapter()) device = 'webgpu'; } catch {} }
+    setStatus('Fetching the tokenizer …', 'busy'); tok = await AutoTokenizer.from_pretrained(ID); ids = ['A', 'B'].map((l) => tok.encode(l, { add_special_tokens: false })[0]);
+    const seen = {};
+    // q4 weights: the fp16 files gave wrong scores on WebGPU when tested.
+    model = await AutoModelForCausalLM.from_pretrained(ID, { dtype: 'q4', device, progress_callback: (p) => { if (p.status === 'progress' && p.total) { seen[p.file] = [p.loaded, p.total];
+      const l = Object.values(seen).reduce((a, v) => a + v[0], 0), t = Object.values(seen).reduce((a, v) => a + v[1], 0); $('prog').style.width = (100 * l) / t + '%'; setStatus(`Downloading ${(l / 1e6).toFixed(0)} of ${(t / 1e6).toFixed(0)} MB`, 'busy'); } } });
+    setStatus('Warming up …', 'busy'); await ask(PLAIN, 0, 0);
+    $('prog').style.width = '100%'; setTimeout(() => $('track').classList.add('hide'), 600);
+    setStatus(`Qwen2.5-0.5B-Instruct is ready on ${device === 'webgpu' ? 'your GPU' : 'the CPU (no WebGPU here, so it will be slow)'}`, 'ok'); $('drawBtn').disabled = false; reset();
+  } catch (err) { setStatus('Could not load the model: ' + (err?.message ?? err)); console.error(err); $('loadBtn').disabled = false; }
+};
+
+// One pass: the score of "B" (bright) minus the score of "A" (dark) at the next-token position.
+async function ask(desc, r, c) {
+  const text = tok.apply_chat_template([{ role: 'user', content: question(desc, r, c) }], { tokenize: false, add_generation_prompt: true });
+  const t0 = performance.now(); const out = await model(tok(text, { add_special_tokens: false })); const ms = performance.now() - t0;
+  const [, n, v] = out.logits.dims; const d = out.logits.data; const z = d[(n - 1) * v + ids[1]] - d[(n - 1) * v + ids[0]];
+  return { z, ms };
+}
+const sig = (z) => 1 / (1 + Math.exp(-z));
+
+async function draw() {
+  const desc = $('desc').value.trim(); if (!desc || busy) return; busy = true; stop = false; $('drawBtn').disabled = true; $('mode').disabled = true; $('stopBtn').classList.remove('hide'); $('saveBtn').disabled = true; $('out').innerHTML = ''; $('range').textContent = '';
+  const m = mode(), n = m.n, key = $('mode').value, useBase = $('base').checked, p = []; let total = 0, passes = 0;
+  const flat = Array(n * n).fill(0.47); paint($('c2'), flat, n); fill($('c3'), flat, n);
+  try {
+    // The plain-grey answers do not depend on the description, so they are asked once per grid and kept.
+    if (useBase && !baseCache[key]) { const b = [];
+      for (let i = 0; i < n * n && !stop; i++) { const r = Math.floor(i / n), c = i % n; if (i % 7 === 0) { showPrompt(r, c); $('prompt').textContent = question(PLAIN, r, c); $('drawStatus').textContent = `First, the same ${n * n} questions about a plain grey picture: ${i + 1} of ${n * n}`; }
+        const a = await ask(PLAIN, r, c); total += a.ms; passes++; b.push(a.z); }
+      if (!stop) baseCache[key] = b; }
+    for (let i = 0; i < n * n && !stop; i++) { const r = Math.floor(i / n), c = i % n; if (n === 5 || i % 7 === 0) { showPrompt(r, c); cells(p, i); $('drawStatus').textContent = `Question ${i + 1} of ${n * n}: ${m.label(r, c)}`; }
+      const a = await ask(desc, r, c); total += a.ms; passes++; p.push(sig(a.z - (useBase ? baseCache[key][i] : 0))); if (n === 5 || i % n === n - 1) paint($('c1'), p, n); }
+    if (stop) { $('drawStatus').textContent = `Stopped after ${passes} passes.`; }
+    else {
+      cells(p); let lo = Infinity, hi = -Infinity; for (const v of p) { if (v < lo) lo = v; if (v > hi) hi = v; } const s = p.map((v) => (v - lo) / (hi - lo || 1));
+      paint($('c1'), p, n); paint($('c2'), s, n); fill($('c3'), s, n); fill($('final'), s, n); $('saveBtn').disabled = false; const per = total / passes;
+      $('drawStatus').textContent = `${passes} forward passes, ${(total / 1000).toFixed(1)} s. No text was generated.`;
+      $('range').textContent = `P(bright) ran from ${f2(lo)} to ${f2(hi)} before stretching.`;
+      $('out').innerHTML = `<div class="note"><b>Read this honestly.</b> The answers only moved between ${f2(lo)} and ${f2(hi)}, so the model is far from sure, and step 2 stretches that small range to full black and white. ${n === 28 ? 'With coordinates, look for stripes that stay the same whatever you describe: they come from the numbers in the question, not from the picture.' : n === 10 ? 'Look for a checkerboard: the word “right” alone pushes the answer towards bright. Subtracting the plain grey answers removes part of it.' : 'Now try the finer grids and see whether more questions give a better picture.'} One question for each of the 500 × 500 pixels would take 250,000 passes, about ${((250000 * per) / 3600000).toFixed(1)} hours at ${per.toFixed(0)} ms each on this machine.</div>`;
+    }
+  } catch (err) { $('drawStatus').textContent = 'Something went wrong: ' + (err?.message ?? err); console.error(err); }
+  busy = false; $('drawBtn').disabled = false; $('mode').disabled = false; $('stopBtn').classList.add('hide');
+}
+$('drawBtn').onclick = draw; $('stopBtn').onclick = () => { stop = true; };
+$('saveBtn').onclick = () => { const a = document.createElement('a'); a.download = 'grey-500.png'; a.href = $('final').toDataURL('image/png'); a.click(); };
+reset();
+</script>
+</body>
+</html>
