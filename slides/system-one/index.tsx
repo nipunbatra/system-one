@@ -2967,7 +2967,7 @@ const ConfWays: Page = () => (
     part={4}
     src="read: Guo et al., 2017 · ask: Tian et al., 2023 · sample: self-consistency, as reviewed in Roitman, 2026, section 9.5"
     title="Is the softmax the wrong place to get a confidence?"
-    line="So far we read it: the largest softmax probability, the standard definition in calibration research. Would another source be better calibrated? The next slide measures all three."
+    line="So far we read it: the largest softmax probability, the standard definition in calibration research. Would another source be better calibrated? Part 4 measures all three."
   >
     <div style={{ ...row, gap: 34, alignItems: 'stretch' }}>
       <Way n="1" head="Read it" color={C.pred} how="Take the probabilities from the softmax. The largest one is the confidence in the answer." cost="one forward pass" gives="any value between 0 and 1" />
@@ -3002,7 +3002,7 @@ const ConfCompare: Page = () => (
   <Frame
     part={4}
     nb={1}
-    title="The three sources, measured on our model"
+    title="Read, written or sampled: which is best calibrated?"
     line={`On the same ${CC.n} news items, the written confidence is no better calibrated than the read one. Sampling a one-token answer estimates the read probability, at ${LN} times the cost here.`}
   >
     <div style={col}>
@@ -3940,7 +3940,7 @@ const HonestyQ: Page = () => (
   <Frame
     part={5}
     title="Which number should the model have said?"
-    line="A calibrated model says 0.7 here, since 7 of the 10 emails it gave that number to were “yes”. The next two slides ask which reward pushes a model towards 0.7."
+    line="A calibrated model says 0.7 here, since 7 of the 10 emails it gave that number to were “yes”. The next slides ask which reward pushes a model towards 0.7."
   >
     <div style={{ ...col, gap: 26, justifyContent: 'center', alignItems: 'center', height: '100%' }}>
       <div style={{ transform: 'scale(0.8)' }}>
@@ -6959,6 +6959,31 @@ const Sources: Page = () => (
   </Frame>
 );
 
+
+// ---------------------------------------------------------------- appendix
+
+const APPENDIX: [string, string][] = [
+  ['Opening and Part 1', 'the lecture in one picture; more examples of the two systems; Liquid’s answer types with its own examples; a choice per pixel'],
+  ['Part 2', 'embeddings and the stack of blocks; the loop in code; reasoning tokens; repairing loose output'],
+  ['Part 3', 'ask a hundred times or read once; choices in sequence or all at once; the readout on newer answer types'],
+  ['Part 4', 'ECE in code; over- and under-confident curves; six predictions; three sources of confidence and what studies found; three repairs'],
+  ['Part 5', 'pre-training and fine-tuning examples; RLHF and RLVR in more detail; the head’s code and a demo; Unsloth’s row, code and numbers'],
+  ['Part 6', 'the shared head as a diagram; formulas by answer type; what gets trained how often; thresholds and pipelines for all three applications'],
+];
+
+const AppendixPage: Page = () => (
+  <Frame part={0} title="Appendix: more detail, part by part" line="These slides were moved out of the main route to keep it short. Each one keeps the label of the part it belongs to.">
+    <div style={{ ...col, marginTop: 6 }}>
+      {APPENDIX.map(([part, what]) => (
+        <div key={part} style={{ ...row, gap: 30, padding: '17px 0', borderBottom: `2px solid ${C.rule}`, alignItems: 'baseline' }}>
+          <div style={{ width: 330, flexShrink: 0, fontFamily: serif, fontSize: 34, fontWeight: 700, color: 'var(--osd-accent)' }}>{part}</div>
+          <div style={{ flex: 1, fontSize: 28, lineHeight: 1.35, color: C.soft }}>{what}</div>
+        </div>
+      ))}
+    </div>
+  </Frame>
+);
+
 // ---------------------------------------------------------------- order and speaker notes
 
 const deck: [Page, string][] = [
@@ -6966,25 +6991,17 @@ const deck: [Page, string][] = [
   [Email, 'Read the email aloud. Ask the class what a support system must decide before anyone replies, then reveal the three questions.'],
   [Needs, 'The bar numbers here are made up to show the shape of the output. Real numbers come in Part 3.'],
   [RouteMap, 'Six parts. Parts 2 and 4 carry the most material.'],
-  [Overview, 'Do not explain the boxes yet. Say that every part fills in one of them, and that this picture returns at the end.'],
   [S1, undefined as unknown as string],
   [TwoSums, 'Let the class shout the first. Wait on the second before revealing.'],
   [Kahneman, 'The link opens the IBM Technology video by Martin Keen, which this lecture follows for the framing and the email example.'],
-  [TwoSystems, 'Ask the class for one more example of each.'],
   [ExamSheets, 'Students know both sheets from entrance exams. The shaded sheet shows our own model’s three probabilities for the email, which Part 3 computes. Come back to this picture in Parts 3, 4 and 5.'],
-  [MLExamples, 'Ask which column their last course project was in. Many pipelines send left-column questions to a chat LLM.'],
   [SoftwareCalls, 'Ask for more examples from their own projects, and which column each belongs in.'],
   [WhatIs, 'Read the sentence aloud and leave it up. The wording follows the definition in Roitman’s guide. The probabilities are our small model’s, computed in Part 3; a trained decision model would give better ones.'],
-  [VisionCalls, 'Jev began with text; Roitman’s guide reports image input and a box answer from version 1.14. Liquid d1.2 documents image and audio input. The questions here are our own examples, apart from the circuit board, siren and caller-language ones, which are from Liquid’s pages.'],
-  [NewTypes, 'From Liquid’s d1.2 docs and blog, 16 Nov 2026. A number question with a range returns a median and an interval and has no found score. Vendor-reported accuracy only; no public benchmark covers the new types yet.'],
-  [ReadValues, 'Example copied from Liquid’s d1.2 docs. The span numbers count characters from 0, and the end is exclusive. The model normalises the number and the date and still reports the text as written.'],
-  [MoreExamples, 'All three from Liquid’s docs. In the multi-select answer the probabilities do not sum to 1, because each option is its own yes or no. The docs describe the interval as p10 to p90.'],
   [SmallChoices, 'This is the organising idea for the rest of Part 1. I read it from the source code of Liquid\u2019s open d1-2B model: box.py and pointer.py. The number of values, 128 and 1,000, are from that code and the docs. Whether the hosted d1.2 models work identically is not confirmed.'],
   [BoxChoices, 'Object detection without a detection network. The four box numbers and the 0.94 are from the example in Liquid\u2019s docs. In the code each edge is a distribution over the numbers 0 to 999, each number being one token, and the reported edge is the median. The code says why it is not the mean: an unsure edge\u2019s mean drifts to the middle of the picture.'],
   [ManyBoxes, 'In the code, block k is present when there are at least k objects, and the boxes are returned in reading order, left edge first. The four probabilities on this slide are made up. Default 16 blocks, at most 64.'],
   [EstimateNumber, 'The bar heights are made up so that the running totals can be followed by hand; they are chosen so the median is 26 and the 10 to 90 percent range is 23 to 30, as in Liquid\u2019s docs example. The docs say the model reads an estimate on at most 128 values.'],
   [SpanPointers, 'The tokens and probabilities are illustrative. In the code a slot\u2019s vector is compared with the vector of every input token, once for the start and once for the end, and position 0 stands for nothing. The docs say values are read, not converted: the parsing into 1234.5 is ordinary code.'],
-  [PixelChoices, 'From the Jeveration paper: segmentation is a choice per pixel and depth and surface normals are scores per pixel, from one checkpoint. On NYUv2 the authors report mean IoU 67.7 and a depth error of 0.27 m, in about 78 ms. The two grids are our own drawing of a street, not the paper\u2019s data.'],
   [ImageChoices, 'A preprint from NUS, version 2 dated 20 November 2026. I read it through a summary of the first two thirds, so check the numbers against the paper before quoting them. The model is a frozen Qwen3.5-4B with adapters. The quality score is GenEval: 0.74 for this model, against 0.80 for Janus-Pro-7B, which takes about 9.5 seconds on the same GPU. So it is much faster and somewhat worse. The picture on the right is our drawing, not a model output. Training is two phases and is where the hard work is; inference is one pass.'],
   [SplitTask, 'The complaint and the answers are made up. Ask the class what other facts the program might need, and what type each would be. The point: the model supplies facts with probabilities, and the decision logic stays in code where it can be read and tested.'],
   [SplitHow, 'These are our suggestions, not a published method. The second-to-last row matters: do not ask a model to compare three hours with a threshold or to add tax. The last row is where System 2 comes back in.'],
@@ -6992,21 +7009,16 @@ const deck: [Page, string][] = [
   [Recap1, 'Read the top sentence aloud and pause.'],
   [S2, ''],
   [Tokens, 'These are the real tokens and ids from the Qwen2.5 tokenizer. Notice the leading spaces are part of the tokens.'],
-  [Embed, 'The vector values drawn are illustrative; the table size is real.'],
   [Attention, 'Weights are illustrative. The point is the mechanism: a weighted mix of earlier tokens, and only earlier ones.'],
-  [Stack, 'Do not go into the block internals. One output matters for us: the last-position vector.'],
   [EncDec, 'Encoders give one vector per token and suit classification. Decoders predict the next token. Keep this in mind for Part 5, where we put a classification head on a decoder.'],
   [Logits, 'Real logits from the which-team prompt. Logits are unnormalised scores.'],
   [Softmax, 'Work it on the board first. e squared is 7.39, e is 2.72, e to the 0.1 is 1.11.'],
   [NextToken, 'Real distribution. Ask: what do you notice about A and B? Do not answer yet; Part 3 returns to this.'],
   [Loop, 'Greedy picks the top token. Sampling picks at random according to the probabilities.'],
-  [LoopCode, 'Run this cell in notebook 1.'],
   [Written, 'Measured with the usual key-value cache on a MacBook. The model wrote billing here.'],
-  [CoT, 'The 300 is illustrative. Reasoning models often write far more.'],
   [ThreeCosts, 'Overview. The next five slides take the three costs one at a time, with outputs from our own model.'],
   [CostTime, 'Timing is from a MacBook GPU with a 0.5 B model. A hosted LLM is faster per token, and the count of passes is the same.'],
   [LooseOutput, 'All four examples are real outputs from notebook 1. The first one also ran out of its 48-token budget in the middle of a sentence.'],
-  [Repairs, 'Constrained decoding means masking the logits so that only tokens allowed by a grammar or JSON schema can be picked.'],
   [StatedConf, 'Compare with Part 4, where the same model read from logits has accuracy 0.79 and mean confidence 0.97 on 1,000 items. Different prompt and subset, same pattern.'],
   [Voting, 'The sampled prompt asks for a word, so its split differs from the letter readout in Part 3. Self-consistency is the usual name for this.'],
   [Check2, 'The per-pass time is our measured generation time divided by its 24 passes. A hosted model is faster per pass, and the count of passes is the same.'],
@@ -7017,13 +7029,10 @@ const deck: [Page, string][] = [
   [DecideCode, 'Notebook 1, section 4. Mention that option order can shift the numbers; it is an exercise in the notebook.'],
   [Timing, 'The comparison is for one question. A decision model answers all questions in the same pass.'],
   [Honest, 'The small model is undecided between billing and technical, and its written JSON picked billing. An untrained model; the point is that the doubt is now visible.'],
-  [ReadOnce, 'The sample-size formula is the usual one for a proportion, at its worst case p = 0.5. Roitman’s guide makes this comparison with a spam example. In Part 4 we do draw 200 samples and compare them with the read probabilities.'],
   [ArchDiff, 'The grey strip stands for the 151,936 scores; the coloured cells are the ones kept. We never removed the decoder: a decoder-only transformer is still the reader. What is gone is decoding into text. How Jev is built inside is not published. The next slide shows one published recipe.'],
   [Convert, 'This is the answer to how the decoder is removed. Nothing is cut out of the middle: the model keeps its blocks and loses its two decoder habits. The guide warns that switching the attention mask is fiddly in practice. Unsloth and our notebook 2 keep causal attention and read the last position.'],
-  [ManyPicks, 'This ties Part 2 to Part 3. Generation was never a different kind of operation: it is a choice over the vocabulary, repeated with feedback. The third row is the Jeveration paper\u2019s contribution for images. Be clear that nobody has shown one-pass generation of long, good text this way; the last line on the slide says so.'],
   [Types, 'noul is the yes/no type name in Jev’s API. Its origin is not explained in the public material.'],
   [ScoreCalc, 'The model is confidently wrong about urgency. Keep this in mind for calibration. Liquid’s pages define score in two ways, the weighted level and the median level; we use the weighted one.'],
-  [MoreTypes, 'The multi-select and number readouts here are our own construction on a model with no training for them. For boxes and spans, Liquid’s open d1-2B code shows the method (box.py and pointer.py in its repository); we have not confirmed that the hosted d1.2 models work the same way.'],
   [Request, 'Field names follow the Jev and Unsloth request format: state, questions, type, instructions, criteria.'],
   [Bridge, 'This answers the question of how we know to look at A, B and C: we chose them. Token ids 32, 33 and 34 are the letters A, B and C in the Qwen tokenizer. A model with a trained head needs no letters, because the head scores each option directly; that comes in Parts 5 and 6. The live demo shows this mapping for any question, under how it is read.'],
   [Response, 'Field names follow the Jev and Liquid docs: choice with probabilities, noul as one number, score with its probabilities. I left out the confidence field because its formula is not documented.'],
@@ -7038,36 +7047,23 @@ const deck: [Page, string][] = [
   [ToyBins, 'Go bin by bin. 2.10 is 0.75 + 0.70 + 0.65. 4.50 is 0.95 + 0.90 + 0.90 + 0.90 + 0.85.'],
   [ToyDiagram, ''],
   [EceFormula, '0.3 × 0.03 is 0.009, rounded to 0.01.'],
-  [EceCode, 'Notebook 1, section 5. ECE depends on the number of bins; try 15.'],
-  [Shapes, 'Curves are illustrative.'],
   [RealSetup, 'Same model as before. AG News is a standard four-topic news dataset. The 500 items kept aside are used later to choose the temperature.'],
   [RealOne, 'Reveal the probability column after the class has guessed the answer from the logits. Confidence means the largest of the four probabilities.'],
-  [RealSix, 'Ask whether the Microsoft item is really Sci/Tech or Business. Labels can be debatable, and the model gives 0.9997 either way.'],
   [RealNumbers, 'AG News, 4 topics, 1,000 test items, Qwen2.5-0.5B-Instruct read from letter logits.'],
   [RealBefore, 'Almost everything sits in the top bin. This is typical of an LLM read zero-shot.'],
-  [ConfWays, 'Guo et al., 2017, define confidence as the largest predicted probability, and ECE is built on it. Parts 2 and 3 already met the other two: the written confidence and the vote count.'],
   [ConfCompare, 'The written answers come from a different prompt, which is why accuracy differs between the rows. The sampled row draws 200 letters from the same distribution we read, so it can only agree up to sampling noise. Sampling tells you more when the answer is many tokens long.'],
-  [LitConf, 'Tian et al. tested ChatGPT, GPT-4 and Claude on TriviaQA, SciQ and TruthfulQA, with probabilities estimated from ten samples because those models hide their logits. Leng et al. compare Llama3-8B before and after RLHF. Our row-two numbers are from the previous slide.'],
   [WhyExtreme, 'e to the 9 is about 8,100. The model has the order mostly right; the size of the gaps is what is off.'],
   [DiscountFriend, 'Ask who has a friend like this. The friend’s ten answers are made up; the model’s two numbers are measured.'],
   [TempWorked, 'Work the T = 2 column on the board. e to the 1 is 2.72, e to the 0.5 is 1.65, e to the 0.05 is 1.05.'],
   [Temperature, 'Drag to 2 to match the worked example, then to 0.5 and to 10. At T = 1 we get 0.66, 0.24, 0.10 as before.'],
   [ChooseT, 'One parameter, fitted by a simple search over 191 values. Log loss is the same loss used to train classifiers; Part 5 comes back to it.'],
-  [SameItem, 'Temperature cannot fix this answer. It only makes the model less sure about it.'],
   [RealAfter, 'T is chosen to minimise the log loss on 500 held-out items, never on the test items.'],
-  [NotAccuracy, ''],
-  [ThreeRepairs, 'The conditions are from the scikit-learn guide and Roitman’s rule of thumb. The 50 to 200 figure is the guide’s summary of a paper it cites; I have not read that paper.'],
   [Check4, 'Give the class a minute.'],
   [Recap4, ''],
   [S5, ''],
   [TrainPipeline, 'The earlier version of this slide skipped supervised fine-tuning. Labs differ in the details and often repeat or mix stages 2 and 3; these three are the common core.'],
-  [PreTrain, 'Token counts are the makers’ own figures: the GPT-3 paper, Meta’s Llama 3 announcement and the Qwen2.5 report. Our small Qwen model comes from that family.'],
-  [BaseModel, 'The continuation is illustrative. A base model has no notion of a turn ending, so it also does not know when to stop.'],
-  [SFT, 'Instruction tuning and SFT name the same stage. Dolly is from Databricks, Alpaca from Stanford, FLAN from Google. Check the counts against the dataset cards before quoting them.'],
   [RLHFPage, 'The window is a mock-up of a rating tool. Real tools differ, and some ask for a ranking of four or more answers. Note which answer wins.'],
-  [RLHFLoop, 'InstructGPT is Ouyang et al., 2022. The two scores are illustrative. Newer methods such as DPO skip the separate reward model and train on the comparisons directly.'],
   [RLVRPage, 'RLVR means reinforcement learning with verifiable rewards. The same sum as in Part 1.'],
-  [RLVRCode, 'A function that returned True for every input would fail the second test and get 0. The reward says nothing about which test failed.'],
   [RLTwo, 'This framing follows the IBM video.'],
   [RLCD, 'Be clear that what follows is our construction with the same goal, not Jev’s method. Wikipedia notes it may be ordinary supervised learning with calibration terms in the loss.'],
   [OneAmbiguous, 'Ask the class what they would answer. Most say probably yes, and that word probably is the point.'],
@@ -7079,18 +7075,11 @@ const deck: [Page, string][] = [
   [BrierOne, '0.81 / 0.01 = 81.'],
   [BrierExpected, 'Ask the class to guess the best report before revealing the last row. Dividing each total by 10 gives the average penalty per email.'],
   [LogScore, 'So ordinary supervised training with cross-entropy already rewards correct probabilities, at least on the training distribution.'],
-  [RLCDIdeas, 'Unsloth exposes build_dataset, a trainer, split_holdout and calibrate. Its loss is not something I have verified. Wikipedia notes that RLCD may be ordinary supervised learning with calibration terms.'],
   [HeadWhy, 'The letter readout is zero-shot: nothing was trained for news topics. A head lets us use labelled data without touching the LLM.'],
   [HeadVector, 'This is the same last-position vector as in Part 2, step 4. In notebook 2 it is the final layer’s hidden state at the last token.'],
   [HeadMath, 'The three-number vector and the weights are made up so the sums can be done by hand. In code the head is torch.nn.Linear(896, 4).'],
-  [HeadFigure, 'Same drawing as in Part 3, with four topics. The left design is dimmed because we are not writing text here.'],
   [HeadTwoPhases, 'Notebook 2 also standardises each of the 896 columns of H before training. 500 more items are held out to fit the temperature.'],
-  [HeadCode, 'Notebook 2. Features are standardised first. Training takes a few seconds.'],
   [HeadResults, '2,000 training items. The Brier-trained head gives nearly the same numbers; it is in the notebook.'],
-  [HeadDemo, 'Real outputs from notebook 2. Ask the class for a headline and run it live in the notebook.'],
-  [UnslothRow, 'The example row is from Unsloth’s guide.'],
-  [UnslothCode, 'API as in Unsloth’s official notebook. I have not run notebook 3 myself; run it once before class.'],
-  [UnslothNumbers, 'Numbers from Unsloth’s documentation.'],
   [TwoTrainings, 'The Banking77 message is copied as it appears in the dataset, spelling included. Liquid’s numbers are from the stored outputs of its notebook: 100 test messages, about four and a half minutes of training on an A100. Liquid skips the new head because it would discard the readout d1-3B already has.'],
   [ThreeLevels, 'The 0.246 and 0.081 are quoted in Roitman’s section 9.4 from an evaluation by the Laya authors; I have not read that evaluation. Deußer et al. is the independent benchmark. The two reports disagree about Jev, which is itself a reason to measure.'],
   [TrainOnePage, 'This is the slide to return to if a student asks how these models are trained. Unsloth’s guide names no loss; its calibrate call reports accuracy, ECE and loss. Liquid’s recipe is ordinary fine-tuning where the answer is a single option-code token. Jev’s method has a name and no published details.'],
@@ -7098,26 +7087,19 @@ const deck: [Page, string][] = [
   [Recap5, ''],
   [S6, ''],
   [PerQuestion, 'This is the question students ask at this point. Our Part 5 head has four fixed outputs. General models take the question as input.'],
-  [OnePrompt, 'Unsloth describes its head as one that “looks at the LLM’s output over each question and option and scores every option”. How the heads inside Jev and Liquid are built is not published.'],
-  [TypedHeads, 'The formulas are the ones Roitman’s guide gives for this family. The score z and the cut points are picked so that the results match what our model read for the email; they are not taken from any trained head. e to the minus 1.05 is 0.35, e to the 2.75 is 15.6, e to the 3.9 is 49.4.'],
   [HeadWhere, 'This is the dynamic head made concrete. Same email, same question. On the left we read one place and trust the model\u2019s own output layer. On the right there are no letters: we read where each option ends. The live demo has a switch between the two.'],
   [HeadSteps, 'The three scores are real outputs of the head we trained. T = 1.2 was fitted on rows kept out of training. On this email the head agrees with the letters about the team, and still says technical, which is arguably wrong. A head with 57 thousand numbers on a frozen 0.5 B model is a teaching example, not a product.'],
   [HeadTraining, 'This answers where training comes in. Nothing here is specific to support emails: there is no email in the training rows at all. Real decision models do the same thing at far larger scale and also adjust the LLM with LoRA.'],
   [HeadUnseen, 'The key experiment. Letters use the model\u2019s pre-trained knowledge and need no training, so they are a strong baseline on any question. A head has to learn the skill of judging fit, and five kinds of question do not teach it. This is one run with one seed; I would not read much into gaps of three or four points. In the browser demo the head is retrained on the 4-bit model the browser runs, and its numbers are a little different.'],
-  [TrainOnce, 'The 30 to 37% and 73% are Unsloth’s figures for Qwen3.5-0.8B on its typed-decisions set. The docs do not say when to fine-tune; the last two rows are our advice.'],
   [Recipe, 'The quoted advice is on Liquid’s model pages. The size of the test set in step 2 is our suggestion, not a documented rule.'],
   [AppEmail, 'The running example, now as a build plan. All three questions go in one request.'],
   [Thresholds, 'From the IBM video’s refund example.'],
   [CostThreshold, 'Rupee amounts are made up. Derivation: p b minus (1 minus p) c is positive when p is above c over (c plus b).'],
   [ThresholdLive, 'Drag to 0.9 and to 0.5. Ask which threshold a bank would choose and which a news app would.'],
-  [Pipeline, 'Kahneman’s picture again: fast most of the time, slow when needed.'],
   [AppKiln, 'The drawing and the 0.93 are illustrative. Liquid documents image input and box answers; nobody has reported results on satellite tiles, so the training row is our expectation.'],
   [AppGame, 'The board probabilities are illustrative. Treating a policy as a choice question is our framing; the decision-model vendors do not discuss games.'],
-  [ThreeThresholds, 'All threshold values here are illustrative choices. Ask the class which mistake is worse in each case before revealing the bands.'],
   [PipelineThree, 'Kahneman again: System 1 for every input, System 2 where it is needed. In the kiln case System 2 is a person.'],
-  [NotFit, 'The list for generative LLMs follows Liquid’s documentation. The other two columns summarise this lecture.'],
   [Limits, 'The benchmark also reports that binary probabilities need tuned thresholds: micro-F1 on UNFAIR-ToS rises from 0.50 to 0.75.'],
-  [LimitsApps, 'These are our cautions for the three applications, drawn from the benchmark’s limits and from Part 4. The rare-event point is the base-rate effect.'],
   [Check6, 'This is the recipe from earlier in the part, applied.'],
   [Recap6, 'The last takeaway. The summary picture follows after the note on the name.'],
   [Jevons, 'William Stanley Jevons, The Coal Question, 1865.'],
@@ -7125,6 +7107,50 @@ const deck: [Page, string][] = [
   [Notebooks, 'Notebook 3 needs a GPU and takes much longer; show its saved outputs.'],
   [Sources, ''],
   [GoFurther, 'All links open in a new tab.'],
+  [AppendixPage, 'Everything after this slide is extra detail that was moved out of the main route. The slides are in their original order and keep their part labels.'],
+  [Overview, 'Do not explain the boxes yet. Say that every part fills in one of them, and that this picture returns at the end.'],
+  [TwoSystems, 'Ask the class for one more example of each.'],
+  [MLExamples, 'Ask which column their last course project was in. Many pipelines send left-column questions to a chat LLM.'],
+  [VisionCalls, 'Jev began with text; Roitman’s guide reports image input and a box answer from version 1.14. Liquid d1.2 documents image and audio input. The questions here are our own examples, apart from the circuit board, siren and caller-language ones, which are from Liquid’s pages.'],
+  [NewTypes, 'From Liquid’s d1.2 docs and blog, 16 Nov 2026. A number question with a range returns a median and an interval and has no found score. Vendor-reported accuracy only; no public benchmark covers the new types yet.'],
+  [ReadValues, 'Example copied from Liquid’s d1.2 docs. The span numbers count characters from 0, and the end is exclusive. The model normalises the number and the date and still reports the text as written.'],
+  [MoreExamples, 'All three from Liquid’s docs. In the multi-select answer the probabilities do not sum to 1, because each option is its own yes or no. The docs describe the interval as p10 to p90.'],
+  [PixelChoices, 'From the Jeveration paper: segmentation is a choice per pixel and depth and surface normals are scores per pixel, from one checkpoint. On NYUv2 the authors report mean IoU 67.7 and a depth error of 0.27 m, in about 78 ms. The two grids are our own drawing of a street, not the paper\u2019s data.'],
+  [Embed, 'The vector values drawn are illustrative; the table size is real.'],
+  [Stack, 'Do not go into the block internals. One output matters for us: the last-position vector.'],
+  [LoopCode, 'Run this cell in notebook 1.'],
+  [CoT, 'The 300 is illustrative. Reasoning models often write far more.'],
+  [Repairs, 'Constrained decoding means masking the logits so that only tokens allowed by a grammar or JSON schema can be picked.'],
+  [ReadOnce, 'The sample-size formula is the usual one for a proportion, at its worst case p = 0.5. Roitman’s guide makes this comparison with a spam example. In Part 4 we do draw 200 samples and compare them with the read probabilities.'],
+  [ManyPicks, 'This ties Part 2 to Part 3. Generation was never a different kind of operation: it is a choice over the vocabulary, repeated with feedback. The third row is the Jeveration paper\u2019s contribution for images. Be clear that nobody has shown one-pass generation of long, good text this way; the last line on the slide says so.'],
+  [MoreTypes, 'The multi-select and number readouts here are our own construction on a model with no training for them. For boxes and spans, Liquid’s open d1-2B code shows the method (box.py and pointer.py in its repository); we have not confirmed that the hosted d1.2 models work the same way.'],
+  [EceCode, 'Notebook 1, section 5. ECE depends on the number of bins; try 15.'],
+  [Shapes, 'Curves are illustrative.'],
+  [RealSix, 'Ask whether the Microsoft item is really Sci/Tech or Business. Labels can be debatable, and the model gives 0.9997 either way.'],
+  [ConfWays, 'Guo et al., 2017, define confidence as the largest predicted probability, and ECE is built on it. Parts 2 and 3 already met the other two: the written confidence and the vote count.'],
+  [LitConf, 'Tian et al. tested ChatGPT, GPT-4 and Claude on TriviaQA, SciQ and TruthfulQA, with probabilities estimated from ten samples because those models hide their logits. Leng et al. compare Llama3-8B before and after RLHF. Our row-two numbers are from the previous slide.'],
+  [SameItem, 'Temperature cannot fix this answer. It only makes the model less sure about it.'],
+  [NotAccuracy, ''],
+  [ThreeRepairs, 'The conditions are from the scikit-learn guide and Roitman’s rule of thumb. The 50 to 200 figure is the guide’s summary of a paper it cites; I have not read that paper.'],
+  [PreTrain, 'Token counts are the makers’ own figures: the GPT-3 paper, Meta’s Llama 3 announcement and the Qwen2.5 report. Our small Qwen model comes from that family.'],
+  [BaseModel, 'The continuation is illustrative. A base model has no notion of a turn ending, so it also does not know when to stop.'],
+  [SFT, 'Instruction tuning and SFT name the same stage. Dolly is from Databricks, Alpaca from Stanford, FLAN from Google. Check the counts against the dataset cards before quoting them.'],
+  [RLHFLoop, 'InstructGPT is Ouyang et al., 2022. The two scores are illustrative. Newer methods such as DPO skip the separate reward model and train on the comparisons directly.'],
+  [RLVRCode, 'A function that returned True for every input would fail the second test and get 0. The reward says nothing about which test failed.'],
+  [RLCDIdeas, 'Unsloth exposes build_dataset, a trainer, split_holdout and calibrate. Its loss is not something I have verified. Wikipedia notes that RLCD may be ordinary supervised learning with calibration terms.'],
+  [HeadFigure, 'Same drawing as in Part 3, with four topics. The left design is dimmed because we are not writing text here.'],
+  [HeadCode, 'Notebook 2. Features are standardised first. Training takes a few seconds.'],
+  [HeadDemo, 'Real outputs from notebook 2. Ask the class for a headline and run it live in the notebook.'],
+  [UnslothRow, 'The example row is from Unsloth’s guide.'],
+  [UnslothCode, 'API as in Unsloth’s official notebook. I have not run notebook 3 myself; run it once before class.'],
+  [UnslothNumbers, 'Numbers from Unsloth’s documentation.'],
+  [OnePrompt, 'Unsloth describes its head as one that “looks at the LLM’s output over each question and option and scores every option”. How the heads inside Jev and Liquid are built is not published.'],
+  [TypedHeads, 'The formulas are the ones Roitman’s guide gives for this family. The score z and the cut points are picked so that the results match what our model read for the email; they are not taken from any trained head. e to the minus 1.05 is 0.35, e to the 2.75 is 15.6, e to the 3.9 is 49.4.'],
+  [TrainOnce, 'The 30 to 37% and 73% are Unsloth’s figures for Qwen3.5-0.8B on its typed-decisions set. The docs do not say when to fine-tune; the last two rows are our advice.'],
+  [Pipeline, 'Kahneman’s picture again: fast most of the time, slow when needed.'],
+  [ThreeThresholds, 'All threshold values here are illustrative choices. Ask the class which mistake is worse in each case before revealing the bands.'],
+  [NotFit, 'The list for generative LLMs follows Liquid’s documentation. The other two columns summarise this lecture.'],
+  [LimitsApps, 'These are our cautions for the three applications, drawn from the benchmark’s limits and from Part 4. The rare-event point is the base-rate effect.'],
 ];
 
 export const meta: SlideMeta = {
