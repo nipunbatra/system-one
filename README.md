@@ -44,6 +44,9 @@ It warns when little of the model's probability is on the option letters, and ca
 A switch changes the method from reading letters to a trained shared head, and shows that head's working the same way.
 It is one file, `site/demo/index.html`. It loads the `q4` weights: the `fp16` variants gave wrong scores on WebGPU when tested.
 
+A second page, `site/demo/vision.html`, runs SmolVLM-500M the same way on a picture: yes/no, choice and score questions, a count asked as a ladder of yes/no questions, and detection by asking a yes/no of every tile.
+No training is involved; a one-pass "which tile?" question is included to show that the untrained model cannot point directly.
+
 ## The shared-head experiment
 
 `science/shared_head.py` trains one small scorer on a frozen Qwen2.5-0.5B that is reused for every option of every question, on 13 kinds of question, and tests it on three kinds it never saw.

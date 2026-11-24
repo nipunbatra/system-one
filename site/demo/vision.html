@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>See, don't write: decisions about a picture from an off-the-shelf model</title>
+<meta name="description" content="A small vision-language model runs in your browser, with no training. Ask yes or no, choice, score and count questions about a picture, and find an object by asking a yes or no of every tile.">
+<style>
+  :root { --bg:#faf7f2; --card:#fffdf9; --ink:#1f1b16; --soft:#57504a; --muted:#8a8179; --rule:#e4dccf; --panel:#f3eee5;
+    --s1:#b45309; --s1bg:#fdf1de; --s2:#1d4ed8; --pred:#6d28d9; --truth:#0f766e; --truthbg:#e4f3f0; --loss:#be123c; --accent:#c44536;
+    --shadow: 0 1px 2px #1f1b160a, 0 6px 20px #1f1b160d; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font: 16px/1.5 -apple-system, "Helvetica Neue", "Segoe UI", system-ui, sans-serif; }
+  .hero { background: radial-gradient(1200px 300px at 20% -40%, #d9ecdf 0%, transparent 70%), radial-gradient(900px 260px at 90% -30%, #e9e0f7 0%, transparent 70%); border-bottom:1px solid var(--rule); }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 22px; } .hero .wrap { padding-top: 34px; padding-bottom: 24px; }
+  h1 { font: 700 clamp(30px,4.6vw,46px)/1.08 "Iowan Old Style", Palatino, Georgia, serif; margin: 6px 0 10px; }
+  h2 { font: 700 21px/1.2 "Iowan Old Style", Palatino, Georgia, serif; margin: 0 0 4px; }
+  .kicker { color:var(--accent); font-weight:700; letter-spacing:.16em; text-transform:uppercase; font-size:12.5px; } .kicker a { color:inherit; }
+  p { margin: 0 0 10px; } .sub { color:var(--soft); } .muted { color:var(--muted); font-size:14px; } a { color: var(--s2); }
+  .card { background:var(--card); border:1px solid var(--rule); border-radius:16px; padding:18px 20px; box-shadow:var(--shadow); }
+  .lab { display:block; font-size:11.5px; letter-spacing:.11em; text-transform:uppercase; font-weight:700; color:var(--muted); margin: 0 0 5px; }
+  textarea, input[type=text], select { width:100%; font: 15.5px/1.45 inherit; font-family:inherit; padding:9px 11px; border:1.5px solid var(--rule); border-radius:10px; background:#fff; color:var(--ink); }
+  textarea:focus, input:focus, select:focus { outline:none; border-color:var(--s1); box-shadow:0 0 0 3px #b4530922; }
+  button { font: 600 15px/1 inherit; font-family:inherit; padding:10px 16px; border-radius:10px; border:1.5px solid var(--rule); background:#fff; color:var(--ink); cursor:pointer; }
+  button:hover:not(:disabled) { border-color:var(--ink); } button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.small { font-size:13.5px; padding:7px 11px; font-weight:500; } button:disabled { opacity:.45; cursor:default; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .loader { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:16px; background:#ffffffb8; border:1px solid var(--rule); border-radius:14px; padding:10px 12px; }
+  .loader select { width:auto; flex:1; min-width:240px; }
+  .pill { display:inline-flex; align-items:center; gap:7px; font-size:13.5px; font-weight:600; padding:6px 11px; border-radius:20px; background:var(--panel); color:var(--soft); }
+  .pill i { width:9px; height:9px; border-radius:5px; background:var(--muted); flex:none; } .pill.ok { background:var(--truthbg); color:var(--truth); } .pill.ok i { background:var(--truth); }
+  .pill.busy i { background:var(--s1); animation:pulse 1s infinite; } @keyframes pulse { 50% { opacity:.3; } }
+  .track { height:6px; background:var(--panel); border-radius:3px; overflow:hidden; flex-basis:100%; } .track b { display:block; height:6px; width:0; background:var(--accent); transition:width .2s; }
+  .cols { display:grid; grid-template-columns: minmax(0, 520px) minmax(0, 1fr); gap:22px; align-items:start; margin-top:20px; }
+  @media (max-width: 960px) { .cols { grid-template-columns: 1fr; } }
+  .stack { display:flex; flex-direction:column; gap:14px; }
+  .stage { position:relative; border-radius:12px; overflow:hidden; background:var(--panel); line-height:0; }
+  .stage img { width:100%; height:auto; display:block; }
+  .stage canvas { position:absolute; inset:0; width:100%; height:100%; }
+  .chip { display:inline-block; font: 700 12px/1 "SF Mono", Menlo, monospace; color:#fff; background:var(--s1); border-radius:6px; padding:4px 7px; }
+  .types { display:flex; gap:5px; flex-wrap:wrap; } .types button { font: 600 12.5px/1 "SF Mono", Menlo, monospace; padding:6px 9px; border-radius:7px; } .types button.on { background:var(--s1); border-color:var(--s1); color:#fff; }
+  .qcard { border:1.5px solid var(--rule); border-radius:14px; padding:12px 14px; background:#fff; }
+  .del { border:none; background:none; color:var(--muted); font-size:19px; padding:2px 6px; }
+  .hint { font-size:12.5px; color:var(--muted); margin:6px 0 0; }
+  .rhead { display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; margin-bottom:8px; } .rhead .q { font-weight:600; font-size:16.5px; flex:1; min-width:180px; } .rhead .ms { font-size:12.5px; color:var(--muted); }
+  .ans { font: 700 28px/1.15 "Iowan Old Style", Palatino, Georgia, serif; color:var(--s1); margin: 2px 0 8px; } .ans small { font: 400 15px/1.4 -apple-system, sans-serif; color:var(--soft); display:block; margin-top:4px; }
+  .bars { display:grid; grid-template-columns: minmax(90px, max-content) 1fr 46px; gap:7px 12px; align-items:center; font-size:14.5px; }
+  .bar { height:14px; background:var(--panel); border-radius:7px; overflow:hidden; } .bar i { display:block; height:14px; border-radius:7px; background:var(--pred); }
+  .m { font-family:"SF Mono", Menlo, Consolas, monospace; font-size:13.5px; } .p { color:var(--pred); }
+  .tok { font-family:"SF Mono", Menlo, monospace; background:var(--s1bg); border:1.5px solid var(--s1); color:var(--s1); font-weight:700; border-radius:6px; padding:0 6px; }
+  pre { margin:8px 0 0; padding:12px 14px; background:#fff; border:1px solid var(--rule); border-radius:10px; font: 12.8px/1.5 "SF Mono", Menlo, Consolas, monospace; white-space:pre-wrap; word-break:break-word; }
+  details { margin-top:10px; border-top:1px dashed var(--rule); padding-top:8px; } summary { cursor:pointer; font-weight:600; font-size:14px; color:var(--soft); }
+  .note { background:#fbeee9; border-left:4px solid var(--accent); border-radius:8px; padding:10px 14px; font-size:14.5px; margin-top:12px; }
+  .good { background:var(--truthbg); border-left-color:var(--truth); }
+  .hide { display:none !important; }
+  .facts { display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:12px; margin: 26px 0 60px; } .facts div { background:var(--panel); border-radius:12px; padding:13px 15px; font-size:14.5px; color:var(--soft); } .facts b { color:var(--ink); display:block; margin-bottom:3px; }
+</style>
+</head>
+<body>
+<div class="hero"><div class="wrap">
+  <div class="kicker">Live demo · <a href="../">System 1 models</a> · <a href="./">text demo</a></div>
+  <h1>See, don't write</h1>
+  <p class="sub" style="font-size:18.5px;max-width:840px;margin:0">A small model that can see, used as downloaded with no training. Ask typed questions about a picture, then find an object by splitting detection into many yes or no questions.</p>
+  <div class="loader">
+    <select id="modelSel">
+      <option value="HuggingFaceTB/SmolVLM-500M-Instruct">SmolVLM-500M-Instruct · about 350 MB</option>
+      <option value="HuggingFaceTB/SmolVLM-256M-Instruct">SmolVLM-256M-Instruct · smaller, weaker · about 180 MB</option>
+    </select>
+    <button class="primary" id="loadBtn">Load model</button>
+    <span class="pill" id="pill"><i></i><span id="status">No model loaded. It downloads once and runs on your machine; the picture never leaves it.</span></span>
+    <div class="track hide" id="track"><b id="prog"></b></div>
+  </div>
+</div></div>
+
+<div class="wrap">
+  <div class="cols">
+    <div class="stack">
+      <div class="card">
+        <span class="lab">State: the picture</span>
+        <div class="stage" id="stage"><img id="img" alt="the picture being judged"><canvas id="overlay"></canvas></div>
+        <div class="row" style="margin-top:10px">
+          <button class="small" id="sampleBtn">Sample photo</button>
+          <label class="small" style="display:inline-block"><input type="file" id="file" accept="image/*" class="hide"><span id="fileBtn" style="display:inline-block;font:500 13.5px/1 inherit;padding:8px 11px;border:1.5px solid var(--rule);border-radius:10px;background:#fff;cursor:pointer">Choose your own picture</span></label>
+          <button class="small" id="camBtn">Use the camera</button>
+        </div>
+        <p class="hint" id="credit"></p>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="card">
+        <h2>1 · Questions about the whole picture</h2>
+        <p class="muted">One forward pass each. The picture and the question go in, and we read the scores of the option letters, as in the text demo.</p>
+        <div class="stack" id="qs" style="gap:8px"></div>
+        <div class="row" style="margin-top:10px"><button class="small" id="addQ">+ Add a question</button><button class="primary" id="askBtn" disabled>Read the answers</button><span class="muted" id="askStatus">Load a model first.</span></div>
+        <div class="stack" id="answers" style="margin-top:12px"></div>
+      </div>
+
+      <div class="card">
+        <h2>2 · Where is it? Detection as many yes or no questions</h2>
+        <p class="muted">A model that was never trained to point cannot give a box directly. So we cut the picture into tiles and ask the same yes or no of every tile.</p>
+        <div class="row" style="margin-top:8px">
+          <input type="text" id="thing" value="a human face" style="flex:1;min-width:180px" aria-label="what to look for">
+          <select id="grid" style="width:auto"><option value="3">3 × 3 tiles</option><option value="4" selected>4 × 4 tiles</option><option value="5">5 × 5 tiles</option><option value="6">6 × 6 tiles</option></select>
+          <button class="primary" id="scanBtn" disabled>Scan the tiles</button>
+        </div>
+        <p class="muted" id="scanStatus" style="margin-top:8px"></p>
+        <div id="scanOut"></div>
+        <div class="row hide" id="onePassRow" style="margin-top:10px"><button class="small" id="onePassBtn">Compare: ask “which tile?” in one pass</button><span class="muted" id="onePassStatus"></span></div>
+        <div id="onePassOut"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="facts">
+    <div><b>Nothing was trained</b>The model is used as downloaded. Every answer is the score of a letter token, read in one pass.</div>
+    <div><b>Detection, split up</b>“Where is it?” became one yes or no per tile. The box is drawn around the tiles that said yes.</div>
+    <div><b>What training buys</b>A trained decision model such as Liquid’s d1.2 gives the four edges of a box in a single pass, without tiles.</div>
+    <div><b>Expect mistakes</b>This is a half-billion-parameter model with 4-bit weights. See the <a href="../s/system-one">lecture</a> for calibration and training.</div>
+  </div>
+</div>
+
+<script type="module">
+import { AutoProcessor, AutoModelForImageTextToText, AutoModelForVision2Seq, RawImage, load_image } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2';
+
+const $ = (id) => document.getElementById(id);
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const f2 = (x) => x.toFixed(2);
+let processor, model, tok, image = null, uid = 0, lastScan = null, questions = [];
+
+const TYPES = { noul: 'noul', choice: 'choice', score: 'score', count: 'count' };
+const HELP = { noul: 'Yes or no. The answer is P(yes).', choice: 'One option per line.', score: 'Levels, lowest first, one per line.', count: 'Write one thing to count, in the singular. It is asked as a ladder of yes or no questions: at least one? at least two? and so on, stopping at the first no. On a small untrained model the wording changes the answer a lot.' };
+const Q = (type, q, opts = '') => ({ id: ++uid, type, q, opts });
+questions = [Q('noul', 'Is there a person in this picture?'), Q('choice', 'Where was this picture taken?', 'indoors\noutdoors'), Q('count', 'person'), Q('score', 'How formal are the clothes?', 'casual\nsmart\nformal')];
+
+function setStatus(text, cls = '') { $('status').textContent = text; $('pill').className = 'pill ' + cls; }
+function softmax(z) { let m = -Infinity; for (const x of z) if (x > m) m = x; const e = z.map((x) => Math.exp(x - m)); const s = e.reduce((a, b) => a + b, 0); return e.map((x) => x / s); }
+
+// ---------- the picture
+async function setImage(src, credit = '') {
+  $('img').src = src; await $('img').decode(); image = await load_image(src); $('credit').textContent = credit;
+  const c = $('overlay'); c.width = $('img').naturalWidth; c.height = $('img').naturalHeight; c.getContext('2d').clearRect(0, 0, c.width, c.height);
+  $('scanOut').innerHTML = ''; $('onePassOut').innerHTML = ''; $('onePassRow').classList.add('hide'); $('answers').innerHTML = ''; lastScan = null;
+}
+$('sampleBtn').onclick = () => setImage('img/kahneman.jpg', 'Sample: Daniel Kahneman. Photo by nrkbeta, CC BY-SA 2.0, via Wikimedia Commons.');
+$('fileBtn').onclick = () => $('file').click();
+$('file').onchange = (e) => { const f = e.target.files[0]; if (f) setImage(URL.createObjectURL(f), 'Your picture. It stays in this browser tab.'); };
+$('camBtn').onclick = async () => {
+  try { const stream = await navigator.mediaDevices.getUserMedia({ video: true }); const v = document.createElement('video'); v.srcObject = stream; await v.play();
+    await new Promise((r) => setTimeout(r, 700)); const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v, 0, 0);
+    stream.getTracks().forEach((t) => t.stop()); await setImage(c.toDataURL('image/jpeg', 0.9), 'A frame from your camera. It stays in this browser tab.');
+  } catch (err) { $('credit').textContent = 'Could not use the camera: ' + (err?.message ?? err); }
+};
+
+// ---------- the model
+$('loadBtn').onclick = async () => {
+  $('loadBtn').disabled = true; $('track').classList.remove('hide'); $('prog').style.width = '0%'; const id = $('modelSel').value;
+  try {
+    setStatus('Fetching the processor …', 'busy'); processor = await AutoProcessor.from_pretrained(id); tok = processor.tokenizer;
+    const seen = {}; const device = navigator.gpu && (await navigator.gpu.requestAdapter().catch(() => null)) ? 'webgpu' : 'wasm';
+    model = await (AutoModelForImageTextToText ?? AutoModelForVision2Seq).from_pretrained(id, { dtype: { embed_tokens: 'q8', vision_encoder: 'q4', decoder_model_merged: 'q4' }, device, progress_callback: (p) => {
+      if (p.status === 'progress' && p.total) { seen[p.file] = [p.loaded, p.total]; const l = Object.values(seen).reduce((a, v) => a + v[0], 0), t = Object.values(seen).reduce((a, v) => a + v[1], 0);
+        $('prog').style.width = (100 * l) / t + '%'; setStatus(`Downloading ${(l / 1e6).toFixed(0)} of ${(t / 1e6).toFixed(0)} MB`, 'busy'); } } });
+    setStatus('Warming up …', 'busy'); if (image) await readLetters(image, 'Is this a picture?', ['yes', 'no']);
+    $('prog').style.width = '100%'; setTimeout(() => $('track').classList.add('hide'), 600);
+    setStatus(`${id.split('/')[1]} is ready on ${device === 'webgpu' ? 'your GPU' : 'the CPU (no WebGPU here, so it will be slow)'}`, 'ok');
+    $('askBtn').disabled = false; $('scanBtn').disabled = false; $('askStatus').textContent = ''; $('scanStatus').textContent = '';
+  } catch (err) { setStatus('Could not load the model: ' + (err?.message ?? err)); console.error(err); }
+  $('loadBtn').disabled = false;
+};
+
+// One forward pass over a picture and a lettered question. This model writes its letters with a leading space,
+// so we read whichever form of each letter scores higher.
+const letterIds = (i) => [tok.encode(' ' + LETTERS[i], { add_special_tokens: false }).pop(), tok.encode(LETTERS[i], { add_special_tokens: false }).pop()];
+async function readLetters(img, question, options) {
+  const user = `${question}\n${options.map((o, i) => `${LETTERS[i]}. ${o}`).join('\n')}\nAnswer with one letter.`;
+  const text = processor.apply_chat_template([{ role: 'user', content: [{ type: 'image' }, { type: 'text', text: user }] }], { add_generation_prompt: true });
+  const inputs = await processor(text, [img], { do_image_splitting: false });
+  const t0 = performance.now(); const out = await model(inputs); const ms = performance.now() - t0;
+  const [, n, v] = out.logits.dims; const d = out.logits.data; const at = (id) => d[(n - 1) * v + id];
+  const z = options.map((_, i) => Math.max(...letterIds(i).map(at)));
+  return { p: softmax(z), z, ms, n, user };
+}
+
+// ---------- 1 · whole-picture questions
+function renderQs() {
+  $('qs').innerHTML = questions.map((q) => `<div class="qcard" data-id="${q.id}">
+    <div class="row" style="justify-content:space-between;margin-bottom:8px"><div class="types">${Object.keys(TYPES).map((k) => `<button data-type="${k}" class="${q.type === k ? 'on' : ''}">${k}</button>`).join('')}</div><button class="del" data-rm title="Remove">×</button></div>
+    <input type="text" data-f="q" value="${esc(q.q)}" placeholder="${q.type === 'count' ? 'what to count, for example: person' : 'Write your question about the picture'}">
+    ${q.type === 'choice' || q.type === 'score' ? `<textarea data-f="opts" rows="${Math.max(2, q.opts.split('\n').length)}" style="margin-top:7px" placeholder="one option per line">${esc(q.opts)}</textarea>` : ''}
+    <p class="hint">${HELP[q.type]}</p></div>`).join('');
+}
+$('qs').addEventListener('click', (e) => { const card = e.target.closest('.qcard'); if (!card) return; const q = questions.find((x) => x.id === +card.dataset.id);
+  if (e.target.dataset.rm !== undefined) { questions = questions.filter((x) => x !== q); renderQs(); } else if (e.target.dataset.type) { q.type = e.target.dataset.type; renderQs(); } });
+$('qs').addEventListener('input', (e) => { const card = e.target.closest('.qcard'); const q = questions.find((x) => x.id === +card.dataset.id); if (e.target.dataset.f) q[e.target.dataset.f] = e.target.value; });
+$('addQ').onclick = () => { questions.push(Q('noul', '')); renderQs(); };
+const MAX_RUNGS = 5;
+const bars = (labels, p, best) => `<div class="bars">${labels.map((o, i) => `<div style="${i === best ? 'font-weight:700' : ''}"><span class="tok">${LETTERS[i]}</span> ${esc(o)}</div><div class="bar"><i style="width:${Math.max(1.5, 100 * p[i])}%"></i></div><div class="m p">${f2(p[i])}</div>`).join('')}</div>`;
+
+$('askBtn').onclick = async () => {
+  if (!image) { $('askStatus').textContent = 'Choose a picture first.'; return; }
+  const qs = questions.filter((q) => q.q.trim()); $('askBtn').disabled = true; $('answers').innerHTML = ''; let total = 0;
+  try {
+    for (const [k, q] of qs.entries()) {
+      $('askStatus').textContent = `Question ${k + 1} of ${qs.length} …`;
+      if (q.type === 'count') {
+        const rungs = []; let ms = 0;
+        const thing = q.q.trim(), WORDS = ['one', 'two', 'three', 'four', 'five'], asked = [];
+        for (let n = 1; n <= MAX_RUNGS; n++) { const text = n === 1 ? `Is there at least one ${thing} in this picture?` : `Are there at least ${WORDS[n - 1]} ${thing}s in this picture?`; asked.push(text); const r = await readLetters(image, text, ['yes', 'no']); ms += r.ms; rungs.push(r.p[0]); if (r.p[0] < 0.5) break; }
+        total += ms; const count = rungs.filter((p) => p >= 0.5).length; const open = count === MAX_RUNGS;
+        const el = document.createElement('div'); el.className = 'qcard';
+        el.innerHTML = `<div class="rhead"><span class="chip">count</span><span class="q">How many: ${esc(thing)}?</span><span class="ms">${rungs.length} passes · ${ms.toFixed(0)} ms</span></div>
+          <div class="ans">${open ? MAX_RUNGS + ' or more' : count}<small>a ladder of yes or no questions, stopped at the first no</small></div>
+          <div class="bars">${rungs.map((p, i) => `<div style="${p >= 0.5 ? 'font-weight:700' : ''}">${esc(asked[i])}</div><div class="bar"><i style="width:${Math.max(1.5, 100 * p)}%;background:${p >= 0.5 ? 'var(--truth)' : 'var(--muted)'}"></i></div><div class="m p">${f2(p)}</div>`).join('')}</div>`;
+        $('answers').appendChild(el); continue;
+      }
+      const opts = q.type === 'noul' ? ['yes', 'no'] : q.opts.split('\n').map((s) => s.trim()).filter(Boolean);
+      if (opts.length < 2) continue;
+      const r = await readLetters(image, q.q, opts); total += r.ms; const best = r.p.indexOf(Math.max(...r.p));
+      let ans = `<div class="ans">${esc(opts[best])}<small>with probability <b class="p">${f2(r.p[best])}</b></small></div>`;
+      if (q.type === 'noul') ans = `<div class="ans">${r.p[0] >= 0.5 ? 'yes' : 'no'}<small>P(yes) = <b class="p">${f2(r.p[0])}</b></small></div>`;
+      if (q.type === 'score') { const v = r.p.reduce((a, p, i) => a + i * p, 0); ans = `<div class="ans">${esc(opts[best])}<small>score <b class="p">${f2(v)}</b> on a scale from 0 to ${opts.length - 1}: ${r.p.map((p, i) => `${i} × ${f2(p)}`).join(' + ')}</small></div>`; }
+      const el = document.createElement('div'); el.className = 'qcard';
+      el.innerHTML = `<div class="rhead"><span class="chip">${q.type}</span><span class="q">${esc(q.q)}</span><span class="ms">1 pass · ${r.ms.toFixed(0)} ms</span></div>${ans}${bars(opts, r.p, best)}
+        <details><summary>Show the working</summary><p class="muted" style="margin-top:8px">The picture goes in as image tokens, followed by this text. We read the scores of the ${opts.length} letters at the end and take a softmax over them.</p><pre>[the picture]\n${esc(r.user)}</pre><p class="muted" style="margin-top:8px">${r.n} tokens in all, most of them the picture. Scores read: ${r.z.map((z, i) => `${LETTERS[i]} ${f2(z)}`).join(', ')}.</p></details>`;
+      $('answers').appendChild(el);
+    }
+    $('askStatus').textContent = `${total.toFixed(0)} ms in all, and no generated text.`;
+  } catch (err) { $('askStatus').textContent = 'Something went wrong: ' + (err?.message ?? err); console.error(err); }
+  $('askBtn').disabled = false;
+};
+
+// ---------- 2 · detection as a yes or no per tile
+function drawGrid(g, probs, box) {
+  const c = $('overlay'), ctx = c.getContext('2d'), w = c.width / g, h = c.height / g; ctx.clearRect(0, 0, c.width, c.height);
+  ctx.font = `${Math.max(14, Math.round(h / 5))}px "SF Mono", Menlo, monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (let y = 0; y < g; y++) for (let x = 0; x < g; x++) {
+    const p = probs[y * g + x]; ctx.strokeStyle = '#ffffffaa'; ctx.lineWidth = Math.max(1, c.width / 600); ctx.strokeRect(x * w, y * h, w, h);
+    if (p === undefined) continue;
+    ctx.fillStyle = `rgba(109, 40, 217, ${0.08 + 0.55 * p})`; ctx.fillRect(x * w, y * h, w, h);
+    ctx.fillStyle = '#fff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 6; ctx.fillText(f2(p), x * w + w / 2, y * h + h / 2); ctx.shadowBlur = 0;
+  }
+  if (box) { ctx.strokeStyle = '#0f766e'; ctx.lineWidth = Math.max(4, c.width / 150); ctx.strokeRect(box.x0 * w, box.y0 * h, (box.x1 - box.x0 + 1) * w, (box.y1 - box.y0 + 1) * h); }
+}
+// the largest group of touching tiles at 0.5 or more that contains the best tile
+function boxFrom(g, probs) {
+  const best = probs.indexOf(Math.max(...probs)); if (probs[best] < 0.5) return null;
+  const seen = new Set([best]), todo = [best];
+  while (todo.length) { const i = todo.pop(), x = i % g, y = Math.floor(i / g);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, j = ny * g + nx; if (nx >= 0 && ny >= 0 && nx < g && ny < g && !seen.has(j) && probs[j] >= 0.5) { seen.add(j); todo.push(j); } } }
+  const xs = [...seen].map((i) => i % g), ys = [...seen].map((i) => Math.floor(i / g));
+  return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), n: seen.size };
+}
+$('scanBtn').onclick = async () => {
+  if (!image) { $('scanStatus').textContent = 'Choose a picture first.'; return; }
+  const g = +$('grid').value, thing = $('thing').value.trim() || 'the object'; $('scanBtn').disabled = true; $('scanOut').innerHTML = ''; $('onePassOut').innerHTML = '';
+  const probs = [], w = Math.floor(image.width / g), h = Math.floor(image.height / g); let total = 0; const question = `Is there ${thing} in this picture?`;
+  try {
+    for (let y = 0; y < g; y++) for (let x = 0; x < g; x++) {
+      $('scanStatus').textContent = `Tile ${y * g + x + 1} of ${g * g}: “${question}”`;
+      const tile = await image.crop([x * w, y * h, (x + 1) * w - 1, (y + 1) * h - 1]);
+      const r = await readLetters(tile, question, ['yes', 'no']); total += r.ms; probs.push(r.p[0]); drawGrid(g, probs, null);
+    }
+    const box = boxFrom(g, probs); drawGrid(g, probs, box); lastScan = { g, thing, box, probs };
+    $('scanStatus').textContent = `${g * g} forward passes, ${(total / 1000).toFixed(1)} s. Each number is P(yes) for that tile.`;
+    $('scanOut').innerHTML = box
+      ? `<div class="note good"><b>Found.</b> ${box.n} tile${box.n > 1 ? 's' : ''} said yes with 0.5 or more, and the green box is drawn around them: left ${f2(box.x0 / g)}, right ${f2((box.x1 + 1) / g)}, top ${f2(box.y0 / g)}, bottom ${f2((box.y1 + 1) / g)}, as fractions of the picture. Its edges can only fall on tile borders, so a finer grid gives a tighter box and costs more passes.</div>`
+      : `<div class="note"><b>Not found.</b> No tile reached 0.5 for “${esc(thing)}”. Try a coarser grid: when an object is larger than a tile, no single tile shows enough of it.</div>`;
+    $('onePassRow').classList.remove('hide'); $('onePassStatus').textContent = '';
+  } catch (err) { $('scanStatus').textContent = 'Something went wrong: ' + (err?.message ?? err); console.error(err); }
+  $('scanBtn').disabled = false;
+};
+$('onePassBtn').onclick = async () => {
+  if (!lastScan) return; $('onePassBtn').disabled = true; const names = ['top left', 'top middle', 'top right', 'middle left', 'centre', 'middle right', 'bottom left', 'bottom middle', 'bottom right'];
+  try {
+    const r = await readLetters(image, `The picture is divided into a 3 by 3 grid. In which part is ${lastScan.thing}?`, names); const best = r.p.indexOf(Math.max(...r.p));
+    $('onePassOut').innerHTML = `<div class="qcard" style="margin-top:10px"><div class="rhead"><span class="chip">choice</span><span class="q">In which part of the picture is ${esc(lastScan.thing)}?</span><span class="ms">1 pass · ${r.ms.toFixed(0)} ms</span></div><div class="ans" style="font-size:22px">${names[best]}<small>with probability <b class="p">${f2(r.p[best])}</b></small></div>${bars(names, r.p, best)}
+      <div class="note">Compare this with the tiles. A small model that was never trained to point often gets this wrong, because nothing taught it to connect a place in the picture with a word such as “top left”. Asking a yes or no of each tile avoids that, at the price of many passes. Training is what lets a decision model give four edges in one pass.</div></div>`;
+  } catch (err) { $('onePassStatus').textContent = 'Something went wrong: ' + (err?.message ?? err); }
+  $('onePassBtn').disabled = false;
+};
+
+renderQs();
+setImage('img/kahneman.jpg', 'Sample: Daniel Kahneman. Photo by nrkbeta, CC BY-SA 2.0, via Wikimedia Commons.');
+</script>
+</body>
+</html>
