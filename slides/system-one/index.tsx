@@ -6521,6 +6521,148 @@ const SplitHow: Page = () => (
   </Frame>
 );
 
+
+// ---------------------------------------------------------------- from choices to pictures (Jeveration)
+
+const JEV_SRC = 'Liu, Li, Zhang, Wang, “Jeveration: System One Models Now Generate”, arXiv 2611.24738, November 2026';
+// a tiny street scene on a 12 x 7 grid: s sky, b building, t tree, r road
+const SCENE = ['ssssssssssss', 'sssbbbssssss', 'ttsbbbsssbbb', 'tttbbbsttbbb', 'tttbbbtttbbb', 'rrrrrrrrrrrr', 'rrrrrrrrrrrr'];
+const CLS: Record<string, [string, string]> = { s: ['sky', '#bcd4ee'], b: ['building', '#d9b99b'], t: ['tree', '#9cc5a1'], r: ['road', '#b8b2ab'] };
+const DEPTH = [9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 6, 6, 6, 9, 9, 9, 9, 9, 9, 5, 5, 9, 6, 6, 6, 9, 9, 9, 7, 7, 7, 5, 5, 5, 6, 6, 6, 9, 5, 5, 7, 7, 7, 4, 4, 4, 6, 6, 6, 5, 5, 5, 7, 7, 7, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+
+const PixelChoices: Page = () => (
+  <Frame
+    part={1}
+    title="A choice or a score for every pixel"
+    line="Labelling a picture is one choice per pixel, and measuring depth is one score per pixel. All of them come out of the same single pass."
+    src={`${JEV_SRC} · the two grids are our drawing`}
+  >
+    <div style={{ ...row, gap: 50, alignItems: 'flex-start' }}>
+      <div style={{ width: 800 }}>
+        <div style={{ ...row, gap: 12, alignItems: 'center', marginBottom: 10 }}><TypeChip t="choice" small /><span style={{ fontSize: 28 }}>“What is at this pixel?” asked of every pixel</span></div>
+        <svg width={780} height={455} viewBox="0 0 780 455">
+          {SCENE.flatMap((line, y) => [...line].map((c, x) => <rect key={`${x}-${y}`} x={x * 65} y={y * 65} width={63} height={63} rx={4} fill={CLS[c][1]} />))}
+        </svg>
+        <div style={{ ...row, gap: 22, fontSize: 24, marginTop: 8 }}>
+          {Object.values(CLS).map(([name, color]) => (
+            <span key={name} style={{ ...row, alignItems: 'center', gap: 8 }}><span style={{ width: 24, height: 24, borderRadius: 4, background: color, display: 'inline-block' }} />{name}</span>
+          ))}
+        </div>
+      </div>
+      <Steps>
+        <Step>
+          <div style={{ width: 800 }}>
+            <div style={{ ...row, gap: 12, alignItems: 'center', marginBottom: 10 }}><TypeChip t="score" small /><span style={{ fontSize: 28 }}>“How far away is this pixel?”</span></div>
+            <svg width={780} height={455} viewBox="0 0 780 455">
+              {DEPTH.map((d, i) => (
+                <g key={i}>
+                  <rect x={(i % 12) * 65} y={Math.floor(i / 12) * 65} width={63} height={63} rx={4} fill={C.pred} opacity={0.12 + (9 - d) * 0.09} />
+                  <text x={(i % 12) * 65 + 31} y={Math.floor(i / 12) * 65 + 41} textAnchor="middle" fontSize={24} fontFamily={mono} fill={C.ink}>{d === 9 ? '∞' : d}</text>
+                </g>
+              ))}
+            </svg>
+            <div style={{ fontSize: 24, color: C.soft, marginTop: 8 }}>metres, darker is nearer</div>
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const CODES = Array.from({ length: 128 }, (_, i) => (i * 37 + (i % 7) * 11) % 9);
+const CODE_COL = ['#d9b99b', '#bcd4ee', '#9cc5a1', '#e9c46a', '#b79bea', '#f4a6a0', '#b8b2ab', '#8fc1c0', '#e6d5b8'];
+
+const ImageChoices: Page = () => (
+  <Frame
+    part={1}
+    title="Even a picture: 128 picks, made at the same time"
+    line="A picture can be written as 128 codes, each picked from 8,192. The model makes all 128 picks in one pass, and a shared set of random numbers keeps them in agreement."
+    src={`${JEV_SRC} · numbers as reported by the authors`}
+  >
+    <svg width={1700} height={250} viewBox="0 0 1700 250">
+      <Arrows />
+      <Box x={0} y={60} w={330} h={120} text="“a red kite over a" sub="beach at sunset”" size={26} />
+      <Arr x1={330} y1={120} x2={372} y2={120} />
+      <Box x={380} y={60} w={270} h={120} text="one forward pass" sub="frozen VLM + adapters" color={C.s2} size={26} />
+      <Arr x1={650} y1={120} x2={692} y2={120} />
+      <g transform="translate(700 28)">
+        {CODES.map((c, i) => <rect key={i} x={(i % 16) * 25} y={Math.floor(i / 16) * 23} width={22} height={20} rx={3} fill={CODE_COL[c]} />)}
+        <text x={200} y={212} textAnchor="middle" fontSize={24} fill={C.s1} fontWeight={600}>128 picks, each from 8,192 codes</text>
+      </g>
+      <Arr x1={1108} y1={120} x2={1150} y2={120} />
+      <Box x={1158} y={60} w={220} h={120} text="decoder" sub="codes → pixels" size={26} />
+      <Arr x1={1378} y1={120} x2={1420} y2={120} />
+      <rect x={1428} y={22} width={200} height={200} rx={10} fill="#f6c89f" stroke={C.ink} strokeWidth={3} />
+      <circle cx={1528} cy={150} r={46} fill="#f08a5d" />
+      <rect x={1428} y={160} width={200} height={62} fill="#7fb5c9" />
+      <path d="M1490,70 L1524,54 L1540,88 L1506,102 Z" fill={C.loss} />
+      <text x={1528} y={246} textAnchor="middle" fontSize={22} fill={C.muted}>512 × 512 picture</text>
+    </svg>
+    <Steps>
+      <Step>
+        <div style={{ ...row, gap: 30, marginTop: 14 }}>
+          <Card color={C.loss} style={{ flex: 1, padding: '18px 24px' }}>
+            <Label color={C.loss}>The difficulty</Label>
+            <div style={{ fontSize: 26, lineHeight: 1.4, marginTop: 8 }}>
+              Imagine 128 painters, each given one tile of a mural and no way to talk. Every tile is sensible alone, and together they do not make one picture.
+            </div>
+          </Card>
+          <Card color={C.truth} style={{ flex: 1, padding: '18px 24px' }}>
+            <Label color={C.truth}>The fix in the paper</Label>
+            <div style={{ fontSize: 26, lineHeight: 1.4, marginTop: 8 }}>
+              Give all the painters the same rough sketch. Here the sketch is one set of random numbers that every position sees, so the picks line up.
+            </div>
+          </Card>
+        </div>
+      </Step>
+      <Step>
+        <div style={{ fontFamily: mono, fontSize: 27, lineHeight: 1.6, marginTop: 18 }}>
+          one picture in <T>78 ms</T> · quality score 0.74 · a model that writes the picture step by step: 0.80 in <L>9.5 s</L>
+        </div>
+      </Step>
+    </Steps>
+  </Frame>
+);
+
+const WayRow = ({ who, color, picks, order, passes, agree }: { who: string; color: string; picks: string; order: string; passes: string; agree: string }) => (
+  <div style={{ ...row, gap: 20, alignItems: 'center', padding: '20px 0', borderBottom: `2px solid ${C.rule}`, fontSize: 27, lineHeight: 1.35 }}>
+    <div style={{ width: 330, flexShrink: 0, fontFamily: serif, fontSize: 34, fontWeight: 700, color }}>{who}</div>
+    <div style={{ width: 380, flexShrink: 0 }}>{picks}</div>
+    <div style={{ width: 300, flexShrink: 0 }}>{order}</div>
+    <div style={{ width: 200, flexShrink: 0, fontFamily: mono }}>{passes}</div>
+    <div style={{ flex: 1, color: C.soft }}>{agree}</div>
+  </div>
+);
+
+const ManyPicks: Page = () => (
+  <Frame
+    part={3}
+    title="Writing is also choosing: in sequence, or all at once"
+    line="A chat LLM and a decision model are built from the same step, one choice from a list. They differ in whether the choices wait for each other."
+    src={JEV_SRC}
+  >
+    <div style={{ ...col, marginTop: 6 }}>
+      <div style={{ ...row, gap: 20, fontSize: 21, letterSpacing: '0.1em', color: C.muted, fontWeight: 600, paddingBottom: 8, borderBottom: `2px solid ${C.rule}` }}>
+        <div style={{ width: 330 }} />
+        <div style={{ width: 380 }}>WHAT IS CHOSEN</div>
+        <div style={{ width: 300 }}>IN WHAT ORDER</div>
+        <div style={{ width: 200 }}>PASSES</div>
+        <div>WHAT KEEPS THE CHOICES CONSISTENT</div>
+      </div>
+      <WayRow who="Chat LLM" color={C.s2} picks={`one token from ${sci.vocab.toLocaleString('en-US')}, again and again`} order="one after another" passes={`${sci.passes} for our JSON`} agree="each choice is fed back in before the next is made" />
+      <Steps>
+        <Step><WayRow who="Decision model" color={C.s1} picks="one option per question, or per edge of a box" order="all at once" passes="1" agree="the questions are mostly independent, so little is needed" /></Step>
+        <Step><WayRow who="Picture in one pass" color={C.truth} picks="128 codes, each from 8,192" order="all at once" passes="1" agree="one shared set of random numbers that every position sees" /></Step>
+        <Step>
+          <div style={{ fontSize: 29, lineHeight: 1.45, marginTop: 26 }}>
+            Text of free length is still written the first way. Whether the third way can write good text in one pass is an open question, and nothing in this lecture shows it.
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
 // ---------------------------------------------------------------- the definition, and training on one page
 
 const IO = ({ head, color, children }: { head: string; color: string; children: ReactNode }) => (
@@ -6811,6 +6953,7 @@ const Sources: Page = () => (
       <Src>Tian et al., “Just Ask for Calibration”, EMNLP 2023 · Leng et al., “Taming Overconfidence in LLMs: Reward Calibration in RLHF”, 2025</Src>
       <Src>Brier, “Verification of forecasts expressed in terms of probability”, 1950 · scikit-learn user guide, “Probability calibration”</Src>
       <Src>Ouyang et al., “Training language models to follow instructions with human feedback”, 2022 · Huyen, “RLHF”, 2023</Src>
+      <Src>Liu, Li, Zhang, Wang, “Jeveration: System One Models Now Generate”, arXiv 2611.24738 · Liquid AI, open d1-2B source code, Hugging Face</Src>
       <Src>Jev facts: Wikipedia “Jev (AI model)” and the benchmark paper, as of November 2026</Src>
     </div>
   </Frame>
@@ -6841,6 +6984,8 @@ const deck: [Page, string][] = [
   [ManyBoxes, 'In the code, block k is present when there are at least k objects, and the boxes are returned in reading order, left edge first. The four probabilities on this slide are made up. Default 16 blocks, at most 64.'],
   [EstimateNumber, 'The bar heights are made up so that the running totals can be followed by hand; they are chosen so the median is 26 and the 10 to 90 percent range is 23 to 30, as in Liquid\u2019s docs example. The docs say the model reads an estimate on at most 128 values.'],
   [SpanPointers, 'The tokens and probabilities are illustrative. In the code a slot\u2019s vector is compared with the vector of every input token, once for the start and once for the end, and position 0 stands for nothing. The docs say values are read, not converted: the parsing into 1234.5 is ordinary code.'],
+  [PixelChoices, 'From the Jeveration paper: segmentation is a choice per pixel and depth and surface normals are scores per pixel, from one checkpoint. On NYUv2 the authors report mean IoU 67.7 and a depth error of 0.27 m, in about 78 ms. The two grids are our own drawing of a street, not the paper\u2019s data.'],
+  [ImageChoices, 'A preprint from NUS, version 2 dated 20 November 2026. I read it through a summary of the first two thirds, so check the numbers against the paper before quoting them. The model is a frozen Qwen3.5-4B with adapters. The quality score is GenEval: 0.74 for this model, against 0.80 for Janus-Pro-7B, which takes about 9.5 seconds on the same GPU. So it is much faster and somewhat worse. The picture on the right is our drawing, not a model output. Training is two phases and is where the hard work is; inference is one pass.'],
   [SplitTask, 'The complaint and the answers are made up. Ask the class what other facts the program might need, and what type each would be. The point: the model supplies facts with probabilities, and the decision logic stays in code where it can be read and tested.'],
   [SplitHow, 'These are our suggestions, not a published method. The second-to-last row matters: do not ask a model to compare three hours with a threshold or to add tax. The last row is where System 2 comes back in.'],
   [Check1, 'Let the class answer each row before revealing it.'],
@@ -6875,6 +7020,7 @@ const deck: [Page, string][] = [
   [ReadOnce, 'The sample-size formula is the usual one for a proportion, at its worst case p = 0.5. Roitman’s guide makes this comparison with a spam example. In Part 4 we do draw 200 samples and compare them with the read probabilities.'],
   [ArchDiff, 'The grey strip stands for the 151,936 scores; the coloured cells are the ones kept. We never removed the decoder: a decoder-only transformer is still the reader. What is gone is decoding into text. How Jev is built inside is not published. The next slide shows one published recipe.'],
   [Convert, 'This is the answer to how the decoder is removed. Nothing is cut out of the middle: the model keeps its blocks and loses its two decoder habits. The guide warns that switching the attention mask is fiddly in practice. Unsloth and our notebook 2 keep causal attention and read the last position.'],
+  [ManyPicks, 'This ties Part 2 to Part 3. Generation was never a different kind of operation: it is a choice over the vocabulary, repeated with feedback. The third row is the Jeveration paper\u2019s contribution for images. Be clear that nobody has shown one-pass generation of long, good text this way; the last line on the slide says so.'],
   [Types, 'noul is the yes/no type name in Jev’s API. Its origin is not explained in the public material.'],
   [ScoreCalc, 'The model is confidently wrong about urgency. Keep this in mind for calibration. Liquid’s pages define score in two ways, the weighted level and the median level; we use the weighted one.'],
   [MoreTypes, 'The multi-select and number readouts here are our own construction on a model with no training for them. For boxes and spans, Liquid’s open d1-2B code shows the method (box.py and pointer.py in its repository); we have not confirmed that the hosted d1.2 models work the same way.'],
