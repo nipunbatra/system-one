@@ -280,6 +280,7 @@ const userText = (state, question, options) => `${state}\n\n${question}\n${optio
 const letterId = (i) => tok.encode(LETTERS[i], { add_special_tokens: false })[0];
 function softmax(z) { let m = -Infinity; for (const x of z) if (x > m) m = x; const e = Array.from(z, (x) => Math.exp(x - m)); const s = e.reduce((a, b) => a + b, 0); return { m, e, s, p: e.map((x) => x / s) }; }
 
+const rankOf = (scores, id) => { let k = 1; const s = scores[id]; for (let j = 0; j < scores.length; j++) if (scores[j] > s) k++; return k; };
 // One forward pass over a lettered prompt. Returns everything the page shows about it.
 async function readLetters(state, question, options, wantTop) {
   const text = chat(userText(state, question, options));
@@ -291,7 +292,8 @@ async function readLetters(state, question, options, wantTop) {
   const mass = ids.reduce((a, i) => a + all.p[i], 0);
   let top = null;
   if (wantTop) top = Array.from(all.p.keys()).sort((a, b) => all.p[b] - all.p[a]).slice(0, 10).map((i) => ({ t: tok.decode([i]), z: scores[i], p: all.p[i], hit: ids.includes(i) }));
-  return { text, nTokens: n, vocab: v, ids, z, sm, ms, top, mass, first: ids.includes(bi) ? null : tok.decode([bi]) };
+  const rank = ids.map((i) => rankOf(scores, i)), pAll = ids.map((i) => all.p[i]);
+  return { text, nTokens: n, vocab: v, ids, z, sm, ms, top, mass, rank, pAll, first: ids.includes(bi) ? null : tok.decode([bi]) };
 }
 // The trained shared head. One forward pass; at the end of each option line we take the scores of
 // 1,024 fixed tokens (a linear picture of the model's vector there) and run the same small network on each.
@@ -353,8 +355,10 @@ function working(r, labels) {
     <h4><em>1</em>How the question is written for the model · ${r.nTokens} tokens</h4><pre>${promptHtml(r.text, labels.length)}</pre>
     ${top}
     <h4><em>${r.top ? 3 : 2}</em>Read only the option letters, then softmax over them</h4>
-    <div style="overflow-x:auto"><table><tr><th>Option</th><th>Token</th><th>Score</th><th>minus ${f2(r.sm.m)}</th><th>e to that</th><th>÷ ${f2(r.sm.s)} = probability</th></tr>
-    ${labels.map((o, i) => `<tr><td>${esc(o)}</td><td><span class="tok hit">${LETTERS[i]}</span> <span class="muted">id ${r.ids[i]}</span></td><td class="m">${f2(r.z[i])}</td><td class="m">${f2(r.z[i] - r.sm.m)}</td><td class="m">${f3(r.sm.e[i])}</td><td class="m p">${f3(r.sm.e[i])} / ${f2(r.sm.s)} = <b>${f2(r.sm.p[i])}</b></td></tr>`).join('')}</table></div></div>`;
+    <div style="overflow-x:auto"><table><tr><th>Option</th><th>Token</th><th>Raw score</th><th>Rank of ${r.vocab.toLocaleString('en-US')}</th><th>minus ${f2(r.sm.m)}</th><th>e to that</th><th>÷ ${f2(r.sm.s)} = probability</th></tr>
+    ${labels.map((o, i) => `<tr><td>${esc(o)}</td><td><span class="tok hit">${LETTERS[i]}</span> <span class="muted">id ${r.ids[i]}</span></td><td class="m">${f2(r.z[i])}</td><td class="m">${r.rank ? r.rank[i].toLocaleString('en-US') : ''}</td><td class="m">${f2(r.z[i] - r.sm.m)}</td><td class="m">${f3(r.sm.e[i])}</td><td class="m p">${f3(r.sm.e[i])} / ${f2(r.sm.s)} = <b>${f2(r.sm.p[i])}</b></td></tr>`).join('')}</table></div>
+    ${r.rank ? `<p class="muted" style="margin-top:8px">Rank 1 is the token the model would write next. Before we restrict to the letters, they hold ${r.pAll.map((p, i) => `${LETTERS[i]} ${f3(p)}`).join(', ')} of the probability over all tokens, ${f3(r.mass)} together. Dividing each by ${f3(r.mass)} gives the same last column.</p>
+    <h4><em>${r.top ? 4 : 3}</em>The answer</h4><p style="margin:0">The largest of these is <span class="tok hit">${LETTERS[r.sm.p.indexOf(Math.max(...r.sm.p))]}</span> <b>${esc(labels[r.sm.p.indexOf(Math.max(...r.sm.p))])}</b> at <b class="p">${f2(Math.max(...r.sm.p))}</b>. A choice reports that option and its probability, a yes or no reports P(yes), and a score reports the average level weighted by these probabilities. Nothing was written: we only read ${labels.length} numbers out of ${r.vocab.toLocaleString('en-US')}.</p>` : ''}</div>`;
 }
 const animate = (root) => requestAnimationFrame(() => root.querySelectorAll('.bar i').forEach((i) => (i.style.width = i.dataset.w + '%')));
 const lines = (s) => s.split('\n').map((x) => x.trim()).filter(Boolean).slice(0, 26);

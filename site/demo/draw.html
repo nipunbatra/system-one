@@ -97,6 +97,7 @@
         <p class="muted">One forward pass each. The same question every time, with a different place named. We read the scores of two letters and keep P(bright).</p>
         <div class="grid5" id="cells"></div>
         <pre id="prompt"></pre>
+        <p class="muted" id="read" style="margin-top:8px"></p>
         <div id="out"></div>
       </div>
     </div>
@@ -153,7 +154,7 @@ function fill(canvas, s, n) {
       const g = Math.round(255 * v); im.data.set([g, g, g, 255], 4 * (y * N + x)); } }
   ctx.putImageData(im, 0, 0);
 }
-function reset() { const n = mode().n, flat = Array(n * n).fill(0.47); cells([]); paint($('c1'), flat, n); paint($('c2'), flat, n); fill($('c3'), flat, n); fill($('final'), flat, n); showPrompt(); $('out').innerHTML = ''; $('range').textContent = '';
+function reset() { const n = mode().n, flat = Array(n * n).fill(0.47); cells([]); paint($('c1'), flat, n); paint($('c2'), flat, n); fill($('c3'), flat, n); fill($('final'), flat, n); showPrompt(); $('out').innerHTML = ''; $('range').textContent = ''; $('read').innerHTML = '';
   $('qTitle').textContent = `The ${n * n} questions`; $('n1').textContent = `1 · ${n * n} answers`; $('base').checked = n !== 5; if (model) $('drawStatus').textContent = `${n * n} forward passes per picture${n === 28 ? ', about a minute on a laptop GPU' : ''}.`; }
 $('mode').onchange = () => { if (!busy) reset(); };
 
@@ -172,14 +173,18 @@ $('loadBtn').onclick = async () => {
   } catch (err) { setStatus('Could not load the model: ' + (err?.message ?? err)); console.error(err); $('loadBtn').disabled = false; }
 };
 
+const rankOf = (scores, id) => { let k = 1; const s = scores[id]; for (let j = 0; j < scores.length; j++) if (scores[j] > s) k++; return k; };
 // One pass: the score of "B" (bright) minus the score of "A" (dark) at the next-token position.
 async function ask(desc, r, c) {
   const text = tok.apply_chat_template([{ role: 'user', content: question(desc, r, c) }], { tokenize: false, add_generation_prompt: true });
   const t0 = performance.now(); const out = await model(tok(text, { add_special_tokens: false })); const ms = performance.now() - t0;
-  const [, n, v] = out.logits.dims; const d = out.logits.data; const z = d[(n - 1) * v + ids[1]] - d[(n - 1) * v + ids[0]];
-  return { z, ms };
+  const [, n, v] = out.logits.dims; const d = out.logits.data; const sc = d.subarray((n - 1) * v, n * v), zA = sc[ids[0]], zB = sc[ids[1]], z = zB - zA;
+  return { z, ms, zA, zB, v, sc };
 }
 const sig = (z) => 1 / (1 + Math.exp(-z));
+// The working for the question on screen: two raw scores, their ranks among all tokens, and the arithmetic.
+function showRead(a, base) { const N = a.v.toLocaleString('en-US'), d = a.z - (base ?? 0);
+  $('read').innerHTML = `Raw scores at the next token: <span class="tok">A</span> dark <b class="m">${f2(a.zA)}</b> (rank ${rankOf(a.sc, ids[0]).toLocaleString('en-US')} of ${N}), <span class="tok">B</span> bright <b class="m">${f2(a.zB)}</b> (rank ${rankOf(a.sc, ids[1]).toLocaleString('en-US')}). Bright minus dark = <span class="m">${f2(a.z)}</span>${base === null ? '' : `, minus ${f2(base)} for the plain grey picture = <span class="m">${f2(d)}</span>`}. P(bright) = 1 / (1 + e<sup>${f2(-d)}</sup>) = <b class="m p">${f2(sig(d))}</b>.`; }
 
 async function draw() {
   const desc = $('desc').value.trim(); if (!desc || busy) return; busy = true; stop = false; $('drawBtn').disabled = true; $('mode').disabled = true; $('stopBtn').classList.remove('hide'); $('saveBtn').disabled = true; $('out').innerHTML = ''; $('range').textContent = '';
@@ -192,7 +197,8 @@ async function draw() {
         const a = await ask(PLAIN, r, c); total += a.ms; passes++; b.push(a.z); }
       if (!stop) baseCache[key] = b; }
     for (let i = 0; i < n * n && !stop; i++) { const r = Math.floor(i / n), c = i % n; if (n === 5 || i % 7 === 0) { showPrompt(r, c); cells(p, i); $('drawStatus').textContent = `Question ${i + 1} of ${n * n}: ${m.label(r, c)}`; }
-      const a = await ask(desc, r, c); total += a.ms; passes++; p.push(sig(a.z - (useBase ? baseCache[key][i] : 0))); if (n === 5 || i % n === n - 1) paint($('c1'), p, n); }
+      const a = await ask(desc, r, c); total += a.ms; passes++; if (n === 5 || i % 7 === 0 || i === n * n - 1) showRead(a, useBase ? baseCache[key][i] : null);
+      p.push(sig(a.z - (useBase ? baseCache[key][i] : 0))); if (n === 5 || i % n === n - 1) paint($('c1'), p, n); }
     if (stop) { $('drawStatus').textContent = `Stopped after ${passes} passes.`; }
     else {
       cells(p); let lo = Infinity, hi = -Infinity; for (const v of p) { if (v < lo) lo = v; if (v > hi) hi = v; } const s = p.map((v) => (v - lo) / (hi - lo || 1));

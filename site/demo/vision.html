@@ -59,6 +59,10 @@
   .gallery img { width:100%; aspect-ratio: 3/2; object-fit:cover; display:block; }
   .gallery span { position:absolute; left:0; right:0; bottom:0; font: 600 11px/1.2 -apple-system, sans-serif; color:#fff; background:linear-gradient(transparent, #000c); padding:12px 6px 5px; text-align:left; }
   .hide { display:none !important; }
+  .work h4 { font: 700 12px/1.3 -apple-system, sans-serif; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:16px 0 7px; display:flex; gap:8px; align-items:center; }
+  .work h4 em { font-style:normal; background:var(--accent); color:#fff; border-radius:10px; padding:3px 7px; letter-spacing:0; }
+  .work table { border-collapse:collapse; width:100%; font-size:14px; } .work th { text-align:left; font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); padding:4px 10px 4px 0; font-weight:700; } .work td { padding:5px 10px 5px 0; border-top:1px solid var(--rule); white-space:nowrap; }
+  .tok.g { background:var(--panel); border-color:var(--rule); color:var(--soft); }
   .facts { display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:12px; margin: 26px 0 60px; } .facts div { background:var(--panel); border-radius:12px; padding:13px 15px; font-size:14.5px; color:var(--soft); } .facts b { color:var(--ink); display:block; margin-bottom:3px; }
 </style>
 </head>
@@ -206,6 +210,8 @@ $('loadBtn').onclick = async () => {
   $('loadBtn').disabled = false;
 };
 
+const rankOf = (scores, id) => { let k = 1; const s = scores[id]; for (let j = 0; j < scores.length; j++) if (scores[j] > s) k++; return k; };
+const f3 = (x) => x.toFixed(3); const showTok = (t) => esc(t).replace(/ /g, '␣').replace(/\n/g, '↵') || '∅';
 // One forward pass over a picture and a lettered question. This model writes its letters with a leading space,
 // so we read whichever form of each letter scores higher.
 const letterIds = (i) => [tok.encode(' ' + LETTERS[i], { add_special_tokens: false }).pop(), tok.encode(LETTERS[i], { add_special_tokens: false }).pop()];
@@ -215,8 +221,14 @@ async function readLetters(img, question, options) {
   const inputs = await processor(text, [img], { do_image_splitting: false });
   const t0 = performance.now(); const out = await model(inputs); const ms = performance.now() - t0;
   const [, n, v] = out.logits.dims; const d = out.logits.data; const at = (id) => d[(n - 1) * v + id];
-  const z = options.map((_, i) => Math.max(...letterIds(i).map(at)));
-  return { p: softmax(z), z, ms, n, user };
+  const scores = d.subarray((n - 1) * v, n * v);
+  const ids = options.map((_, i) => { const [a, b] = letterIds(i); return at(a) >= at(b) ? a : b; }), z = ids.map(at);
+  let m = -Infinity; for (const x of z) if (x > m) m = x; const e = z.map((x) => Math.exp(x - m)), s = e.reduce((a, b) => a + b, 0);
+  let am = -Infinity; for (let j = 0; j < v; j++) if (scores[j] > am) am = scores[j]; let as = 0; for (let j = 0; j < v; j++) as += Math.exp(scores[j] - am);
+  const pAll = (id) => Math.exp(scores[id] - am) / as;
+  const order = Array.from({ length: v }, (_, j) => j).sort((a, b) => scores[b] - scores[a]).slice(0, 8);
+  return { p: e.map((x) => x / s), z, ms, n, user, v, ids, m, e, s, rank: ids.map((id) => rankOf(scores, id)), pAll: ids.map(pAll), mass: ids.reduce((a, id) => a + pAll(id), 0),
+    top: order.map((id) => ({ t: tok.decode([id]), z: scores[id], p: pAll(id), hit: ids.includes(id) })) };
 }
 
 // ---------- 1 · whole-picture questions
@@ -234,6 +246,22 @@ $('addQ').onclick = () => { questions.push(Q('noul', '')); renderQs(); };
 const MAX_RUNGS = 5;
 const bars = (labels, p, best) => `<div class="bars">${labels.map((o, i) => `<div style="${i === best ? 'font-weight:700' : ''}"><span class="tok">${LETTERS[i]}</span> ${esc(o)}</div><div class="bar"><i style="width:${Math.max(1.5, 100 * p[i])}%"></i></div><div class="m p">${f2(p[i])}</div>`).join('')}</div>`;
 
+function working(r, opts, type) {
+  const N = r.v.toLocaleString('en-US'), best = r.p.indexOf(Math.max(...r.p));
+  const last = type === 'noul' ? `A yes or no question reports the probability of <span class="tok">A</span>: P(yes) = <b class="p">${f2(r.p[0])}</b>. A program compares it with a threshold it chose.`
+    : type === 'score' ? `A score reports the average level, weighted by these probabilities: ${r.p.map((p, i) => `${i} × ${f2(p)}`).join(' + ')} = <b class="p">${f2(r.p.reduce((a, p, i) => a + i * p, 0))}</b>.`
+    : `A choice reports the largest: <span class="tok">${LETTERS[best]}</span> <b>${esc(opts[best])}</b> at <b class="p">${f2(r.p[best])}</b>.`;
+  return `<div class="work">
+    <h4><em>1</em>What goes in · ${r.n} tokens, most of them the picture</h4><pre>[the picture]\n${esc(r.user)}</pre>
+    <h4><em>2</em>One forward pass: the eight most likely next tokens, of ${N}</h4>
+    <table><tr><th>Rank</th><th>Token</th><th>Raw score</th><th>Probability over all tokens</th></tr>${r.top.map((x, k) => `<tr><td class="m">${k + 1}</td><td><span class="tok ${x.hit ? '' : 'g'}">${showTok(x.t)}</span></td><td class="m">${f2(x.z)}</td><td class="m">${f3(x.p)}</td></tr>`).join('')}</table>
+    <p class="muted" style="margin-top:8px">Orange tokens are our option letters. This model writes a letter with a space in front, shown as ␣.</p>
+    <h4><em>3</em>Read only our letters, then softmax over them</h4>
+    <div style="overflow-x:auto"><table><tr><th>Option</th><th>Token</th><th>Raw score</th><th>Rank of ${N}</th><th>minus ${f2(r.m)}</th><th>e to that</th><th>÷ ${f2(r.s)} = probability</th></tr>
+    ${opts.map((o, i) => `<tr><td>${esc(o)}</td><td><span class="tok">${showTok(tok.decode([r.ids[i]]))}</span> <span class="muted">id ${r.ids[i]}</span></td><td class="m">${f2(r.z[i])}</td><td class="m">${r.rank[i].toLocaleString('en-US')}</td><td class="m">${f2(r.z[i] - r.m)}</td><td class="m">${f3(r.e[i])}</td><td class="m p">${f3(r.e[i])} / ${f2(r.s)} = <b>${f2(r.p[i])}</b></td></tr>`).join('')}</table></div>
+    <p class="muted" style="margin-top:8px">Before we restrict to the letters, they hold ${f3(r.mass)} of the probability over all ${N} tokens${r.mass < 0.6 ? '. That is low: the model wanted to write something else, so treat this reading with care' : ''}.</p>
+    <h4><em>4</em>The answer</h4><p style="margin:0">${last} Nothing was written: we read ${opts.length} numbers out of ${N}.</p></div>`;
+}
 $('askBtn').onclick = async () => {
   if (!image) { $('askStatus').textContent = 'Choose a picture first.'; return; }
   const qs = questions.filter((q) => q.q.trim()); $('askBtn').disabled = true; $('answers').innerHTML = ''; let total = 0;
@@ -259,7 +287,7 @@ $('askBtn').onclick = async () => {
       if (q.type === 'score') { const v = r.p.reduce((a, p, i) => a + i * p, 0); ans = `<div class="ans">${esc(opts[best])}<small>score <b class="p">${f2(v)}</b> on a scale from 0 to ${opts.length - 1}: ${r.p.map((p, i) => `${i} × ${f2(p)}`).join(' + ')}</small></div>`; }
       const el = document.createElement('div'); el.className = 'qcard';
       el.innerHTML = `<div class="rhead"><span class="chip">${q.type}</span><span class="q">${esc(q.q)}</span><span class="ms">1 pass · ${r.ms.toFixed(0)} ms</span></div>${ans}${bars(opts, r.p, best)}
-        <details><summary>Show the working</summary><p class="muted" style="margin-top:8px">The picture goes in as image tokens, followed by this text. We read the scores of the ${opts.length} letters at the end and take a softmax over them.</p><pre>[the picture]\n${esc(r.user)}</pre><p class="muted" style="margin-top:8px">${r.n} tokens in all, most of them the picture. Scores read: ${r.z.map((z, i) => `${LETTERS[i]} ${f2(z)}`).join(', ')}.</p></details>`;
+        <details><summary>Show the working: raw scores, ranks and the arithmetic</summary>${working(r, opts, q.type)}</details>`;
       $('answers').appendChild(el);
     }
     $('askStatus').textContent = `${total.toFixed(0)} ms in all, and no generated text.`;
