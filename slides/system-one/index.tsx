@@ -2394,8 +2394,7 @@ const MoreTypes: Page = () => (
           <div style={{ width: 544, display: 'flex', height: '100%' }}>
           <TypeCard name="text, spans, box" what="answers that point into the input">
             <div style={{ fontSize: 28, lineHeight: 1.45, color: C.soft }}>
-              Option letters cannot give a position in a text or a rectangle in a picture. These types need a head trained to score
-              positions, which we do not build in this lecture.
+              Part 1 showed how these are built: a span is two picks among the positions of the input, and a box is four picks among 1,000 positions. Liquid’s open d1-2B code reads box edges from ordinary number tokens, in the same way we read letters. We do not build these in the notebooks.
             </div>
           </TypeCard>
           </div>
@@ -6199,6 +6198,329 @@ const HeadUnseen: Page = () => (
   </Frame>
 );
 
+
+// ---------------------------------------------------------------- answer types as small choices
+
+const D1_SRC = 'Liquid AI’s open d1-2B code (box.py, pointer.py) and docs';
+
+const BuiltRow = ({ types, from, eg }: { types: string[]; from: ReactNode; eg: string }) => (
+  <div style={{ ...row, gap: 22, alignItems: 'center', padding: '12px 0', borderBottom: `2px solid ${C.rule}` }}>
+    <div style={{ width: 330, flexShrink: 0, ...row, gap: 8, flexWrap: 'wrap' }}>{types.map((t) => <TypeChip key={t} t={t} small />)}</div>
+    <div style={{ width: 720, flexShrink: 0, fontSize: 29, lineHeight: 1.3 }}>{from}</div>
+    <div style={{ flex: 1, fontSize: 24, lineHeight: 1.3, color: C.soft }}>{eg}</div>
+  </div>
+);
+const Yn = () => <b style={{ color: C.truth }}>yes or no</b>;
+const Pick = ({ children }: { children: ReactNode }) => <b style={{ color: C.pred }}>{children}</b>;
+
+const SmallChoices: Page = () => (
+  <Frame
+    part={1}
+    title="Every answer type is built from small choices"
+    line="A decision model only ever does two things: answer a yes or no, and pick one item from a list. The richer answer types are these two, repeated."
+    src={D1_SRC}
+  >
+    <div style={{ ...col }}>
+      <div style={{ ...row, gap: 22, fontSize: 21, letterSpacing: '0.1em', color: C.muted, fontWeight: 600, paddingBottom: 8, borderBottom: `2px solid ${C.rule}` }}>
+        <div style={{ width: 330 }}>ANSWER TYPE</div>
+        <div style={{ width: 720 }}>BUILT FROM</div>
+        <div>EXAMPLE</div>
+      </div>
+      <BuiltRow types={['noul']} from={<>one <Yn /></>} eg="Is this SMS a scam?" />
+      <BuiltRow types={['choice']} from={<>one <Pick>pick</Pick> from the listed options</>} eg="Which team?" />
+      <BuiltRow types={['score']} from={<>one <Pick>pick</Pick> from the levels, then an average</>} eg="How urgent?" />
+      <Steps>
+        <Step><BuiltRow types={['choice', 'multiple']} from={<>one <Yn /> for every option</>} eg="Which topics are mentioned?" /></Step>
+        <Step><BuiltRow types={['number', 'range']} from={<>one <Pick>pick</Pick> from up to 128 evenly spaced values</>} eg="How many people are in the photo?" /></Step>
+        <Step><BuiltRow types={['text', 'number', 'date']} from={<>two <Pick>picks</Pick> among the positions of the input: start and end</>} eg="What is the invoice total?" /></Step>
+        <Step><BuiltRow types={['box']} from={<>one <Yn />, then four <Pick>picks</Pick> among 1,000 positions</>} eg="Where is the kiln in this tile?" /></Step>
+        <Step><BuiltRow types={['boxes', 'spans']} from={<>that block repeated: is there a 1st? a 2nd? a 3rd?</>} eg="Find every kiln in this tile." /></Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const PhotoBox = ({ boxes, rulers }: { boxes: [number, number, number, number][]; rulers?: boolean }) => (
+  <svg width={620} height={470} viewBox="-70 -60 620 470">
+    <rect x={0} y={0} width={520} height={390} rx={10} fill={C.panel} />
+    <clipPath id="ph"><rect x={0} y={0} width={520} height={390} rx={10} /></clipPath>
+    <g clipPath="url(#ph)"><Person x={132} glasses /><Person x={262} /><Person x={392} /></g>
+    {boxes.map(([t, b, l, r], i) => (
+      <rect key={i} x={l * 520} y={t * 390} width={(r - l) * 520} height={(b - t) * 390} fill="none" stroke={C.pred} strokeWidth={4} />
+    ))}
+    {rulers && (
+      <g fontFamily={mono} fontSize={19}>
+        <line x1={0} y1={-18} x2={520} y2={-18} stroke={C.ink} strokeWidth={2} />
+        <line x1={-18} y1={0} x2={-18} y2={390} stroke={C.ink} strokeWidth={2} />
+        {[0, 250, 500, 750, 999].map((v) => (
+          <g key={v} fill={C.muted}>
+            <line x1={(v / 999) * 520} y1={-24} x2={(v / 999) * 520} y2={-12} stroke={C.muted} strokeWidth={2} />
+            <text x={(v / 999) * 520} y={-32} textAnchor="middle">{v}</text>
+            <line x1={-24} y1={(v / 999) * 390} x2={-12} y2={(v / 999) * 390} stroke={C.muted} strokeWidth={2} />
+            <text x={-30} y={(v / 999) * 390 + 6} textAnchor="end">{v}</text>
+          </g>
+        ))}
+        {boxes.slice(0, 1).map(([t, b, l, r]) => (
+          <g key="g" stroke={C.pred} strokeWidth={2} strokeDasharray="5 4">
+            <line x1={l * 520} y1={-18} x2={l * 520} y2={t * 390} /><line x1={r * 520} y1={-18} x2={r * 520} y2={t * 390} />
+            <line x1={-18} y1={t * 390} x2={l * 520} y2={t * 390} /><line x1={-18} y1={b * 390} x2={l * 520} y2={b * 390} />
+          </g>
+        ))}
+      </g>
+    )}
+  </svg>
+);
+const EdgeRow = ({ q, a, note, yn }: { q: string; a: string; note: string; yn?: boolean }) => (
+  <div style={{ ...row, alignItems: 'center', gap: 18, fontSize: 28, padding: '11px 0', borderBottom: `2px solid ${C.rule}` }}>
+    <div style={{ width: 400, flexShrink: 0 }}>{q}</div>
+    <div style={{ width: 300, flexShrink: 0, fontSize: 23, color: C.soft }}>{note}</div>
+    <b style={{ fontFamily: mono, fontSize: 32, color: yn ? C.truth : C.pred }}>{a}</b>
+  </div>
+);
+
+const BoxChoices: Page = () => (
+  <Frame
+    part={1}
+    title="Finding an object: one yes or no and four picks"
+    line="The picture’s height and width are each cut into 1,000 positions. Each edge of the box is one pick among those 1,000, so a box is five small answers."
+    src={`${D1_SRC} · the box is the example in the docs`}
+  >
+    <div style={{ ...row, gap: 30, alignItems: 'center' }}>
+      <div style={{ flexShrink: 0 }}>
+        <div style={{ fontSize: 26, marginBottom: 2 }}>“Where is the person wearing glasses?”</div>
+        <PhotoBox boxes={[[0.378, 0.522, 0.212, 0.296]]} rulers />
+      </div>
+      <div style={{ flex: 1 }}>
+        <EdgeRow yn q="Is there one?" note="a yes or no" a="yes 0.94" />
+        <Steps>
+          <Step><EdgeRow q="Where is its top edge?" note="pick from 0 to 999" a="378" /></Step>
+          <Step>
+            <EdgeRow q="Its bottom edge?" note="pick from 0 to 999" a="522" />
+            <EdgeRow q="Its left edge?" note="pick from 0 to 999" a="212" />
+            <EdgeRow q="Its right edge?" note="pick from 0 to 999" a="296" />
+          </Step>
+          <Step>
+            <div style={{ fontFamily: mono, fontSize: 26, lineHeight: 1.5, marginTop: 18 }}>
+              box = top <P>0.378</P>, bottom <P>0.522</P>, left <P>0.212</P>, right <P>0.296</P>
+            </div>
+            <div style={{ fontSize: 25, lineHeight: 1.4, color: C.soft, marginTop: 10 }}>
+              Each pick comes with a probability for all 1,000 positions. The edge reported is the middle of that distribution, and a wide spread means the model is unsure where the edge is.
+            </div>
+          </Step>
+        </Steps>
+      </div>
+    </div>
+  </Frame>
+);
+
+const LADDER: [string, number][] = [['Is there at least 1?', 0.99], ['At least 2?', 0.97], ['At least 3?', 0.81], ['At least 4?', 0.06]];
+
+const ManyBoxes: Page = () => (
+  <Frame
+    part={1}
+    title="Several objects: a ladder of yes or no questions"
+    line="For each rung that says yes there is one more box. The model answers a fixed number of rungs, 16 by default, all in the same pass."
+    src={`${D1_SRC} · probabilities illustrative`}
+  >
+    <div style={{ ...row, gap: 40, alignItems: 'center' }}>
+      <div style={{ flexShrink: 0 }}>
+        <div style={{ fontSize: 26, marginBottom: 2 }}>“Find every face in this photo.”</div>
+        <PhotoBox boxes={[[0.3, 0.63, 0.14, 0.37], [0.3, 0.63, 0.39, 0.62], [0.3, 0.63, 0.64, 0.87]]} />
+      </div>
+      <div style={{ flex: 1 }}>
+        {LADDER.map(([q, p], i) => {
+          const el = (
+            <div key={q} style={{ ...row, alignItems: 'center', gap: 18, fontSize: 30, padding: '13px 0', borderBottom: `2px solid ${C.rule}` }}>
+              <div style={{ width: 330, flexShrink: 0 }}>{q}</div>
+              <div style={{ width: 260, height: 26, background: C.panel, borderRadius: 6 }}><div style={{ width: 260 * p, height: 26, background: p >= 0.5 ? C.truth : C.muted, borderRadius: 6 }} /></div>
+              <b style={{ fontFamily: mono, width: 80, color: p >= 0.5 ? C.truth : C.muted }}>{f2(p)}</b>
+              <span style={{ fontSize: 24, color: C.soft }}>{p >= 0.5 ? `yes, so box ${i + 1} and its four edges` : 'no, so stop'}</span>
+            </div>
+          );
+          return i === 0 ? el : <Steps key={q}><Step>{el}</Step></Steps>;
+        })}
+        <Steps>
+          <Step>
+            <div style={{ fontFamily: mono, fontSize: 30, marginTop: 20 }}>count = <b style={{ color: C.truth }}>3</b> · boxes listed from left to right</div>
+            <div style={{ fontSize: 25, color: C.soft, marginTop: 8 }}>If every rung had said yes, the answer would be “at least 16”.</div>
+          </Step>
+        </Steps>
+      </div>
+    </div>
+  </Frame>
+);
+
+// an illustrative distribution whose median and 10% to 90% range match the example in Liquid's docs (26, 23 to 30)
+const EST: [number, number][] = [[21, 0.02], [22, 0.03], [23, 0.07], [24, 0.12], [25, 0.17], [26, 0.22], [27, 0.13], [28, 0.07], [29, 0.05], [30, 0.05], [31, 0.03], [32, 0.04]];
+const EST_RUN = EST.map((_, i) => EST.slice(0, i + 1).reduce((a, v) => a + v[1], 0));
+
+const EstimateNumber: Page = () => (
+  <Frame
+    part={1}
+    title="Estimating a number: one pick among many values"
+    line="Asked “how many?”, the model gives a probability to every value in the range. The answer is the middle value, and the range holding 80% of the probability says how sure it is."
+    src={`${D1_SRC} · bars illustrative, the answer is the docs’ example`}
+  >
+    <div style={{ fontSize: 28, marginBottom: 6 }}>“How many people are in this photo?” &nbsp;<span style={{ color: C.soft }}>allowed values: 0, 1, 2, … 60</span></div>
+    <div style={{ fontSize: 23, color: C.soft }}><span style={{ color: C.pred }}>purple:</span> the probability of each value · <span style={{ color: C.truth }}>teal:</span> the running total from the left</div>
+    <svg width={1700} height={430} viewBox="0 0 1700 430">
+      {EST.map(([v, p], i) => {
+        const x = 60 + i * 132; const h = p * 1150; const mid = v === 26; const inside = v >= 23 && v <= 30;
+        return (
+          <g key={v}>
+            <rect x={x} y={300 - h} width={104} height={h} rx={5} fill={mid ? C.pred : inside ? '#b79bea' : C.rule} />
+            <text x={x + 52} y={290 - h} textAnchor="middle" fontSize={24} fontFamily={mono} fill={C.pred}>{f2(p)}</text>
+            <text x={x + 52} y={338} textAnchor="middle" fontSize={28} fontFamily={mono} fontWeight={mid ? 700 : 400}>{i === 0 ? '≤21' : i === EST.length - 1 ? '≥32' : v}</text>
+            <text x={x + 52} y={384} textAnchor="middle" fontSize={24} fontFamily={mono} fill={C.truth}>{f2(EST_RUN[i])}</text>
+          </g>
+        );
+      })}
+    </svg>
+    <Steps>
+      <Step>
+        <div style={{ fontFamily: mono, fontSize: 29, lineHeight: 1.6 }}>
+          the running total passes <T>0.50</T> at <b style={{ color: C.pred }}>26</b> → the answer
+        </div>
+      </Step>
+      <Step>
+        <div style={{ fontFamily: mono, fontSize: 29, lineHeight: 1.6 }}>
+          it passes <T>0.10</T> at 23 and <T>0.90</T> at 30 → the range <b style={{ color: C.pred }}>23 to 30</b>
+        </div>
+      </Step>
+    </Steps>
+  </Frame>
+);
+
+const PTR: [string, number, number][] = [['not in the text', 0.01, 0.0], ['Total', 0.0, 0.0], ['␣due', 0.0, 0.0], [':', 0.01, 0.0], ['␣1', 0.95, 0.01], ['␣234', 0.02, 0.02], [',', 0.0, 0.0], ['50', 0.01, 0.05], ['␣EUR', 0.0, 0.92]];
+
+const SpanPointers: Page = () => (
+  <Frame
+    part={1}
+    title="Reading a value from text: a start and an end"
+    line="The options are the positions of the input itself, plus one that means “not in the text”. Ordinary code then turns the characters into a number or a date."
+    src={`${D1_SRC} · probabilities illustrative`}
+  >
+    <div style={{ fontSize: 28, marginBottom: 14 }}>“How much is due?” &nbsp;<span style={{ color: C.soft }}>asked of the line “Total due: 1 234,50 EUR”</span></div>
+    <div style={{ ...row, gap: 10 }}>
+      <div style={{ width: 150, flexShrink: 0, ...col, gap: 0, fontSize: 24, color: C.soft, paddingTop: 66 }}>
+        <div style={{ height: 70 }}>starts here</div>
+        <div style={{ height: 70 }}>ends here</div>
+      </div>
+      {PTR.map(([t, a, b], i) => (
+        <div key={i} style={{ ...col, alignItems: 'center', gap: 8, width: i === 0 ? 250 : 150 }}>
+          <div style={{ fontFamily: mono, fontSize: i === 0 ? 21 : 28, height: 50, padding: '0 10px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', background: i === 0 ? C.panel : C.white, border: `2px solid ${i >= 4 ? C.pred : C.rule}`, borderRadius: 8, color: i === 0 ? C.soft : C.ink }}>{t}</div>
+          <div style={{ fontFamily: mono, fontSize: 28, height: 62, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, background: a > 0.5 ? C.pred : 'transparent', color: a > 0.5 ? C.white : a > 0 ? C.pred : C.rule, fontWeight: a > 0.5 ? 700 : 400 }}>{f2(a)}</div>
+          <div style={{ fontFamily: mono, fontSize: 28, height: 62, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, background: b > 0.5 ? C.pred : 'transparent', color: b > 0.5 ? C.white : b > 0 ? C.pred : C.rule, fontWeight: b > 0.5 ? 700 : 400 }}>{f2(b)}</div>
+        </div>
+      ))}
+    </div>
+    <Steps>
+      <Step>
+        <div style={{ fontFamily: mono, fontSize: 29, lineHeight: 1.6, marginTop: 26 }}>
+          from <P>␣1</P> to <P>␣EUR</P> → the characters “1 234,50 EUR” · found = 1 − 0.01 = <T>0.99</T>
+        </div>
+      </Step>
+      <Step>
+        <div style={{ fontFamily: mono, fontSize: 29, lineHeight: 1.6 }}>
+          code reads those characters → number <b>1234.5</b>, unit <b>EUR</b>
+        </div>
+        <div style={{ fontSize: 25, color: C.soft, marginTop: 8 }}>The model points and the code converts, so the value can always be checked against the text it came from.</div>
+      </Step>
+    </Steps>
+  </Frame>
+);
+
+const SplitQ = ({ t, q, a }: { t: string; q: string; a: string }) => (
+  <div style={{ ...row, alignItems: 'center', gap: 14, padding: '9px 0', borderBottom: `2px solid ${C.rule}`, fontSize: 26 }}>
+    <div style={{ width: 150, flexShrink: 0 }}><TypeChip t={t} small /></div>
+    <div style={{ flex: 1 }}>{q}</div>
+    <b style={{ fontFamily: mono, fontSize: 24, color: C.pred, whiteSpace: 'nowrap' }}>{a}</b>
+  </div>
+);
+
+const SplitTask: Page = () => (
+  <Frame
+    part={1}
+    title="A bigger task splits into small questions"
+    line="List the facts your program needs. Each fact becomes one typed question, the model answers them all in one pass, and plain code combines the answers."
+  >
+    <div style={{ ...row, gap: 28, alignItems: 'flex-start' }}>
+      <div style={{ width: 400, flexShrink: 0 }}>
+        <Label>The task</Label>
+        <Card style={{ marginTop: 10, padding: '20px 24px' }}>
+          <div style={{ fontFamily: serif, fontSize: 32, fontWeight: 700 }}>Handle this train complaint</div>
+          <div style={{ fontSize: 24, lineHeight: 1.45, color: C.soft, marginTop: 10 }}>
+            “Train 12933 reached Ahmedabad three hours late and the AC in coach B2 did not work. I want my fare back.”
+          </div>
+        </Card>
+      </div>
+      <Steps>
+        <Step>
+          <div style={{ width: 590, flexShrink: 0 }}>
+            <Label color={C.s1}>Five small questions</Label>
+            <div style={{ marginTop: 4 }}>
+              <SplitQ t="noul" q="Is it about a delay?" a="0.97" />
+              <SplitQ t="choice" q="Which department?" a="electrical" />
+              <SplitQ t="score" q="How serious is it?" a="2 of 3" />
+              <SplitQ t="noul" q="Is money being asked for?" a="0.95" />
+              <SplitQ t="text" q="Which train number?" a="12933" />
+            </div>
+            <div style={{ fontSize: 22, color: C.muted, marginTop: 8 }}>answers shown are illustrative</div>
+          </div>
+        </Step>
+        <Step>
+          <div style={{ width: 654, flexShrink: 0 }}>
+            <Label color={C.s2}>Plain code decides what to do</Label>
+            <div style={{ height: 10 }} />
+            <Code size={21} code={`a = decide(complaint, questions)
+
+if a["money"] > 0.9 and a["delay"] > 0.9:
+    open_refund_case(a["train"])
+elif a["serious"] >= 2:
+    send_to_person(a["department"])
+else:
+    send_standard_reply()`} />
+          </div>
+        </Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
+const Move = ({ ask, t, eg }: { ask: string; t: ReactNode; eg: string }) => (
+  <div style={{ ...row, alignItems: 'center', gap: 20, padding: '11px 0', borderBottom: `2px solid ${C.rule}` }}>
+    <div style={{ width: 430, flexShrink: 0, fontSize: 29, fontWeight: 600 }}>{ask}</div>
+    <div style={{ width: 380, flexShrink: 0, ...row, gap: 8, alignItems: 'center', fontSize: 25 }}>{t}</div>
+    <div style={{ flex: 1, fontSize: 25, color: C.soft, lineHeight: 1.3 }}>{eg}</div>
+  </div>
+);
+
+const SplitHow: Page = () => (
+  <Frame
+    part={1}
+    title="How to split a task"
+    line="Most of a real task turns into yes or no, which one, how much and where. Arithmetic and rules go to code, and whatever still needs writing or several steps goes to an LLM."
+  >
+    <div style={{ ...col }}>
+      <div style={{ ...row, gap: 20, fontSize: 21, letterSpacing: '0.1em', color: C.muted, fontWeight: 600, paddingBottom: 8, borderBottom: `2px solid ${C.rule}` }}>
+        <div style={{ width: 430 }}>IF THE PROGRAM NEEDS TO KNOW</div>
+        <div style={{ width: 380 }}>ASK IT AS</div>
+        <div>EXAMPLE</div>
+      </div>
+      <Move ask="Is something true?" t={<TypeChip t="noul" small />} eg="Is this UPI collect request a scam?" />
+      <Move ask="Which one of these?" t={<TypeChip t="choice" small />} eg="Which crop disease is on this leaf?" />
+      <Steps>
+        <Step><Move ask="Which of very many?" t={<><TypeChip t="choice" small /> <span>then</span> <TypeChip t="choice" small /></>} eg="first the department, then the issue inside it" /></Step>
+        <Step><Move ask="All that apply?" t={<><TypeChip t="noul" small /> <span>per option</span></>} eg="Which of these symptoms does the patient report?" /></Step>
+        <Step><Move ask="How much?" t={<><TypeChip t="score" small /> <span>or</span> <TypeChip t="number" small /></>} eg="How hazy is the sky? How many vehicles at the signal?" /></Step>
+        <Step><Move ask="Where, or what exactly?" t={<><TypeChip t="text" small /> <TypeChip t="box" small /></>} eg="What is the PNR? Where is the kiln?" /></Step>
+        <Step><Move ask="A sum, a date check, a rule?" t={<b style={{ color: C.ink }}>ordinary code</b>} eg="Is the delay over three hours? Add the GST." /></Step>
+        <Step><Move ask="A reply, a reason, a plan?" t={<b style={{ color: C.s2 }}>an LLM</b>} eg="Write the apology. Explain why the claim was refused." /></Step>
+      </Steps>
+    </div>
+  </Frame>
+);
+
 // ---------------------------------------------------------------- the definition, and training on one page
 
 const IO = ({ head, color, children }: { head: string; color: string; children: ReactNode }) => (
@@ -6514,6 +6836,13 @@ const deck: [Page, string][] = [
   [NewTypes, 'From Liquid’s d1.2 docs and blog, 16 Nov 2026. A number question with a range returns a median and an interval and has no found score. Vendor-reported accuracy only; no public benchmark covers the new types yet.'],
   [ReadValues, 'Example copied from Liquid’s d1.2 docs. The span numbers count characters from 0, and the end is exclusive. The model normalises the number and the date and still reports the text as written.'],
   [MoreExamples, 'All three from Liquid’s docs. In the multi-select answer the probabilities do not sum to 1, because each option is its own yes or no. The docs describe the interval as p10 to p90.'],
+  [SmallChoices, 'This is the organising idea for the rest of Part 1. I read it from the source code of Liquid\u2019s open d1-2B model: box.py and pointer.py. The number of values, 128 and 1,000, are from that code and the docs. Whether the hosted d1.2 models work identically is not confirmed.'],
+  [BoxChoices, 'Object detection without a detection network. The four box numbers and the 0.94 are from the example in Liquid\u2019s docs. In the code each edge is a distribution over the numbers 0 to 999, each number being one token, and the reported edge is the median. The code says why it is not the mean: an unsure edge\u2019s mean drifts to the middle of the picture.'],
+  [ManyBoxes, 'In the code, block k is present when there are at least k objects, and the boxes are returned in reading order, left edge first. The four probabilities on this slide are made up. Default 16 blocks, at most 64.'],
+  [EstimateNumber, 'The bar heights are made up so that the running totals can be followed by hand; they are chosen so the median is 26 and the 10 to 90 percent range is 23 to 30, as in Liquid\u2019s docs example. The docs say the model reads an estimate on at most 128 values.'],
+  [SpanPointers, 'The tokens and probabilities are illustrative. In the code a slot\u2019s vector is compared with the vector of every input token, once for the start and once for the end, and position 0 stands for nothing. The docs say values are read, not converted: the parsing into 1234.5 is ordinary code.'],
+  [SplitTask, 'The complaint and the answers are made up. Ask the class what other facts the program might need, and what type each would be. The point: the model supplies facts with probabilities, and the decision logic stays in code where it can be read and tested.'],
+  [SplitHow, 'These are our suggestions, not a published method. The second-to-last row matters: do not ask a model to compare three hours with a threshold or to add tax. The last row is where System 2 comes back in.'],
   [Check1, 'Let the class answer each row before revealing it.'],
   [Recap1, 'Read the top sentence aloud and pause.'],
   [S2, ''],
@@ -6548,7 +6877,7 @@ const deck: [Page, string][] = [
   [Convert, 'This is the answer to how the decoder is removed. Nothing is cut out of the middle: the model keeps its blocks and loses its two decoder habits. The guide warns that switching the attention mask is fiddly in practice. Unsloth and our notebook 2 keep causal attention and read the last position.'],
   [Types, 'noul is the yes/no type name in Jev’s API. Its origin is not explained in the public material.'],
   [ScoreCalc, 'The model is confidently wrong about urgency. Keep this in mind for calibration. Liquid’s pages define score in two ways, the weighted level and the median level; we use the weighted one.'],
-  [MoreTypes, 'How Liquid computes its newer answer types is not published. The multi-select and number readouts here are our own construction on an untrained model.'],
+  [MoreTypes, 'The multi-select and number readouts here are our own construction on a model with no training for them. For boxes and spans, Liquid’s open d1-2B code shows the method (box.py and pointer.py in its repository); we have not confirmed that the hosted d1.2 models work the same way.'],
   [Request, 'Field names follow the Jev and Unsloth request format: state, questions, type, instructions, criteria.'],
   [Bridge, 'This answers the question of how we know to look at A, B and C: we chose them. Token ids 32, 33 and 34 are the letters A, B and C in the Qwen tokenizer. A model with a trained head needs no letters, because the head scores each option directly; that comes in Parts 5 and 6. The live demo shows this mapping for any question, under how it is read.'],
   [Response, 'Field names follow the Jev and Liquid docs: choice with probabilities, noul as one number, score with its probabilities. I left out the confidence field because its formula is not documented.'],

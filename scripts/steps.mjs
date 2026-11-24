@@ -57,7 +57,7 @@ for (let guard = 0; guard < 1200; guard++) {
     }
     console.log(`p${st.p}: ${n} steps`);
   }
-  if (st.p >= Number(process.env.PAGES ?? 153)) break;
+  if (st.p >= Number(process.env.PAGES ?? 160)) break;
   await page.keyboard.press('ArrowRight');
   await new Promise((r) => setTimeout(r, 260));
 }
