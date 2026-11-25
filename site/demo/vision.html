@@ -59,6 +59,8 @@
   .gallery img { width:100%; aspect-ratio: 3/2; object-fit:cover; display:block; }
   .gallery span { position:absolute; left:0; right:0; bottom:0; font: 600 11px/1.2 -apple-system, sans-serif; color:#fff; background:linear-gradient(transparent, #000c); padding:12px 6px 5px; text-align:left; }
   .hide { display:none !important; }
+  .presets { display:flex; gap:6px; flex-wrap:wrap; margin: 8px 0 0; } .presets button { font-size:13px; font-weight:500; padding:6px 10px; border-radius:16px; }
+  .legend { display:flex; gap:8px 14px; flex-wrap:wrap; margin-top:10px; font-size:14px; } .legend i { display:inline-block; width:13px; height:13px; border-radius:3px; margin-right:6px; vertical-align:-2px; }
   .work h4 { font: 700 12px/1.3 -apple-system, sans-serif; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:16px 0 7px; display:flex; gap:8px; align-items:center; }
   .work h4 em { font-style:normal; background:var(--accent); color:#fff; border-radius:10px; padding:3px 7px; letter-spacing:0; }
   .work table { border-collapse:collapse; width:100%; font-size:14px; } .work th { text-align:left; font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); padding:4px 10px 4px 0; font-weight:700; } .work td { padding:5px 10px 5px 0; border-top:1px solid var(--rule); white-space:nowrap; }
@@ -74,6 +76,7 @@
   <div class="loader">
     <select id="modelSel">
       <option value="HuggingFaceTB/SmolVLM-500M-Instruct">SmolVLM-500M-Instruct · about 350 MB</option>
+      <option value="HuggingFaceTB/SmolVLM-Instruct">SmolVLM-Instruct, 2.2B · much better at segmentation, about 2.5 times slower · about 1.5 GB</option>
       <option value="HuggingFaceTB/SmolVLM-256M-Instruct">SmolVLM-256M-Instruct · smaller, weaker · about 180 MB</option>
     </select>
     <button class="primary" id="loadBtn">Load model</button>
@@ -112,14 +115,30 @@
         <p class="muted">A model that was never trained to point cannot give a box directly. So we cut the picture into tiles and ask the same yes or no of every tile.</p>
         <div class="row" style="margin-top:8px">
           <input type="text" id="thing" value="a human face" style="flex:1;min-width:180px" aria-label="what to look for">
+          <select id="method" style="width:auto" aria-label="how to search"><option value="tiles">Ask every tile</option><option value="zoom">Zoom in: quarters, then quarters of those</option><option value="words">Ask in words: left or right, top or bottom</option></select>
           <select id="grid" style="width:auto"><option value="3">3 × 3 tiles</option><option value="4" selected>4 × 4 tiles</option><option value="5">5 × 5 tiles</option><option value="6">6 × 6 tiles</option></select>
-          <button class="primary" id="scanBtn" disabled>Scan the tiles</button>
+          <button class="primary" id="scanBtn" disabled>Find it</button>
         </div>
+        <p class="hint" id="methodHelp"></p>
         <p class="muted" id="scanStatus" style="margin-top:8px"></p>
         <div class="row hide" id="thRow" style="margin-top:6px"><span class="muted">Threshold for yes</span><input type="range" id="th" min="0.2" max="0.9" step="0.05" value="0.5" style="flex:1;max-width:260px"><span class="m p" id="thVal">0.50</span><span class="muted">Moving it redraws the boxes without asking the model again.</span></div>
         <div id="scanOut"></div>
         <div class="row hide" id="onePassRow" style="margin-top:10px"><button class="small" id="onePassBtn">Compare: ask “which tile?” in one pass</button><span class="muted" id="onePassStatus"></span></div>
         <div id="onePassOut"></div>
+      </div>
+
+      <div class="card">
+        <h2>3 · One question for every tile: segmentation and more</h2>
+        <p class="muted">Segmentation is a choice for every small part of the picture. Depth is a score for every part. Here each tile gets the same typed question, read in one pass.</p>
+        <div class="presets" id="tilePresets"></div>
+        <div class="row" style="margin-top:8px"><div class="types" id="ttype"><button data-t="choice" class="on">choice</button><button data-t="score">score</button></div>
+          <select id="tmode" style="width:auto" aria-label="which tiles to ask"><option value="grid">Ask every tile</option><option value="quad">Quadtree: ask again only where the answer changes</option></select>
+          <select id="tgrid" style="width:auto"><option value="4">4 × 4 tiles</option><option value="6" selected>6 × 6 tiles</option><option value="8">8 × 8 tiles</option></select></div>
+        <input type="text" id="tq" style="margin-top:8px" aria-label="the question for every tile">
+        <textarea id="topts" rows="4" style="margin-top:7px" placeholder="one option per line" aria-label="options"></textarea>
+        <p class="hint hide" id="quadHelp">Start with 4 × 4 tiles. A tile is cut into four and asked again only when its answer differs from a neighbour's, and the smaller cells are offered only the answers that meet at that edge. That repeats down to cells one sixteenth of the picture wide, so the questions go to the edges of things and large plain areas stay cheap. A small cell is shown with a margin around it, because a very small cut-out is too little to recognise.</p>
+        <div class="row" style="margin-top:10px"><button class="primary" id="tileBtn" disabled>Ask every tile</button><span class="muted" id="tileStatus"></span></div>
+        <div id="tileOut"></div>
       </div>
     </div>
   </div>
@@ -146,29 +165,29 @@ const HELP = { noul: 'Yes or no. The answer is P(yes).', choice: 'One option per
 const Q = (type, q, opts = '') => ({ id: ++uid, type, q, opts });
 const MADE = 'Sample made with an image model for the course.';
 const SAMPLES = [
-  { file: 'kahneman', title: 'Portrait', credit: 'Sample: Daniel Kahneman. Photo by nrkbeta, CC BY-SA 2.0, via Wikimedia Commons.', thing: 'a human face', grid: 4,
+  { file: 'kahneman', seg: 'a face\nclothes\na hand\nbackground', title: 'Portrait', credit: 'Sample: Daniel Kahneman. Photo by nrkbeta, CC BY-SA 2.0, via Wikimedia Commons.', thing: 'a human face', grid: 4,
     qs: [['noul', 'Is there a person in this picture?'], ['choice', 'Where was this picture taken?', 'indoors\noutdoors'], ['count', 'person'], ['score', 'How formal are the clothes?', 'casual\nsmart\nformal']] },
-  { file: 'cat-dog', title: 'Cat and dog', thing: 'a cat', grid: 3,
+  { file: 'cat-dog', seg: 'a cat\na dog\nplants\nfloor or wall', title: 'Cat and dog', thing: 'a cat', grid: 3,
     qs: [['noul', 'Is there a cat in this picture?'], ['choice', 'Which animal is bigger?', 'the cat\nthe dog'], ['count', 'animal'], ['choice', 'What colour is the dog?', 'black\ngolden\nwhite\ngrey']] },
-  { file: 'street', title: 'Campus street', thing: 'a dog', grid: 4,
+  { file: 'street', seg: 'road\ntrees\na building\nsky\na person or vehicle', title: 'Campus street', thing: 'a dog', grid: 4,
     qs: [['noul', 'Is this a street?'], ['choice', 'What time of day is it?', 'day\nnight'], ['count', 'car'], ['score', 'How busy is the road?', 'empty\na few people\ncrowded']] },
-  { file: 'cows', title: 'Cows grazing', thing: 'a cow', grid: 4,
+  { file: 'cows', seg: 'sky\ntrees\ngrass\na cow', title: 'Cows grazing', thing: 'a cow', grid: 4,
     qs: [['noul', 'Are there cows in this picture?'], ['choice', 'Where is this?', 'a city\na village\na beach'], ['count', 'cow'], ['score', 'How green is the field?', 'dry\npatchy\nlush']] },
-  { file: 'cricket', title: 'Cricket', thing: 'a person', grid: 4,
+  { file: 'cricket', seg: 'a player\ngrass\nthe pitch', title: 'Cricket', thing: 'a person', grid: 4,
     qs: [['choice', 'Which sport is this?', 'football\ncricket\nhockey\ntennis'], ['noul', 'Is this a cricket match?'], ['count', 'player'], ['choice', 'What colour are the players wearing?', 'white\nblue\nred']] },
-  { file: 'fruit-stall', title: 'Fruit stall', thing: 'bananas', grid: 4,
+  { file: 'fruit-stall', seg: 'fruit\npeople\nshops and signs', title: 'Fruit stall', thing: 'bananas', grid: 4,
     qs: [['noul', 'Are there bananas in this picture?'], ['choice', 'What is being sold?', 'books\nfruit\nclothes\nphones'], ['score', 'How crowded is the street?', 'empty\na few people\ncrowded'], ['noul', 'Is this a supermarket?']] },
-  { file: 'traffic', title: 'Traffic', thing: 'a bus', grid: 4,
+  { file: 'traffic', seg: 'vehicles\nbuildings\nsky\nroad', title: 'Traffic', thing: 'a bus', grid: 4,
     qs: [['noul', 'Is the road crowded?'], ['score', 'How heavy is the traffic?', 'light\nmoderate\nheavy'], ['choice', 'Which vehicle is most common here?', 'bicycles\nauto rickshaws and scooters\ntrucks'], ['noul', 'Is it raining?']] },
-  { file: 'yoga', title: 'Yoga class', thing: 'a person', grid: 5,
+  { file: 'yoga', seg: 'a person\nwall\nfloor', title: 'Yoga class', thing: 'a person', grid: 5,
     qs: [['choice', 'What are these people doing?', 'cooking\nyoga\nplaying cricket\nshopping'], ['count', 'person'], ['noul', 'Are these people exercising?'], ['choice', 'Where is this?', 'indoors\noutdoors']] },
-  { file: 'station-sign', title: 'Railway station', thing: 'a train', grid: 4,
+  { file: 'station-sign', seg: 'a sign\na train\nthe platform\nsky or roof', title: 'Railway station', thing: 'a train', grid: 4,
     qs: [['choice', 'Which place does the sign name?', 'Ahmedabad\nGandhinagar\nSurat\nVadodara'], ['noul', 'Is this a railway station?'], ['choice', 'What colour is the sign board?', 'yellow\ngreen\nblue\nred']] },
-  { file: 'camera-trap', title: 'Camera trap', thing: 'a leopard', grid: 4,
+  { file: 'camera-trap', seg: 'a leopard\na deer\ntrees\nground', title: 'Camera trap', thing: 'a leopard', grid: 4,
     qs: [['choice', 'Which animal is at the front?', 'a deer\na leopard\na dog\na cow'], ['noul', 'Was this picture taken at night?'], ['noul', 'Is there a person in this picture?']] },
 ];
 async function pickSample(i) {
-  const s = SAMPLES[i]; questions = s.qs.map(([t, q, o]) => Q(t, q, o ?? '')); renderQs(); $('thing').value = s.thing; $('grid').value = s.grid;
+  const s = SAMPLES[i]; questions = s.qs.map(([t, q, o]) => Q(t, q, o ?? '')); renderQs(); $('thing').value = s.thing; $('grid').value = s.grid; sampleClasses = s.seg; setTile('Segmentation');
   [...$('gallery').children].forEach((b, k) => b.classList.toggle('on', k === i)); await setImage(`img/${s.file}.jpg`, s.credit ?? MADE);
 }
 
@@ -179,7 +198,7 @@ function softmax(z) { let m = -Infinity; for (const x of z) if (x > m) m = x; co
 async function setImage(src, credit = '') {
   $('img').src = src; await $('img').decode(); image = await load_image(src); $('credit').textContent = credit;
   const c = $('overlay'); c.width = $('img').naturalWidth; c.height = $('img').naturalHeight; c.getContext('2d').clearRect(0, 0, c.width, c.height);
-  $('scanOut').innerHTML = ''; $('onePassOut').innerHTML = ''; $('onePassRow').classList.add('hide'); $('thRow').classList.add('hide'); $('answers').innerHTML = ''; $('scanStatus').textContent = ''; lastScan = null;
+  $('scanOut').innerHTML = ''; $('onePassOut').innerHTML = ''; $('onePassRow').classList.add('hide'); $('thRow').classList.add('hide'); $('answers').innerHTML = ''; $('scanStatus').textContent = ''; $('tileOut').innerHTML = ''; $('tileStatus').textContent = ''; lastScan = null;
 }
 $('gallery').innerHTML = SAMPLES.map((s, i) => `<button data-i="${i}" title="${s.title}"><img src="img/${s.file}.jpg" alt="${s.title}" loading="lazy"><span>${s.title}</span></button>`).join('');
 $('gallery').onclick = (e) => { const b = e.target.closest('button'); if (b) pickSample(+b.dataset.i); };
@@ -198,14 +217,15 @@ $('loadBtn').onclick = async () => {
   $('loadBtn').disabled = true; $('track').classList.remove('hide'); $('prog').style.width = '0%'; const id = $('modelSel').value;
   try {
     setStatus('Fetching the processor …', 'busy'); processor = await AutoProcessor.from_pretrained(id); tok = processor.tokenizer;
+    const qs = new URLSearchParams(location.search);
     const seen = {}; const device = navigator.gpu && (await navigator.gpu.requestAdapter().catch(() => null)) ? 'webgpu' : 'wasm';
-    model = await (AutoModelForImageTextToText ?? AutoModelForVision2Seq).from_pretrained(id, { dtype: { embed_tokens: 'q8', vision_encoder: 'q4', decoder_model_merged: 'q4' }, device, progress_callback: (p) => {
+    model = await (AutoModelForImageTextToText ?? AutoModelForVision2Seq).from_pretrained(id, { dtype: { embed_tokens: qs.get('embed') ?? 'q8', vision_encoder: qs.get('vision') ?? 'q4', decoder_model_merged: qs.get('dtype') ?? 'q4' }, device, progress_callback: (p) => {
       if (p.status === 'progress' && p.total) { seen[p.file] = [p.loaded, p.total]; const l = Object.values(seen).reduce((a, v) => a + v[0], 0), t = Object.values(seen).reduce((a, v) => a + v[1], 0);
         $('prog').style.width = (100 * l) / t + '%'; setStatus(`Downloading ${(l / 1e6).toFixed(0)} of ${(t / 1e6).toFixed(0)} MB`, 'busy'); } } });
     setStatus('Warming up …', 'busy'); if (image) await readLetters(image, 'Is this a picture?', ['yes', 'no']);
     $('prog').style.width = '100%'; setTimeout(() => $('track').classList.add('hide'), 600);
     setStatus(`${id.split('/')[1]} is ready on ${device === 'webgpu' ? 'your GPU' : 'the CPU (no WebGPU here, so it will be slow)'}`, 'ok');
-    $('askBtn').disabled = false; $('scanBtn').disabled = false; $('askStatus').textContent = ''; $('scanStatus').textContent = '';
+    $('askBtn').disabled = false; $('scanBtn').disabled = false; $('tileBtn').disabled = false; $('askStatus').textContent = ''; $('scanStatus').textContent = '';
   } catch (err) { setStatus('Could not load the model: ' + (err?.message ?? err)); console.error(err); }
   $('loadBtn').disabled = false;
 };
@@ -262,6 +282,12 @@ function working(r, opts, type) {
     <p class="muted" style="margin-top:8px">Before we restrict to the letters, they hold ${f3(r.mass)} of the probability over all ${N} tokens${r.mass < 0.6 ? '. That is low: the model wanted to write something else, so treat this reading with care' : ''}.</p>
     <h4><em>4</em>The answer</h4><p style="margin:0">${last} Nothing was written: we read ${opts.length} numbers out of ${N}.</p></div>`;
 }
+// A compact table for many yes or no readings: both raw scores, their ranks among all tokens, and P(yes).
+function ynTable(items, head) {
+  const N = items[0].r.v.toLocaleString('en-US');
+  return `<div style="overflow-x:auto;max-height:340px;overflow-y:auto"><table><tr><th>${head}</th><th>Raw score, yes</th><th>Rank of ${N}</th><th>Raw score, no</th><th>Rank</th><th>P(yes)</th></tr>${items.map(({ label, r }) => `<tr><td style="white-space:normal">${esc(label)}</td><td class="m">${f2(r.z[0])}</td><td class="m">${r.rank[0].toLocaleString('en-US')}</td><td class="m">${f2(r.z[1])}</td><td class="m">${r.rank[1].toLocaleString('en-US')}</td><td class="m p"><b>${f2(r.p[0])}</b></td></tr>`).join('')}</table></div>
+  <p class="muted" style="margin-top:8px">P(yes) = e<sup>yes</sup> / (e<sup>yes</sup> + e<sup>no</sup>), using the two raw scores in that row.</p>`;
+}
 $('askBtn').onclick = async () => {
   if (!image) { $('askStatus').textContent = 'Choose a picture first.'; return; }
   const qs = questions.filter((q) => q.q.trim()); $('askBtn').disabled = true; $('answers').innerHTML = ''; let total = 0;
@@ -269,14 +295,17 @@ $('askBtn').onclick = async () => {
     for (const [k, q] of qs.entries()) {
       $('askStatus').textContent = `Question ${k + 1} of ${qs.length} …`;
       if (q.type === 'count') {
-        const rungs = []; let ms = 0;
+        const rungs = [], rs = []; let ms = 0;
         const thing = q.q.trim(), WORDS = ['one', 'two', 'three', 'four', 'five'], asked = [];
-        for (let n = 1; n <= MAX_RUNGS; n++) { const text = n === 1 ? `Is there at least one ${thing} in this picture?` : `Are there at least ${WORDS[n - 1]} ${thing}s in this picture?`; asked.push(text); const r = await readLetters(image, text, ['yes', 'no']); ms += r.ms; rungs.push(r.p[0]); if (r.p[0] < 0.5) break; }
+        for (let n = 1; n <= MAX_RUNGS; n++) { const text = n === 1 ? `Is there at least one ${thing} in this picture?` : `Are there at least ${WORDS[n - 1]} ${thing}s in this picture?`; asked.push(text); const r = await readLetters(image, text, ['yes', 'no']); ms += r.ms; rungs.push(r.p[0]); rs.push(r); if (r.p[0] < 0.5) break; }
         total += ms; const count = rungs.filter((p) => p >= 0.5).length; const open = count === MAX_RUNGS;
         const el = document.createElement('div'); el.className = 'qcard';
         el.innerHTML = `<div class="rhead"><span class="chip">count</span><span class="q">How many: ${esc(thing)}?</span><span class="ms">${rungs.length} passes · ${ms.toFixed(0)} ms</span></div>
           <div class="ans">${open ? MAX_RUNGS + ' or more' : count}<small>a ladder of yes or no questions, stopped at the first no</small></div>
-          <div class="bars">${rungs.map((p, i) => `<div style="${p >= 0.5 ? 'font-weight:700' : ''}">${esc(asked[i])}</div><div class="bar"><i style="width:${Math.max(1.5, 100 * p)}%;background:${p >= 0.5 ? 'var(--truth)' : 'var(--muted)'}"></i></div><div class="m p">${f2(p)}</div>`).join('')}</div>`;
+          <div class="bars">${rungs.map((p, i) => `<div style="${p >= 0.5 ? 'font-weight:700' : ''}">${esc(asked[i])}</div><div class="bar"><i style="width:${Math.max(1.5, 100 * p)}%;background:${p >= 0.5 ? 'var(--truth)' : 'var(--muted)'}"></i></div><div class="m p">${f2(p)}</div>`).join('')}</div>
+          <details><summary>Show the working: raw scores and ranks for every rung</summary><div class="work"><h4><em>1</em>Every rung is its own forward pass over the whole picture</h4>${ynTable(rs.map((r, i) => ({ label: asked[i], r })), 'Question')}
+          <p class="muted" style="margin-top:8px">We climb while P(yes) is 0.5 or more and stop at the first rung below it. ${rungs.filter((p) => p >= 0.5).length} rung${rungs.filter((p) => p >= 0.5).length === 1 ? '' : 's'} passed, so the count is ${open ? MAX_RUNGS + ' or more' : count}.</p></div>
+          <p class="muted" style="margin:14px 0 0">The first rung in full:</p>${working(rs[0], ['yes', 'no'], 'noul')}</details>`;
         $('answers').appendChild(el); continue;
       }
       const opts = q.type === 'noul' ? ['yes', 'no'] : q.opts.split('\n').map((s) => s.trim()).filter(Boolean);
@@ -319,27 +348,142 @@ function boxesFrom(g, probs, th) {
   return out.sort((a, b) => b.best - a.best);
 }
 function showScan() {
-  if (!lastScan) return; const { g, thing, probs } = lastScan, th = +$('th').value; $('thVal').textContent = f2(th); const boxes = boxesFrom(g, probs, th); lastScan.boxes = boxes; drawGrid(g, probs, boxes);
-  $('scanOut').innerHTML = boxes.length
+  if (!lastScan) return; const { g, thing, probs, rs, labels } = lastScan, th = +$('th').value; $('thVal').textContent = f2(th); const boxes = boxesFrom(g, probs, th); lastScan.boxes = boxes; lastScan.draw(boxes);
+  const best = probs.indexOf(Math.max(...probs));
+  $('scanOut').innerHTML = (boxes.length
     ? `<div class="note good"><b>${boxes.length === 1 ? 'Found one group.' : `Found ${boxes.length} groups.`}</b> Tiles at ${f2(th)} or more that touch are joined, and each group gets a green box. The strongest: left ${f2(boxes[0].x0 / g)}, right ${f2((boxes[0].x1 + 1) / g)}, top ${f2(boxes[0].y0 / g)}, bottom ${f2((boxes[0].y1 + 1) / g)}, as fractions of the picture. Edges can only fall on tile borders, and two objects in touching tiles merge into one box.</div>`
-    : `<div class="note"><b>Not found.</b> No tile reached ${f2(th)} for “${esc(thing)}”. Lower the threshold, or try a coarser grid: when an object is larger than a tile, no single tile shows enough of it.</div>`;
+    : `<div class="note"><b>Not found.</b> No tile reached ${f2(th)} for “${esc(thing)}”. Lower the threshold, or try a coarser grid: when an object is larger than a tile, no single tile shows enough of it.</div>`)
+    + `<details><summary>Show the working: raw scores and ranks for every tile</summary><div class="work"><h4><em>1</em>Each tile is cut out and asked “Is there ${esc(thing)} in this picture?” · ${rs.length} passes</h4>${ynTable(rs.map((r, i) => ({ label: labels[i], r })), 'Tile')}
+      <h4><em>2</em>From numbers to a box</h4><p style="margin:0">Keep the tiles with P(yes) of ${f2(th)} or more, join the ones that touch, and draw the smallest rectangle around each group. ${boxes.length ? `The strongest group has ${boxes[0].n} tile${boxes[0].n > 1 ? 's' : ''}, and its best tile scored ${f2(boxes[0].best)}.` : ''}</p></div>
+      <p class="muted" style="margin:14px 0 0">The strongest tile in full (${esc(labels[rs.indexOf(lastScan.bestR)])}):</p>${working(lastScan.bestR, ['yes', 'no'], 'noul')}</details>`;
+}
+const METHOD_HELP = { tiles: 'Every tile is cut out and shown to the model on its own. Passes: the number of tiles.', zoom: 'Ask the four quarters. Only quarters that say yes are cut into four again, three levels deep, so empty areas cost almost nothing. The finest cells are one eighth of the picture wide, which also gives a rough mask.', words: 'No cutting. The whole picture is shown four times and the model is asked whether the thing is in the left half, the right half, the top half, the bottom half. This needs a model that connects places to words.' };
+function setMethod() { const m = $('method').value; $('methodHelp').textContent = METHOD_HELP[m]; $('grid').classList.toggle('hide', m !== 'tiles'); }
+$('method').onchange = setMethod;
+const cropTile = (x0, y0, x1, y1) => image.crop([Math.floor(x0 * image.width), Math.floor(y0 * image.height), Math.max(Math.floor(x0 * image.width) + 1, Math.floor(x1 * image.width) - 1), Math.max(Math.floor(y0 * image.height) + 1, Math.floor(y1 * image.height) - 1)]);
+
+async function findTiles(thing, question) {
+  const g = +$('grid').value, probs = [], rs = [], labels = []; let total = 0;
+  for (let y = 0; y < g; y++) for (let x = 0; x < g; x++) {
+    $('scanStatus').textContent = `Tile ${y * g + x + 1} of ${g * g}: “${question}”`; if (!probs.length) drawGrid(g, probs, null, 0);
+    const r = await readLetters(await cropTile(x / g, y / g, (x + 1) / g, (y + 1) / g), question, ['yes', 'no']); total += r.ms; probs.push(r.p[0]); rs.push(r); labels.push(`row ${y + 1}, column ${x + 1}`); drawGrid(g, probs, null, y * g + x + 1);
+  }
+  lastScan = { g, thing, probs, rs, labels, draw: (boxes) => drawGrid(g, probs, boxes) }; return total;
+}
+// Quarters, then quarters of the quarters that said yes. Cells are kept in units of one eighth of the picture.
+function drawZoom(cells, boxes, now) {
+  const c = $('overlay'), ctx = c.getContext('2d'), u = c.width / 8, v = c.height / 8; ctx.clearRect(0, 0, c.width, c.height); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const k of cells) { if (k.split) continue; ctx.fillStyle = `rgba(109, 40, 217, ${0.06 + 0.55 * k.p})`; ctx.fillRect(k.x * u, k.y * v, k.s * u, k.s * v); ctx.strokeStyle = '#ffffffaa'; ctx.lineWidth = Math.max(1, c.width / 600); ctx.strokeRect(k.x * u, k.y * v, k.s * u, k.s * v);
+    ctx.font = `${Math.max(11, Math.round((k.s * v) / 4))}px "SF Mono", Menlo, monospace`; ctx.fillStyle = '#fff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 6; ctx.fillText(f2(k.p), (k.x + k.s / 2) * u, (k.y + k.s / 2) * v); ctx.shadowBlur = 0; }
+  if (now) { ctx.strokeStyle = '#c44536'; ctx.lineWidth = Math.max(4, c.width / 160); ctx.strokeRect(now.x * u + 2, now.y * v + 2, now.s * u - 4, now.s * v - 4); }
+  for (const b of boxes ?? []) { ctx.strokeStyle = '#0f766e'; ctx.lineWidth = Math.max(4, c.width / 150); ctx.strokeRect(b.x0 * u, b.y0 * v, (b.x1 - b.x0 + 1) * u, (b.y1 - b.y0 + 1) * v); }
+}
+async function findZoom(thing, question) {
+  const cells = [], rs = [], labels = [], todo = [[0, 0], [4, 0], [0, 4], [4, 4]].map(([x, y]) => ({ x, y, s: 4, d: 1 })); let total = 0;
+  while (todo.length) { const k = todo.shift(); $('scanStatus').textContent = `Pass ${rs.length + 1}, level ${k.d} of 3: “${question}”`; drawZoom(cells, null, k);
+    const r = await readLetters(await cropTile(k.x / 8, k.y / 8, (k.x + k.s) / 8, (k.y + k.s) / 8), question, ['yes', 'no']); total += r.ms; k.p = r.p[0]; cells.push(k); rs.push(r);
+    labels.push(`level ${k.d}: ${k.s === 4 ? 'a quarter' : k.s === 2 ? 'a sixteenth' : 'one cell of 64'}, at left ${f2(k.x / 8)}, top ${f2(k.y / 8)}`);
+    if (k.p >= 0.5 && k.s > 1) { k.split = true; const h = k.s / 2; for (const [dx, dy] of [[0, 0], [h, 0], [0, h], [h, h]]) todo.push({ x: k.x + dx, y: k.y + dy, s: h, d: k.d + 1 }); } }
+  // the finest picture of the answers: every one of the 64 cells takes the score of the smallest cell asked that covers it
+  const probs = Array(64).fill(0); for (const k of cells) for (let y = k.y; y < k.y + k.s; y++) for (let x = k.x; x < k.x + k.s; x++) probs[y * 8 + x] = k.split ? 0 : k.p;
+  lastScan = { g: 8, thing, probs, rs, labels, draw: (boxes) => drawZoom(cells, boxes) }; return total;
+}
+async function findWords(thing) {
+  const halves = ['left', 'right', 'top', 'bottom'], rs = [], asked = []; let total = 0; const c = $('overlay'), ctx = c.getContext('2d'); ctx.clearRect(0, 0, c.width, c.height);
+  for (const h of halves) { const q = `Is ${thing} in the ${h} half of this picture?`; asked.push(q); $('scanStatus').textContent = `Whole picture: “${q}”`; const r = await readLetters(image, q, ['yes', 'no']); total += r.ms; rs.push(r); }
+  const [l, r, t, b] = rs.map((x) => x.p[0]), pick = (a, z) => (a >= 0.5 && z >= 0.5 ? [0, 1] : a >= z ? [0, 0.5] : [0.5, 1]), [x0, x1] = pick(l, r), [y0, y1] = pick(t, b), any = Math.max(l, r, t, b) >= 0.5;
+  for (const [qx, px] of [[0, l], [1, r]]) for (const [qy, py] of [[0, t], [1, b]]) { ctx.fillStyle = `rgba(109, 40, 217, ${0.06 + 0.55 * px * py})`; ctx.fillRect((qx * c.width) / 2, (qy * c.height) / 2, c.width / 2, c.height / 2); }
+  if (any) { ctx.strokeStyle = '#0f766e'; ctx.lineWidth = Math.max(4, c.width / 150); ctx.strokeRect(x0 * c.width + 3, y0 * c.height + 3, (x1 - x0) * c.width - 6, (y1 - y0) * c.height - 6); }
+  lastScan = { thing, words: true };
+  $('scanOut').innerHTML = `<div class="qcard" style="margin-top:10px"><div class="bars">${halves.map((h, i) => `<div style="${rs[i].p[0] >= 0.5 ? 'font-weight:700' : ''}">${h} half?</div><div class="bar"><i style="width:${Math.max(1.5, 100 * rs[i].p[0])}%;background:${rs[i].p[0] >= 0.5 ? 'var(--truth)' : 'var(--muted)'}"></i></div><div class="m p">${f2(rs[i].p[0])}</div>`).join('')}</div>
+    <div class="note ${any ? 'good' : ''}">${any ? `<b>Its answer:</b> ${x1 - x0 === 1 ? 'both sides' : x0 === 0 ? 'the left' : 'the right'}, ${y1 - y0 === 1 ? 'top and bottom' : y0 === 0 ? 'the top' : 'the bottom'}. The green box is that part. For each pair we keep the half with the higher P(yes), or both when both reach 0.5.` : '<b>It said no to all four halves.</b>'} Check it against “Ask every tile”. Four passes can only name a half or a quarter of the picture, and a small model often says yes or no to every half, because nothing taught it what “the left half” means.</div>
+    <details><summary>Show the working: raw scores and ranks</summary><div class="work"><h4><em>1</em>Four passes over the whole picture</h4>${ynTable(rs.map((r, i) => ({ label: asked[i], r })), 'Question')}</div><p class="muted" style="margin:14px 0 0">The first question in full:</p>${working(rs[0], ['yes', 'no'], 'noul')}</details></div>`;
+  return total;
 }
 $('scanBtn').onclick = async () => {
   if (!image) { $('scanStatus').textContent = 'Choose a picture first.'; return; }
-  const g = +$('grid').value, thing = $('thing').value.trim() || 'the object'; $('scanBtn').disabled = true; $('scanOut').innerHTML = ''; $('onePassOut').innerHTML = '';
-  const probs = [], w = Math.floor(image.width / g), h = Math.floor(image.height / g); let total = 0; const question = `Is there ${thing} in this picture?`;
+  const thing = $('thing').value.trim() || 'the object', m = $('method').value, question = `Is there ${thing} in this picture?`; $('scanBtn').disabled = true; $('scanOut').innerHTML = ''; $('onePassOut').innerHTML = ''; $('thRow').classList.add('hide');
   try {
-    for (let y = 0; y < g; y++) for (let x = 0; x < g; x++) {
-      $('scanStatus').textContent = `Tile ${y * g + x + 1} of ${g * g}: “${question}”`;
-      if (!probs.length) drawGrid(g, probs, null, 0);
-      const tile = await image.crop([x * w, y * h, (x + 1) * w - 1, (y + 1) * h - 1]);
-      const r = await readLetters(tile, question, ['yes', 'no']); total += r.ms; probs.push(r.p[0]); drawGrid(g, probs, null, y * g + x + 1);
-    }
-    lastScan = { g, thing, probs }; $('thRow').classList.remove('hide'); showScan();
-    $('scanStatus').textContent = `${g * g} forward passes, ${(total / 1000).toFixed(1)} s. Each number is P(yes) for that tile.`;
+    const total = await (m === 'tiles' ? findTiles(thing, question) : m === 'zoom' ? findZoom(thing, question) : findWords(thing));
+    if (m === 'words') $('scanStatus').textContent = `4 forward passes, ${(total / 1000).toFixed(1)} s, all on the whole picture.`;
+    else { lastScan.bestR = lastScan.rs.reduce((a, r) => (r.p[0] > a.p[0] ? r : a)); $('thRow').classList.remove('hide'); showScan();
+      $('scanStatus').textContent = `${lastScan.rs.length} forward passes, ${(total / 1000).toFixed(1)} s. Each number is P(yes) for that part.${m === 'zoom' ? ' Asking all 64 finest cells would have taken 64.' : ''}`; }
     $('onePassRow').classList.remove('hide'); $('onePassStatus').textContent = '';
   } catch (err) { $('scanStatus').textContent = 'Something went wrong: ' + (err?.message ?? err); console.error(err); }
   $('scanBtn').disabled = false;
+};
+
+// ---------- 3 · one typed question for every tile
+const PALETTE = ['#2563eb', '#d97706', '#059669', '#e11d48', '#7c3aed', '#0891b2', '#65a30d', '#57534e'];
+let ttype = 'choice', sampleClasses = 'sky\ntrees\ngrass\na cow';
+const TILE_PRESETS = { Segmentation: () => ['choice', 'What does this picture mostly show?', sampleClasses], 'Near or far': () => ['score', 'How far away is the scene in this picture?', 'very close\nclose\nfar\nvery far'], 'Bright or dark': () => ['score', 'How bright is this picture?', 'dark\ndim\nbright'], 'What is it?': () => ['choice', 'What does this picture show?', 'a person\nan animal\na plant\na building or road\nsky\nsomething else'] };
+function setTile(name) { const [t, q, o] = TILE_PRESETS[name](); ttype = t; $('tq').value = q; $('topts').value = o; [...$('ttype').children].forEach((b) => b.classList.toggle('on', b.dataset.t === t)); }
+$('tilePresets').innerHTML = Object.keys(TILE_PRESETS).map((k) => `<button data-k="${k}">${k}</button>`).join('');
+$('tilePresets').onclick = (e) => { if (e.target.dataset.k) setTile(e.target.dataset.k); };
+$('ttype').onclick = (e) => { if (e.target.dataset.t) { ttype = e.target.dataset.t; [...$('ttype').children].forEach((b) => b.classList.toggle('on', b.dataset.t === ttype)); } };
+function drawTyped(g, cells, opts, type, now = -1) {
+  const c = $('overlay'), ctx = c.getContext('2d'), w = c.width / g, h = c.height / g; ctx.clearRect(0, 0, c.width, c.height); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 ${Math.max(12, Math.round(h / 4))}px "SF Mono", Menlo, monospace`;
+  for (let i = 0; i < g * g; i++) { const x = i % g, y = Math.floor(i / g), k = cells[i];
+    if (!k) { if (i === now) { ctx.strokeStyle = '#c44536'; ctx.lineWidth = Math.max(4, c.width / 160); ctx.strokeRect(x * w + 3, y * h + 3, w - 6, h - 6); } else { ctx.fillStyle = '#00000044'; ctx.fillRect(x * w, y * h, w, h); } continue; }
+    if (type === 'choice') { ctx.globalAlpha = 0.25 + 0.4 * k.p[k.best]; ctx.fillStyle = PALETTE[k.best % PALETTE.length]; ctx.fillRect(x * w, y * h, w, h); ctx.globalAlpha = 1; }
+    else { ctx.fillStyle = `rgba(109, 40, 217, ${0.05 + (0.6 * k.v) / (opts.length - 1)})`; ctx.fillRect(x * w, y * h, w, h); }
+    ctx.strokeStyle = '#ffffff88'; ctx.lineWidth = Math.max(1, c.width / 600); ctx.strokeRect(x * w, y * h, w, h);
+    ctx.fillStyle = '#fff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 6; ctx.fillText(type === 'choice' ? LETTERS[k.best] : k.v.toFixed(1), x * w + w / 2, y * h + h / 2); ctx.shadowBlur = 0; }
+}
+$('tmode').onchange = () => { const q = $('tmode').value === 'quad'; $('tgrid').classList.toggle('hide', q); $('quadHelp').classList.toggle('hide', !q); };
+// Quadtree cells are kept in units of one sixteenth of the picture: sizes 4, 2 and 1.
+const CTX = +(new URLSearchParams(location.search).get('ctx') ?? 0.5);
+function drawQuad(cells, opts, type, now) {
+  const c = $('overlay'), ctx = c.getContext('2d'), u = c.width / 16, v = c.height / 16; ctx.clearRect(0, 0, c.width, c.height); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const k of cells) { if (k.split) continue;
+    if (type === 'choice') { ctx.globalAlpha = 0.3 + 0.35 * k.p[k.best]; ctx.fillStyle = PALETTE[k.best % PALETTE.length]; ctx.fillRect(k.x * u, k.y * v, k.s * u, k.s * v); ctx.globalAlpha = 1; }
+    else { ctx.fillStyle = `rgba(109, 40, 217, ${0.05 + (0.6 * k.v) / (opts.length - 1)})`; ctx.fillRect(k.x * u, k.y * v, k.s * u, k.s * v); }
+    ctx.strokeStyle = '#ffffff66'; ctx.lineWidth = Math.max(1, c.width / 900); ctx.strokeRect(k.x * u, k.y * v, k.s * u, k.s * v);
+    if (k.s >= 2) { ctx.font = `700 ${Math.max(11, Math.round((k.s * v) / 4))}px "SF Mono", Menlo, monospace`; ctx.fillStyle = '#fff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 6; ctx.fillText(type === 'choice' ? LETTERS[k.best] : k.v.toFixed(1), (k.x + k.s / 2) * u, (k.y + k.s / 2) * v); ctx.shadowBlur = 0; } }
+  if (now) { ctx.strokeStyle = '#c44536'; ctx.lineWidth = Math.max(3, c.width / 200); ctx.strokeRect(now.x * u + 1, now.y * v + 1, now.s * u - 2, now.s * v - 2); }
+}
+async function tileQuad(q, opts, type) {
+  const cells = [], rs = [], labels = []; let total = 0; const lab = (k) => (type === 'choice' ? k.best : Math.round(k.v));
+  const ask = async (k) => { $('tileStatus').textContent = `Pass ${rs.length + 1}: a cell ${k.s === 4 ? 'one quarter' : k.s === 2 ? 'one eighth' : 'one sixteenth'} of the picture wide`; drawQuad(cells, opts, type, k);
+    // a small cell is shown with a margin around it, because a very small cut-out is too little to recognise
+    const m = k.s === 4 ? 0 : (CTX * k.s) / 16, only = k.only ?? opts.map((_, i) => i);
+    const r = await readLetters(await cropTile(Math.max(0, k.x / 16 - m), Math.max(0, k.y / 16 - m), Math.min(1, (k.x + k.s) / 16 + m), Math.min(1, (k.y + k.s) / 16 + m)), q, only.map((i) => opts[i])); total += r.ms;
+    const p = opts.map(() => 0); only.forEach((i, j) => (p[i] = r.p[j])); r.only = only;
+    Object.assign(k, { p, best: p.indexOf(Math.max(...p)), v: p.reduce((a, x, i) => a + i * x, 0) }); cells.push(k); rs.push(r); labels.push(`${k.s === 4 ? '1/4' : k.s === 2 ? '1/8' : '1/16'} wide, left ${f2(k.x / 16)}, top ${f2(k.y / 16)}`); };
+  for (let y = 0; y < 16; y += 4) for (let x = 0; x < 16; x += 4) await ask({ x, y, s: 4 });
+  for (const size of [4, 2]) {
+    const map = Array(256).fill(-1); for (const k of cells) if (!k.split) for (let y = k.y; y < k.y + k.s; y++) for (let x = k.x; x < k.x + k.s; x++) map[y * 16 + x] = lab(k);
+    const at = (x, y) => (x < 0 || y < 0 || x > 15 || y > 15 ? -1 : map[y * 16 + x]);
+    // the labels found on a cell's four sides, together with its own
+    const around = (k) => { const set = new Set([lab(k)]); for (let i = 0; i < k.s; i++) for (const n of [at(k.x - 1, k.y + i), at(k.x + k.s, k.y + i), at(k.x + i, k.y - 1), at(k.x + i, k.y + k.s)]) if (n !== -1) set.add(n); return [...set].sort((a, b) => a - b); };
+    for (const [k, labs] of cells.filter((c) => c.s === size && !c.split).map((c) => [c, around(c)]).filter(([, labs]) => labs.length > 1)) { k.split = true; const h = size / 2;
+      // a choice is asked again with only the labels that meet here; a score keeps all its levels
+      for (const [dx, dy] of [[0, 0], [h, 0], [0, h], [h, h]]) await ask({ x: k.x + dx, y: k.y + dy, s: h, only: type === 'choice' ? labs : undefined }); }
+  }
+  drawQuad(cells, opts, type); return { cells, rs, labels, total };
+}
+$('tileBtn').onclick = async () => {
+  if (!image) { $('tileStatus').textContent = 'Choose a picture first.'; return; }
+  const g = +$('tgrid').value, q = $('tq').value.trim(), opts = $('topts').value.split('\n').map((x) => x.trim()).filter(Boolean), type = ttype; if (!q || opts.length < 2) { $('tileStatus').textContent = 'Write a question and at least two options.'; return; }
+  $('tileBtn').disabled = true; $('tileOut').innerHTML = ''; let cells = [], rs = [], total = 0, quad = null;
+  try {
+    if ($('tmode').value === 'quad') { quad = await tileQuad(q, opts, type); rs = quad.rs; total = quad.total; cells = quad.cells; }
+    else for (let i = 0; i < g * g; i++) { const x = i % g, y = Math.floor(i / g); $('tileStatus').textContent = `Tile ${i + 1} of ${g * g}`; drawTyped(g, cells, opts, type, i);
+      const r = await readLetters(await cropTile(x / g, y / g, (x + 1) / g, (y + 1) / g), q, opts); total += r.ms; rs.push(r); cells.push({ p: r.p, best: r.p.indexOf(Math.max(...r.p)), v: r.p.reduce((a, p, k) => a + k * p, 0) }); }
+    if (!quad) drawTyped(g, cells, opts, type);
+    const leaves = quad ? cells.filter((c) => !c.split) : cells, area = (k) => (quad ? (k.s * k.s) / 256 : 1 / (g * g)), share = (i) => Math.round(100 * leaves.filter((c) => c.best === i).reduce((a, c) => a + area(c), 0));
+    $('tileStatus').textContent = quad ? `${rs.length} forward passes, ${(total / 1000).toFixed(1)} s. Asking all 256 finest cells would have taken 256. ${leaves.filter((c) => c.s === 1).length} cells reached the finest size.` : `${g * g} forward passes, ${(total / 1000).toFixed(1)} s. One ${type} per tile.`;
+    const sure = rs.filter((r) => !r.only || r.only.length === opts.length).reduce((a, r) => (Math.max(...r.p) > Math.max(...a.p) ? r : a)), N = rs[0].v.toLocaleString('en-US');
+    const legend = type === 'choice'
+      ? `<div class="legend">${opts.map((o, k) => `<span><i style="background:${PALETTE[k % PALETTE.length]}"></i><span class="tok">${LETTERS[k]}</span> ${esc(o)} · ${share(k)}% of the picture</span>`).join('')}</div><div class="note good"><b>A rough segmentation.</b> Each tile is coloured by the option with the highest probability, and stronger colour means a surer answer. Real segmentation makes the same choice for every pixel with a trained model; here the mask can only be as fine as the ${quad ? 'smallest cells, and a very small cell shows the model too little to recognise' : 'tiles, and a tile that holds two things must still pick one. Try the quadtree to spend the questions on the edges'}.</div>`
+      : `<div class="note good"><b>A map of scores.</b> Each tile shows its average level, from 0 (${esc(opts[0])}) to ${opts.length - 1} (${esc(opts[opts.length - 1])}), weighted by the probabilities. Depth estimation is this idea with a trained model and one score per pixel. A tile is judged alone here, without the rest of the picture, so treat the map as rough.</div>`;
+    $('tileOut').innerHTML = legend + `<details><summary>Show the working: raw scores and ranks for every tile</summary><div class="work"><h4><em>1</em>Every tile is cut out and asked the same question · ${rs.length} passes</h4>
+      <div style="overflow-x:auto;max-height:340px;overflow-y:auto"><table><tr><th>Tile</th>${opts.map((o, k) => `<th>${esc(o)}: raw (rank)</th>`).join('')}<th>Probabilities</th><th>${type === 'choice' ? 'Choice' : 'Score'}</th></tr>
+      ${rs.map((r, i) => `<tr><td>${quad ? quad.labels[i] : `row ${Math.floor(i / g) + 1}, col ${(i % g) + 1}`}</td>${opts.map((o, k) => { const j = r.only ? r.only.indexOf(k) : k; return `<td class="m">${j < 0 ? 'not offered' : `${f2(r.z[j])} (${r.rank[j].toLocaleString('en-US')})`}</td>`; }).join('')}<td class="m p">${cells[i].p.map(f2).join(' · ')}</td><td><b>${type === 'choice' ? esc(opts[cells[i].best]) : cells[i].v.toFixed(2)}</b></td></tr>`).join('')}</table></div>
+      <p class="muted" style="margin-top:8px">Ranks are among all ${N} tokens. The probabilities are a softmax over the ${opts.length} raw scores in that row.</p></div>
+      <p class="muted" style="margin:14px 0 0">The surest tile in full:</p>${working(sure, sure.only ? sure.only.map((i) => opts[i]) : opts, type)}</details>`;
+  } catch (err) { $('tileStatus').textContent = 'Something went wrong: ' + (err?.message ?? err); console.error(err); }
+  $('tileBtn').disabled = false;
 };
 $('onePassBtn').onclick = async () => {
   if (!lastScan) return; $('onePassBtn').disabled = true; const names = ['top left', 'top middle', 'top right', 'middle left', 'centre', 'middle right', 'bottom left', 'bottom middle', 'bottom right'];
@@ -351,7 +495,8 @@ $('onePassBtn').onclick = async () => {
   $('onePassBtn').disabled = false;
 };
 
-$('th').oninput = showScan;
+$('th').oninput = showScan; setMethod();
+const extra = new URLSearchParams(location.search).get('model'); if (extra) { $('modelSel').add(new Option(extra, extra), 0); $('modelSel').value = extra; }
 pickSample(0);
 </script>
 </body>
