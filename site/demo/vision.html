@@ -60,6 +60,7 @@
   .gallery span { position:absolute; left:0; right:0; bottom:0; font: 600 11px/1.2 -apple-system, sans-serif; color:#fff; background:linear-gradient(transparent, #000c); padding:12px 6px 5px; text-align:left; }
   .hide { display:none !important; }
   .presets { display:flex; gap:6px; flex-wrap:wrap; margin: 8px 0 0; } .presets button { font-size:13px; font-weight:500; padding:6px 10px; border-radius:16px; }
+  .pair { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; } .pair figure { margin:0; } .pair canvas { width:100%; display:block; border-radius:8px; } .pair figcaption { font-size:13px; margin-top:5px; } @media (max-width:560px) { .pair { grid-template-columns:1fr; } }
   .legend { display:flex; gap:8px 14px; flex-wrap:wrap; margin-top:10px; font-size:14px; } .legend i { display:inline-block; width:13px; height:13px; border-radius:3px; margin-right:6px; vertical-align:-2px; }
   .work h4 { font: 700 12px/1.3 -apple-system, sans-serif; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:16px 0 7px; display:flex; gap:8px; align-items:center; }
   .work h4 em { font-style:normal; background:var(--accent); color:#fff; border-radius:10px; padding:3px 7px; letter-spacing:0; }
@@ -77,6 +78,7 @@
     <select id="modelSel">
       <option value="HuggingFaceTB/SmolVLM-500M-Instruct">SmolVLM-500M-Instruct · about 350 MB</option>
       <option value="HuggingFaceTB/SmolVLM-Instruct">SmolVLM-Instruct, 2.2B · much better at segmentation, about 2.5 times slower · about 1.5 GB</option>
+      <option value="onnx-community/LFM2.5-VL-450M-ONNX">LFM2.5-VL-450M, from Liquid AI · about 400 MB</option>
       <option value="HuggingFaceTB/SmolVLM-256M-Instruct">SmolVLM-256M-Instruct · smaller, weaker · about 180 MB</option>
     </select>
     <button class="primary" id="loadBtn">Load model</button>
@@ -132,11 +134,13 @@
         <p class="muted">Segmentation is a choice for every small part of the picture. Depth is a score for every part. Here each tile gets the same typed question, read in one pass.</p>
         <div class="presets" id="tilePresets"></div>
         <div class="row" style="margin-top:8px"><div class="types" id="ttype"><button data-t="choice" class="on">choice</button><button data-t="score">score</button></div>
-          <select id="tmode" style="width:auto" aria-label="which tiles to ask"><option value="grid">Ask every tile</option><option value="quad">Quadtree: ask again only where the answer changes</option></select>
-          <select id="tgrid" style="width:auto"><option value="4">4 × 4 tiles</option><option value="6" selected>6 × 6 tiles</option><option value="8">8 × 8 tiles</option></select></div>
+          <select id="tmode" style="width:auto" aria-label="which tiles to ask"><option value="grid">Ask every tile</option><option value="quad">Quadtree: ask again only where the answer changes</option><option value="both">Both, side by side</option></select>
+          <select id="tgrid" style="width:auto"><option value="4">4 × 4 tiles</option><option value="6" selected>6 × 6 tiles</option><option value="8">8 × 8 tiles</option><option value="12">12 × 12 tiles</option><option value="16">16 × 16 tiles</option><option value="24">24 × 24 tiles</option></select>
+          <select id="tfine" class="hide" style="width:auto" aria-label="smallest quadtree cell"><option value="16">Smallest cell: 1/16 of the width</option><option value="32">Smallest cell: 1/32 of the width</option></select></div>
         <input type="text" id="tq" style="margin-top:8px" aria-label="the question for every tile">
         <textarea id="topts" rows="4" style="margin-top:7px" placeholder="one option per line" aria-label="options"></textarea>
-        <p class="hint hide" id="quadHelp">Start with 4 × 4 tiles. A tile is cut into four and asked again only when its answer differs from a neighbour's, and the smaller cells are offered only the answers that meet at that edge. That repeats down to cells one sixteenth of the picture wide, so the questions go to the edges of things and large plain areas stay cheap. A small cell is shown with a margin around it, because a very small cut-out is too little to recognise.</p>
+        <p class="hint hide" id="quadHelp">Start with 4 × 4 tiles. A tile is cut into four and asked again only when its answer differs from a neighbour's, and the smaller cells are offered only the answers that meet at that edge. That repeats down to the smallest cell you choose, so the questions go to the edges of things and large plain areas stay cheap. A small cell is shown with a margin around it, so the model always sees at least one eighth of the picture: a very small cut-out is too little to recognise. An object that no 4 × 4 tile names is never looked at again.</p>
+        <p class="hint hide" id="bothHelp">The same question is asked twice: first of every tile, then by the quadtree. The two masks are shown next to each other with their passes and time.</p>
         <div class="row" style="margin-top:10px"><button class="primary" id="tileBtn" disabled>Ask every tile</button><span class="muted" id="tileStatus"></span></div>
         <div id="tileOut"></div>
       </div>
@@ -147,18 +151,19 @@
     <div><b>Nothing was trained</b>The model is used as downloaded. Every answer is the score of a letter token, read in one pass.</div>
     <div><b>Detection, split up</b>“Where is it?” became one yes or no per tile. Boxes are drawn around the groups of tiles that said yes, so several objects can be found.</div>
     <div><b>What training buys</b>A trained decision model such as Liquid’s d1.2 gives the four edges of a box in a single pass, without tiles.</div>
+    <div><b>Tiles, four at a time</b>The tiles of one step do not depend on each other, so they go through the model together, four in a batch. A canvas cuts and scales each tile in a few milliseconds. With SmolVLM that makes a tile cost about a third of what it did one at a time.</div>
     <div><b>Expect mistakes</b>This is a half-billion-parameter model with 4-bit weights. See the <a href="../s/system-one">lecture</a> for calibration and training.</div>
   </div>
 </div>
 
 <script type="module">
-import { AutoProcessor, AutoModelForImageTextToText, AutoModelForVision2Seq, RawImage, load_image } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2';
+import { AutoProcessor, AutoModelForImageTextToText, AutoModelForVision2Seq, RawImage, Tensor, load_image } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2';
 
 const $ = (id) => document.getElementById(id);
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const f2 = (x) => x.toFixed(2);
-let processor, model, tok, image = null, uid = 0, lastScan = null, questions = [];
+let processor, model, tok, fast = null, image = null, uid = 0, lastScan = null, questions = [];
 
 const TYPES = { noul: 'noul', choice: 'choice', score: 'score', count: 'count' };
 const HELP = { noul: 'Yes or no. The answer is P(yes).', choice: 'One option per line.', score: 'Levels, lowest first, one per line.', count: 'Write one thing to count, in the singular. It is asked as a ladder of yes or no questions: at least one? at least two? and so on, stopping at the first no. On a small untrained model the wording changes the answer a lot.' };
@@ -218,11 +223,13 @@ $('loadBtn').onclick = async () => {
   try {
     setStatus('Fetching the processor …', 'busy'); processor = await AutoProcessor.from_pretrained(id); tok = processor.tokenizer;
     const qs = new URLSearchParams(location.search);
-    const seen = {}; const device = navigator.gpu && (await navigator.gpu.requestAdapter().catch(() => null)) ? 'webgpu' : 'wasm';
-    model = await (AutoModelForImageTextToText ?? AutoModelForVision2Seq).from_pretrained(id, { dtype: { embed_tokens: qs.get('embed') ?? 'q8', vision_encoder: qs.get('vision') ?? 'q4', decoder_model_merged: qs.get('dtype') ?? 'q4' }, device, progress_callback: (p) => {
+    const seen = {}; const adapter = navigator.gpu ? await navigator.gpu.requestAdapter().catch(() => null) : null, device = adapter ? 'webgpu' : 'wasm';
+    // 16-bit vision weights run about a third faster on a GPU, but on this model they change the answers, so 4-bit stays
+    const vision = qs.get('vision') ?? 'q4';
+    model = await (AutoModelForImageTextToText ?? AutoModelForVision2Seq).from_pretrained(id, { dtype: { embed_tokens: qs.get('embed') ?? 'q8', vision_encoder: vision, decoder_model_merged: qs.get('dtype') ?? 'q4' }, device, progress_callback: (p) => {
       if (p.status === 'progress' && p.total) { seen[p.file] = [p.loaded, p.total]; const l = Object.values(seen).reduce((a, v) => a + v[0], 0), t = Object.values(seen).reduce((a, v) => a + v[1], 0);
         $('prog').style.width = (100 * l) / t + '%'; setStatus(`Downloading ${(l / 1e6).toFixed(0)} of ${(t / 1e6).toFixed(0)} MB`, 'busy'); } } });
-    setStatus('Warming up …', 'busy'); if (image) await readLetters(image, 'Is this a picture?', ['yes', 'no']);
+    setStatus('Warming up …', 'busy'); fast = null; textCache.clear(); if (image) { await readLetters(image, 'Is this a picture?', ['yes', 'no']); await probeFast(); }
     $('prog').style.width = '100%'; setTimeout(() => $('track').classList.add('hide'), 600);
     setStatus(`${id.split('/')[1]} is ready on ${device === 'webgpu' ? 'your GPU' : 'the CPU (no WebGPU here, so it will be slow)'}`, 'ok');
     $('askBtn').disabled = false; $('scanBtn').disabled = false; $('tileBtn').disabled = false; $('askStatus').textContent = ''; $('scanStatus').textContent = '';
@@ -235,21 +242,60 @@ const f3 = (x) => x.toFixed(3); const showTok = (t) => esc(t).replace(/ /g, '␣
 // One forward pass over a picture and a lettered question. This model writes its letters with a leading space,
 // so we read whichever form of each letter scores higher.
 const letterIds = (i) => [tok.encode(' ' + LETTERS[i], { add_special_tokens: false }).pop(), tok.encode(LETTERS[i], { add_special_tokens: false }).pop()];
-async function readLetters(img, question, options) {
-  const user = `${question}\n${options.map((o, i) => `${LETTERS[i]}. ${o}`).join('\n')}\nAnswer with one letter.`;
-  const text = processor.apply_chat_template([{ role: 'user', content: [{ type: 'image' }, { type: 'text', text: user }] }], { add_generation_prompt: true });
-  const inputs = await processor(text, [img], { do_image_splitting: false });
-  const t0 = performance.now(); const out = await model(inputs); const ms = performance.now() - t0;
-  const [, n, v] = out.logits.dims; const d = out.logits.data; const at = (id) => d[(n - 1) * v + id];
-  const scores = d.subarray((n - 1) * v, n * v);
+const promptOf = (question, options) => { const user = `${question}\n${options.map((o, i) => `${LETTERS[i]}. ${o}`).join('\n')}\nAnswer with one letter.`;
+  return { user, text: processor.apply_chat_template([{ role: 'user', content: [{ type: 'image' }, { type: 'text', text: user }] }], { add_generation_prompt: true }) }; };
+// Read the option letters from the scores at one position: `scores` holds one raw score per token of the vocabulary.
+function readout(scores, options, ms, n, user) {
+  const v = scores.length, at = (id) => scores[id];
   const ids = options.map((_, i) => { const [a, b] = letterIds(i); return at(a) >= at(b) ? a : b; }), z = ids.map(at);
   let m = -Infinity; for (const x of z) if (x > m) m = x; const e = z.map((x) => Math.exp(x - m)), s = e.reduce((a, b) => a + b, 0);
   let am = -Infinity; for (let j = 0; j < v; j++) if (scores[j] > am) am = scores[j]; let as = 0; for (let j = 0; j < v; j++) as += Math.exp(scores[j] - am);
   const pAll = (id) => Math.exp(scores[id] - am) / as;
-  const order = Array.from({ length: v }, (_, j) => j).sort((a, b) => scores[b] - scores[a]).slice(0, 8);
+  // the eight highest tokens, kept in order while scanning once
+  const order = []; for (let j = 0; j < v; j++) { if (order.length === 8 && scores[j] <= scores[order[7]]) continue; let k = order.length; while (k > 0 && scores[order[k - 1]] < scores[j]) k--; order.splice(k, 0, j); if (order.length > 8) order.pop(); }
   return { p: e.map((x) => x / s), z, ms, n, user, v, ids, m, e, s, rank: ids.map((id) => rankOf(scores, id)), pAll: ids.map(pAll), mass: ids.reduce((a, id) => a + pAll(id), 0),
     top: order.map((id) => ({ t: tok.decode([id]), z: scores[id], p: pAll(id), hit: ids.includes(id) })) };
 }
+// Liquid's processor takes the picture first and the text second; the SmolVLM one takes them the other way round.
+const prepare = (text, img) => (processor.image_processor?.config?.image_processor_type?.startsWith('Lfm2') ? processor(img, text, { do_image_splitting: false }) : processor(text, [img], { do_image_splitting: false }));
+async function readLetters(img, question, options) {
+  const { user, text } = promptOf(question, options);
+  const inputs = await prepare(text, img);
+  const t0 = performance.now(); const out = await model(inputs); const ms = performance.now() - t0;
+  const [, n, v] = out.logits.dims; return readout(out.logits.data.slice((n - 1) * v, n * v), options, ms, n, user);
+}
+// The fast route for tiles. The library prepares a picture in JavaScript, which takes longer than the model does on a small tile.
+// For models that take one square picture, a canvas does the same work (stretch the tile, scale to -1..1) in a few
+// milliseconds, and several tiles then go through the model together as one batch.
+const BATCH = +(new URLSearchParams(location.search).get('batch') ?? 4), textCache = new Map();
+async function probeFast() {
+  try { const inp = await prepare(promptOf('Is this a picture?', ['yes', 'no']).text, image), ip = processor.image_processor, pv = inp.pixel_values, pm = inp.pixel_attention_mask;
+    if (BATCH > 0 && pv?.dims.length === 5 && pv.dims[1] === 1 && pm && pm.data.every((x) => x == 1) && ip?.image_mean && ip?.image_std) { const [, , , H, W] = pv.dims;
+      fast = { H, W, mean: ip.image_mean, std: ip.image_std, maskType: pm.type, Mask: pm.data.constructor, long: ip.size?.longest_edge ?? Math.max(H, W), cv: new OffscreenCanvas(W, H), mid: new OffscreenCanvas(8, 8) }; }
+  } catch (err) { console.warn('The fast tile route is off:', err); fast = null; }
+}
+async function textInputs(text) {
+  if (!textCache.has(text)) { const inp = await prepare(text, await cropTile(0, 0, 0.1, 0.1)); textCache.set(text, { ids: inp.input_ids, am: inp.attention_mask, n: inp.input_ids.dims[1] }); }
+  return textCache.get(text);
+}
+// `boxes` are parts of the current picture as fractions [left, top, right, bottom]. One reading comes back for each.
+async function readTiles(boxes, question, options) {
+  if (!fast) { const rs = []; for (const b of boxes) rs.push(await readLetters(await cropTile(...b), question, options)); return rs; }
+  const { user, text } = promptOf(question, options), { ids, am, n } = await textInputs(text), { H, W, mean, std, cv, mid } = fast, plane = H * W, src = $('img'), iw = image.width, ih = image.height, rs = [];
+  const cx = cv.getContext('2d', { willReadFrequently: true }), mx = mid.getContext('2d'), rep = (t, B) => { const a = new t.data.constructor(B * n); for (let k = 0; k < B; k++) a.set(t.data, k * n); return new Tensor(t.type, a, [B, n]); };
+  for (let s = 0; s < boxes.length; s += BATCH) { const part = boxes.slice(s, s + BATCH), B = part.length, t0 = performance.now(), px = new Float32Array(B * 3 * plane);
+    part.forEach(([x0, y0, x1, y1], k) => { const sx = Math.floor(x0 * iw), sy = Math.floor(y0 * ih), sw = Math.max(2, Math.floor(x1 * iw) - sx), sh = Math.max(2, Math.floor(y1 * ih) - sy);
+      // two steps, as the library does: to its working size first, then to the square the model takes
+      const f = fast.long / Math.max(sw, sh), mw = Math.round(sw * f), mh = Math.round(sh * f); if (mid.width !== mw || mid.height !== mh) { mid.width = mw; mid.height = mh; }
+      mx.imageSmoothingQuality = 'low'; mx.drawImage(src, sx, sy, sw, sh, 0, 0, mw, mh); cx.imageSmoothingQuality = 'low'; cx.drawImage(mid, 0, 0, mw, mh, 0, 0, W, H);
+      const d = cx.getImageData(0, 0, W, H).data, o = k * 3 * plane;
+      for (let i = 0, j = 0; i < plane; i++, j += 4) { px[o + i] = (d[j] / 255 - mean[0]) / std[0]; px[o + plane + i] = (d[j + 1] / 255 - mean[1]) / std[1]; px[o + 2 * plane + i] = (d[j + 2] / 255 - mean[2]) / std[2]; } });
+    const out = await model({ input_ids: rep(ids, B), attention_mask: rep(am, B), pixel_values: new Tensor('float32', px, [B, 1, 3, H, W]), pixel_attention_mask: new Tensor(fast.maskType, new fast.Mask(B * plane).fill(1), [B, 1, H, W]) });
+    const [, len, v] = out.logits.dims, ms = (performance.now() - t0) / B;
+    for (let k = 0; k < B; k++) rs.push(readout(out.logits.data.slice((k * len + len - 1) * v, (k * len + len) * v), options, ms, len, user)); }
+  return rs;
+}
+const chunks = (a) => { const out = []; for (let i = 0; i < a.length; i += Math.max(1, BATCH)) out.push(a.slice(i, i + Math.max(1, BATCH))); return out; };
 
 // ---------- 1 · whole-picture questions
 function renderQs() {
@@ -325,13 +371,14 @@ $('askBtn').onclick = async () => {
 };
 
 // ---------- 2 · detection as a yes or no per tile
+const inNow = (i, now) => (Array.isArray(now) ? i >= now[0] && i < now[1] : i === now);
 function drawGrid(g, probs, boxes, now = -1) {
   const c = $('overlay'), ctx = c.getContext('2d'), w = c.width / g, h = c.height / g; ctx.clearRect(0, 0, c.width, c.height);
   ctx.font = `${Math.max(14, Math.round(h / 5))}px "SF Mono", Menlo, monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (let y = 0; y < g; y++) for (let x = 0; x < g; x++) {
     const p = probs[y * g + x]; ctx.strokeStyle = '#ffffffaa'; ctx.lineWidth = Math.max(1, c.width / 600); ctx.strokeRect(x * w, y * h, w, h);
-    if (y * g + x === now) { ctx.strokeStyle = '#c44536'; ctx.lineWidth = Math.max(4, c.width / 160); ctx.strokeRect(x * w + 3, y * h + 3, w - 6, h - 6); }
-    if (p === undefined) { if (y * g + x !== now) { ctx.fillStyle = '#00000055'; ctx.fillRect(x * w, y * h, w, h); } continue; }
+    if (inNow(y * g + x, now)) { ctx.strokeStyle = '#c44536'; ctx.lineWidth = Math.max(4, c.width / 160); ctx.strokeRect(x * w + 3, y * h + 3, w - 6, h - 6); }
+    if (p === undefined) { if (!inNow(y * g + x, now)) { ctx.fillStyle = '#00000055'; ctx.fillRect(x * w, y * h, w, h); } continue; }
     ctx.fillStyle = `rgba(109, 40, 217, ${0.06 + 0.55 * p})`; ctx.fillRect(x * w, y * h, w, h);
     ctx.fillStyle = '#fff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 6; ctx.fillText(f2(p), x * w + w / 2, y * h + h / 2); ctx.shadowBlur = 0;
   }
@@ -363,30 +410,32 @@ $('method').onchange = setMethod;
 const cropTile = (x0, y0, x1, y1) => image.crop([Math.floor(x0 * image.width), Math.floor(y0 * image.height), Math.max(Math.floor(x0 * image.width) + 1, Math.floor(x1 * image.width) - 1), Math.max(Math.floor(y0 * image.height) + 1, Math.floor(y1 * image.height) - 1)]);
 
 async function findTiles(thing, question) {
-  const g = +$('grid').value, probs = [], rs = [], labels = []; let total = 0;
-  for (let y = 0; y < g; y++) for (let x = 0; x < g; x++) {
-    $('scanStatus').textContent = `Tile ${y * g + x + 1} of ${g * g}: “${question}”`; if (!probs.length) drawGrid(g, probs, null, 0);
-    const r = await readLetters(await cropTile(x / g, y / g, (x + 1) / g, (y + 1) / g), question, ['yes', 'no']); total += r.ms; probs.push(r.p[0]); rs.push(r); labels.push(`row ${y + 1}, column ${x + 1}`); drawGrid(g, probs, null, y * g + x + 1);
-  }
-  lastScan = { g, thing, probs, rs, labels, draw: (boxes) => drawGrid(g, probs, boxes) }; return total;
+  const g = +$('grid').value, probs = [], rs = [], labels = [], t0 = performance.now();
+  const all = Array.from({ length: g * g }, (_, i) => [(i % g) / g, Math.floor(i / g) / g, ((i % g) + 1) / g, (Math.floor(i / g) + 1) / g]);
+  for (const part of chunks(all)) { $('scanStatus').textContent = `Tiles ${rs.length + 1} to ${rs.length + part.length} of ${g * g}: “${question}”`; drawGrid(g, probs, null, [rs.length, rs.length + part.length]);
+    for (const r of await readTiles(part, question, ['yes', 'no'])) { labels.push(`row ${Math.floor(rs.length / g) + 1}, column ${(rs.length % g) + 1}`); probs.push(r.p[0]); rs.push(r); } }
+  lastScan = { g, thing, probs, rs, labels, draw: (boxes) => drawGrid(g, probs, boxes) }; return performance.now() - t0;
 }
 // Quarters, then quarters of the quarters that said yes. Cells are kept in units of one eighth of the picture.
 function drawZoom(cells, boxes, now) {
   const c = $('overlay'), ctx = c.getContext('2d'), u = c.width / 8, v = c.height / 8; ctx.clearRect(0, 0, c.width, c.height); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const k of cells) { if (k.split) continue; ctx.fillStyle = `rgba(109, 40, 217, ${0.06 + 0.55 * k.p})`; ctx.fillRect(k.x * u, k.y * v, k.s * u, k.s * v); ctx.strokeStyle = '#ffffffaa'; ctx.lineWidth = Math.max(1, c.width / 600); ctx.strokeRect(k.x * u, k.y * v, k.s * u, k.s * v);
     ctx.font = `${Math.max(11, Math.round((k.s * v) / 4))}px "SF Mono", Menlo, monospace`; ctx.fillStyle = '#fff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 6; ctx.fillText(f2(k.p), (k.x + k.s / 2) * u, (k.y + k.s / 2) * v); ctx.shadowBlur = 0; }
-  if (now) { ctx.strokeStyle = '#c44536'; ctx.lineWidth = Math.max(4, c.width / 160); ctx.strokeRect(now.x * u + 2, now.y * v + 2, now.s * u - 4, now.s * v - 4); }
+  for (const k of now ?? []) { ctx.strokeStyle = '#c44536'; ctx.lineWidth = Math.max(4, c.width / 160); ctx.strokeRect(k.x * u + 2, k.y * v + 2, k.s * u - 4, k.s * v - 4); }
   for (const b of boxes ?? []) { ctx.strokeStyle = '#0f766e'; ctx.lineWidth = Math.max(4, c.width / 150); ctx.strokeRect(b.x0 * u, b.y0 * v, (b.x1 - b.x0 + 1) * u, (b.y1 - b.y0 + 1) * v); }
 }
 async function findZoom(thing, question) {
-  const cells = [], rs = [], labels = [], todo = [[0, 0], [4, 0], [0, 4], [4, 4]].map(([x, y]) => ({ x, y, s: 4, d: 1 })); let total = 0;
-  while (todo.length) { const k = todo.shift(); $('scanStatus').textContent = `Pass ${rs.length + 1}, level ${k.d} of 3: “${question}”`; drawZoom(cells, null, k);
-    const r = await readLetters(await cropTile(k.x / 8, k.y / 8, (k.x + k.s) / 8, (k.y + k.s) / 8), question, ['yes', 'no']); total += r.ms; k.p = r.p[0]; cells.push(k); rs.push(r);
-    labels.push(`level ${k.d}: ${k.s === 4 ? 'a quarter' : k.s === 2 ? 'a sixteenth' : 'one cell of 64'}, at left ${f2(k.x / 8)}, top ${f2(k.y / 8)}`);
-    if (k.p >= 0.5 && k.s > 1) { k.split = true; const h = k.s / 2; for (const [dx, dy] of [[0, 0], [h, 0], [0, h], [h, h]]) todo.push({ x: k.x + dx, y: k.y + dy, s: h, d: k.d + 1 }); } }
+  const cells = [], rs = [], labels = [], t0 = performance.now(); let level = [[0, 0], [4, 0], [0, 4], [4, 4]].map(([x, y]) => ({ x, y, s: 4, d: 1 }));
+  // one level at a time: all the cells of a level are independent, so they go through the model in batches
+  while (level.length) { const next = [];
+    for (const part of chunks(level)) { $('scanStatus').textContent = `Level ${part[0].d} of 3, passes ${rs.length + 1} to ${rs.length + part.length}: “${question}”`; drawZoom(cells, null, part);
+      const got = await readTiles(part.map((k) => [k.x / 8, k.y / 8, (k.x + k.s) / 8, (k.y + k.s) / 8]), question, ['yes', 'no']);
+      part.forEach((k, i) => { k.p = got[i].p[0]; cells.push(k); rs.push(got[i]); labels.push(`level ${k.d}: ${k.s === 4 ? 'a quarter' : k.s === 2 ? 'a sixteenth' : 'one cell of 64'}, at left ${f2(k.x / 8)}, top ${f2(k.y / 8)}`);
+        if (k.p >= 0.5 && k.s > 1) { k.split = true; const h = k.s / 2; for (const [dx, dy] of [[0, 0], [h, 0], [0, h], [h, h]]) next.push({ x: k.x + dx, y: k.y + dy, s: h, d: k.d + 1 }); } }); }
+    level = next; }
   // the finest picture of the answers: every one of the 64 cells takes the score of the smallest cell asked that covers it
   const probs = Array(64).fill(0); for (const k of cells) for (let y = k.y; y < k.y + k.s; y++) for (let x = k.x; x < k.x + k.s; x++) probs[y * 8 + x] = k.split ? 0 : k.p;
-  lastScan = { g: 8, thing, probs, rs, labels, draw: (boxes) => drawZoom(cells, boxes) }; return total;
+  lastScan = { g: 8, thing, probs, rs, labels, draw: (boxes) => drawZoom(cells, boxes) }; return performance.now() - t0;
 }
 async function findWords(thing) {
   const halves = ['left', 'right', 'top', 'bottom'], rs = [], asked = []; let total = 0; const c = $('overlay'), ctx = c.getContext('2d'); ctx.clearRect(0, 0, c.width, c.height);
@@ -424,64 +473,77 @@ $('ttype').onclick = (e) => { if (e.target.dataset.t) { ttype = e.target.dataset
 function drawTyped(g, cells, opts, type, now = -1) {
   const c = $('overlay'), ctx = c.getContext('2d'), w = c.width / g, h = c.height / g; ctx.clearRect(0, 0, c.width, c.height); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 ${Math.max(12, Math.round(h / 4))}px "SF Mono", Menlo, monospace`;
   for (let i = 0; i < g * g; i++) { const x = i % g, y = Math.floor(i / g), k = cells[i];
-    if (!k) { if (i === now) { ctx.strokeStyle = '#c44536'; ctx.lineWidth = Math.max(4, c.width / 160); ctx.strokeRect(x * w + 3, y * h + 3, w - 6, h - 6); } else { ctx.fillStyle = '#00000044'; ctx.fillRect(x * w, y * h, w, h); } continue; }
+    if (!k) { if (inNow(i, now)) { ctx.strokeStyle = '#c44536'; ctx.lineWidth = Math.max(4, c.width / 160); ctx.strokeRect(x * w + 3, y * h + 3, w - 6, h - 6); } else { ctx.fillStyle = '#00000044'; ctx.fillRect(x * w, y * h, w, h); } continue; }
     if (type === 'choice') { ctx.globalAlpha = 0.25 + 0.4 * k.p[k.best]; ctx.fillStyle = PALETTE[k.best % PALETTE.length]; ctx.fillRect(x * w, y * h, w, h); ctx.globalAlpha = 1; }
     else { ctx.fillStyle = `rgba(109, 40, 217, ${0.05 + (0.6 * k.v) / (opts.length - 1)})`; ctx.fillRect(x * w, y * h, w, h); }
-    ctx.strokeStyle = '#ffffff88'; ctx.lineWidth = Math.max(1, c.width / 600); ctx.strokeRect(x * w, y * h, w, h);
-    ctx.fillStyle = '#fff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 6; ctx.fillText(type === 'choice' ? LETTERS[k.best] : k.v.toFixed(1), x * w + w / 2, y * h + h / 2); ctx.shadowBlur = 0; }
+    ctx.strokeStyle = g > 8 ? '#ffffff44' : '#ffffff88'; ctx.lineWidth = Math.max(1, c.width / 600); ctx.strokeRect(x * w, y * h, w, h);
+    if (g <= 8) { ctx.fillStyle = '#fff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 6; ctx.fillText(type === 'choice' ? LETTERS[k.best] : k.v.toFixed(1), x * w + w / 2, y * h + h / 2); ctx.shadowBlur = 0; } }
 }
-$('tmode').onchange = () => { const q = $('tmode').value === 'quad'; $('tgrid').classList.toggle('hide', q); $('quadHelp').classList.toggle('hide', !q); };
-// Quadtree cells are kept in units of one sixteenth of the picture: sizes 4, 2 and 1.
-const CTX = +(new URLSearchParams(location.search).get('ctx') ?? 0.5);
+$('tmode').onchange = () => { const m = $('tmode').value; $('tgrid').classList.toggle('hide', m === 'quad'); $('tfine').classList.toggle('hide', m === 'grid'); $('quadHelp').classList.toggle('hide', m === 'grid'); $('bothHelp').classList.toggle('hide', m !== 'both'); };
+// Quadtree cells are kept in units of 1/32 of the picture: sizes 8, 4, 2 and, at the finest setting, 1.
+const U = 32, CTX = +(new URLSearchParams(location.search).get('ctx') ?? 0.5), wide = (s) => `1/${U / s}`;
 function drawQuad(cells, opts, type, now) {
-  const c = $('overlay'), ctx = c.getContext('2d'), u = c.width / 16, v = c.height / 16; ctx.clearRect(0, 0, c.width, c.height); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const c = $('overlay'), ctx = c.getContext('2d'), u = c.width / U, v = c.height / U; ctx.clearRect(0, 0, c.width, c.height); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const k of cells) { if (k.split) continue;
     if (type === 'choice') { ctx.globalAlpha = 0.3 + 0.35 * k.p[k.best]; ctx.fillStyle = PALETTE[k.best % PALETTE.length]; ctx.fillRect(k.x * u, k.y * v, k.s * u, k.s * v); ctx.globalAlpha = 1; }
     else { ctx.fillStyle = `rgba(109, 40, 217, ${0.05 + (0.6 * k.v) / (opts.length - 1)})`; ctx.fillRect(k.x * u, k.y * v, k.s * u, k.s * v); }
-    ctx.strokeStyle = '#ffffff66'; ctx.lineWidth = Math.max(1, c.width / 900); ctx.strokeRect(k.x * u, k.y * v, k.s * u, k.s * v);
-    if (k.s >= 2) { ctx.font = `700 ${Math.max(11, Math.round((k.s * v) / 4))}px "SF Mono", Menlo, monospace`; ctx.fillStyle = '#fff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 6; ctx.fillText(type === 'choice' ? LETTERS[k.best] : k.v.toFixed(1), (k.x + k.s / 2) * u, (k.y + k.s / 2) * v); ctx.shadowBlur = 0; } }
-  if (now) { ctx.strokeStyle = '#c44536'; ctx.lineWidth = Math.max(3, c.width / 200); ctx.strokeRect(now.x * u + 1, now.y * v + 1, now.s * u - 2, now.s * v - 2); }
+    ctx.strokeStyle = k.s >= 4 ? '#ffffff66' : '#ffffff33'; ctx.lineWidth = Math.max(1, c.width / 900); ctx.strokeRect(k.x * u, k.y * v, k.s * u, k.s * v);
+    if (k.s >= 4) { ctx.font = `700 ${Math.max(11, Math.round((k.s * v) / 4))}px "SF Mono", Menlo, monospace`; ctx.fillStyle = '#fff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 6; ctx.fillText(type === 'choice' ? LETTERS[k.best] : k.v.toFixed(1), (k.x + k.s / 2) * u, (k.y + k.s / 2) * v); ctx.shadowBlur = 0; } }
+  for (const k of now ?? []) { ctx.strokeStyle = '#c44536'; ctx.lineWidth = Math.max(2, c.width / 300); ctx.strokeRect(k.x * u + 1, k.y * v + 1, k.s * u - 2, k.s * v - 2); }
 }
-async function tileQuad(q, opts, type) {
-  const cells = [], rs = [], labels = []; let total = 0; const lab = (k) => (type === 'choice' ? k.best : Math.round(k.v));
-  const ask = async (k) => { $('tileStatus').textContent = `Pass ${rs.length + 1}: a cell ${k.s === 4 ? 'one quarter' : k.s === 2 ? 'one eighth' : 'one sixteenth'} of the picture wide`; drawQuad(cells, opts, type, k);
-    // a small cell is shown with a margin around it, because a very small cut-out is too little to recognise
-    const m = k.s === 4 ? 0 : (CTX * k.s) / 16, only = k.only ?? opts.map((_, i) => i);
-    const r = await readLetters(await cropTile(Math.max(0, k.x / 16 - m), Math.max(0, k.y / 16 - m), Math.min(1, (k.x + k.s) / 16 + m), Math.min(1, (k.y + k.s) / 16 + m)), q, only.map((i) => opts[i])); total += r.ms;
-    const p = opts.map(() => 0); only.forEach((i, j) => (p[i] = r.p[j])); r.only = only;
-    Object.assign(k, { p, best: p.indexOf(Math.max(...p)), v: p.reduce((a, x, i) => a + i * x, 0) }); cells.push(k); rs.push(r); labels.push(`${k.s === 4 ? '1/4' : k.s === 2 ? '1/8' : '1/16'} wide, left ${f2(k.x / 16)}, top ${f2(k.y / 16)}`); };
-  for (let y = 0; y < 16; y += 4) for (let x = 0; x < 16; x += 4) await ask({ x, y, s: 4 });
-  for (const size of [4, 2]) {
-    const map = Array(256).fill(-1); for (const k of cells) if (!k.split) for (let y = k.y; y < k.y + k.s; y++) for (let x = k.x; x < k.x + k.s; x++) map[y * 16 + x] = lab(k);
-    const at = (x, y) => (x < 0 || y < 0 || x > 15 || y > 15 ? -1 : map[y * 16 + x]);
+async function tileQuad(q, opts, type, fine) {
+  const cells = [], rs = [], labels = [], least = U / fine, t0 = performance.now(), lab = (k) => (type === 'choice' ? k.best : Math.round(k.v)), every = opts.map((_, i) => i);
+  // All the cells of one level are independent, so they are asked together. Cells offered the same options share a
+  // prompt and go through the model in batches.
+  const askAll = async (ks) => { const groups = new Map(); for (const k of ks) { const key = (k.only ?? every).join(); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(k); }
+    for (const group of groups.values()) for (const part of chunks(group)) { const only = part[0].only ?? every;
+      $('tileStatus').textContent = `Quadtree, passes ${rs.length + 1} to ${rs.length + part.length}: cells ${wide(part[0].s)} of the picture wide`; drawQuad(cells, opts, type, part);
+      // a small cell is shown with a margin around it, so that the model sees at least one eighth of the picture
+      const got = await readTiles(part.map((k) => { const m = k.s === U / 4 ? 0 : Math.max((CTX * k.s) / U, (1 / 8 - k.s / U) / 2); return [Math.max(0, k.x / U - m), Math.max(0, k.y / U - m), Math.min(1, (k.x + k.s) / U + m), Math.min(1, (k.y + k.s) / U + m)]; }), q, only.map((i) => opts[i]));
+      part.forEach((k, j) => { const r = got[j], p = opts.map(() => 0); only.forEach((i, c) => (p[i] = r.p[c])); r.only = only;
+        Object.assign(k, { p, best: p.indexOf(Math.max(...p)), v: p.reduce((a, x, i) => a + i * x, 0) }); cells.push(k); rs.push(r); labels.push(`${wide(k.s)} wide, left ${f2(k.x / U)}, top ${f2(k.y / U)}`); }); } };
+  const first = []; for (let y = 0; y < U; y += U / 4) for (let x = 0; x < U; x += U / 4) first.push({ x, y, s: U / 4 }); await askAll(first);
+  for (let size = U / 4; size > least; size /= 2) {
+    const map = Array(U * U).fill(-1); for (const k of cells) if (!k.split) for (let y = k.y; y < k.y + k.s; y++) for (let x = k.x; x < k.x + k.s; x++) map[y * U + x] = lab(k);
+    const at = (x, y) => (x < 0 || y < 0 || x >= U || y >= U ? -1 : map[y * U + x]);
     // the labels found on a cell's four sides, together with its own
     const around = (k) => { const set = new Set([lab(k)]); for (let i = 0; i < k.s; i++) for (const n of [at(k.x - 1, k.y + i), at(k.x + k.s, k.y + i), at(k.x + i, k.y - 1), at(k.x + i, k.y + k.s)]) if (n !== -1) set.add(n); return [...set].sort((a, b) => a - b); };
-    for (const [k, labs] of cells.filter((c) => c.s === size && !c.split).map((c) => [c, around(c)]).filter(([, labs]) => labs.length > 1)) { k.split = true; const h = size / 2;
+    const next = [], h = size / 2;
+    for (const [k, labs] of cells.filter((c) => c.s === size && !c.split).map((c) => [c, around(c)]).filter(([, labs]) => labs.length > 1)) { k.split = true;
       // a choice is asked again with only the labels that meet here; a score keeps all its levels
-      for (const [dx, dy] of [[0, 0], [h, 0], [0, h], [h, h]]) await ask({ x: k.x + dx, y: k.y + dy, s: h, only: type === 'choice' ? labs : undefined }); }
+      for (const [dx, dy] of [[0, 0], [h, 0], [0, h], [h, h]]) next.push({ x: k.x + dx, y: k.y + dy, s: h, only: type === 'choice' ? labs : undefined }); }
+    await askAll(next);
   }
-  drawQuad(cells, opts, type); return { cells, rs, labels, total };
+  drawQuad(cells, opts, type); return { cells, rs, labels, total: performance.now() - t0 };
 }
+// the picture with its overlay, copied into a small canvas so that two runs can sit side by side
+function snapshot(caption) { const c = document.createElement('canvas'), o = $('overlay'); c.width = 640; c.height = Math.round((640 * o.height) / o.width); const x = c.getContext('2d'); x.drawImage($('img'), 0, 0, c.width, c.height); x.drawImage(o, 0, 0, c.width, c.height); const f = document.createElement('figure'), t = document.createElement('figcaption'); t.innerHTML = caption; f.append(c, t); return f; }
 $('tileBtn').onclick = async () => {
   if (!image) { $('tileStatus').textContent = 'Choose a picture first.'; return; }
-  const g = +$('tgrid').value, q = $('tq').value.trim(), opts = $('topts').value.split('\n').map((x) => x.trim()).filter(Boolean), type = ttype; if (!q || opts.length < 2) { $('tileStatus').textContent = 'Write a question and at least two options.'; return; }
-  $('tileBtn').disabled = true; $('tileOut').innerHTML = ''; let cells = [], rs = [], total = 0, quad = null;
+  const g = +$('tgrid').value, fine = +$('tfine').value, mode = $('tmode').value, q = $('tq').value.trim(), opts = $('topts').value.split('\n').map((x) => x.trim()).filter(Boolean), type = ttype; if (!q || opts.length < 2) { $('tileStatus').textContent = 'Write a question and at least two options.'; return; }
+  $('tileBtn').disabled = true; $('tileOut').innerHTML = ''; let cells = [], rs = [], total = 0, quad = null; const shots = [], secs = (ms) => (ms / 1000).toFixed(1);
   try {
-    if ($('tmode').value === 'quad') { quad = await tileQuad(q, opts, type); rs = quad.rs; total = quad.total; cells = quad.cells; }
-    else for (let i = 0; i < g * g; i++) { const x = i % g, y = Math.floor(i / g); $('tileStatus').textContent = `Tile ${i + 1} of ${g * g}`; drawTyped(g, cells, opts, type, i);
-      const r = await readLetters(await cropTile(x / g, y / g, (x + 1) / g, (y + 1) / g), q, opts); total += r.ms; rs.push(r); cells.push({ p: r.p, best: r.p.indexOf(Math.max(...r.p)), v: r.p.reduce((a, p, k) => a + k * p, 0) }); }
-    if (!quad) drawTyped(g, cells, opts, type);
-    const leaves = quad ? cells.filter((c) => !c.split) : cells, area = (k) => (quad ? (k.s * k.s) / 256 : 1 / (g * g)), share = (i) => Math.round(100 * leaves.filter((c) => c.best === i).reduce((a, c) => a + area(c), 0));
-    $('tileStatus').textContent = quad ? `${rs.length} forward passes, ${(total / 1000).toFixed(1)} s. Asking all 256 finest cells would have taken 256. ${leaves.filter((c) => c.s === 1).length} cells reached the finest size.` : `${g * g} forward passes, ${(total / 1000).toFixed(1)} s. One ${type} per tile.`;
+    if (mode !== 'quad') { const t0 = performance.now(), all = Array.from({ length: g * g }, (_, i) => [(i % g) / g, Math.floor(i / g) / g, ((i % g) + 1) / g, (Math.floor(i / g) + 1) / g]);
+      for (const part of chunks(all)) { $('tileStatus').textContent = `Every tile: ${rs.length + 1} to ${rs.length + part.length} of ${g * g}`; drawTyped(g, cells, opts, type, [rs.length, rs.length + part.length]);
+        for (const r of await readTiles(part, q, opts)) { rs.push(r); cells.push({ p: r.p, best: r.p.indexOf(Math.max(...r.p)), v: r.p.reduce((a, p, k) => a + k * p, 0) }); } }
+      total = performance.now() - t0; drawTyped(g, cells, opts, type); }
+    const gridRun = mode === 'quad' ? null : { passes: g * g, total };
+    if (mode === 'both') shots.push(snapshot(`<b>Every tile, ${g} × ${g}</b> · ${g * g} passes · ${secs(total)} s`));
+    if (mode !== 'grid') { quad = await tileQuad(q, opts, type, fine); rs = quad.rs; total = quad.total; cells = quad.cells; }
+    if (mode === 'both') shots.push(snapshot(`<b>Quadtree, down to 1/${fine}</b> · ${rs.length} passes · ${secs(total)} s`));
+    const leaves = quad ? cells.filter((c) => !c.split) : cells, area = (k) => (quad ? (k.s * k.s) / (U * U) : 1 / (g * g)), share = (i) => Math.round(100 * leaves.filter((c) => c.best === i).reduce((a, c) => a + area(c), 0));
+    const quadLine = quad ? `${rs.length} forward passes, ${secs(total)} s. Asking every cell of the smallest size would have taken ${fine * fine}. ${leaves.filter((c) => c.s === U / fine).length} cells reached the smallest size.` : '';
+    $('tileStatus').textContent = mode === 'both' ? `Every tile: ${gridRun.passes} passes, ${secs(gridRun.total)} s. Quadtree: ${quadLine}` : quad ? quadLine : `${g * g} forward passes, ${secs(total)} s. One ${type} per tile.`;
     const sure = rs.filter((r) => !r.only || r.only.length === opts.length).reduce((a, r) => (Math.max(...r.p) > Math.max(...a.p) ? r : a)), N = rs[0].v.toLocaleString('en-US');
     const legend = type === 'choice'
-      ? `<div class="legend">${opts.map((o, k) => `<span><i style="background:${PALETTE[k % PALETTE.length]}"></i><span class="tok">${LETTERS[k]}</span> ${esc(o)} · ${share(k)}% of the picture</span>`).join('')}</div><div class="note good"><b>A rough segmentation.</b> Each tile is coloured by the option with the highest probability, and stronger colour means a surer answer. Real segmentation makes the same choice for every pixel with a trained model; here the mask can only be as fine as the ${quad ? 'smallest cells, and a very small cell shows the model too little to recognise' : 'tiles, and a tile that holds two things must still pick one. Try the quadtree to spend the questions on the edges'}.</div>`
+      ? `<div class="legend">${opts.map((o, k) => `<span><i style="background:${PALETTE[k % PALETTE.length]}"></i><span class="tok">${LETTERS[k]}</span> ${esc(o)} · ${share(k)}% of the picture</span>`).join('')}</div><div class="note good"><b>A rough segmentation.</b> Each tile is coloured by the option with the highest probability, and stronger colour means a surer answer. Real segmentation makes the same choice for every pixel with a trained model; here the mask can only be as fine as the ${quad ? 'smallest cells, and a very small cell shows the model too little to recognise' : 'tiles, and a tile that holds two things must still pick one. Try the quadtree to spend the questions on the edges'}.${mode === 'both' ? ' The shares are those of the quadtree.' : ''}</div>`
       : `<div class="note good"><b>A map of scores.</b> Each tile shows its average level, from 0 (${esc(opts[0])}) to ${opts.length - 1} (${esc(opts[opts.length - 1])}), weighted by the probabilities. Depth estimation is this idea with a trained model and one score per pixel. A tile is judged alone here, without the rest of the picture, so treat the map as rough.</div>`;
-    $('tileOut').innerHTML = legend + `<details><summary>Show the working: raw scores and ranks for every tile</summary><div class="work"><h4><em>1</em>Every tile is cut out and asked the same question · ${rs.length} passes</h4>
+    $('tileOut').innerHTML = (mode === 'both' ? '<div class="pair" id="pair"></div>' : '') + legend + `<details><summary>Show the working: raw scores and ranks for every tile${mode === 'both' ? ' of the quadtree' : ''}</summary><div class="work"><h4><em>1</em>Every tile is cut out and asked the same question · ${rs.length} passes</h4>
       <div style="overflow-x:auto;max-height:340px;overflow-y:auto"><table><tr><th>Tile</th>${opts.map((o, k) => `<th>${esc(o)}: raw (rank)</th>`).join('')}<th>Probabilities</th><th>${type === 'choice' ? 'Choice' : 'Score'}</th></tr>
       ${rs.map((r, i) => `<tr><td>${quad ? quad.labels[i] : `row ${Math.floor(i / g) + 1}, col ${(i % g) + 1}`}</td>${opts.map((o, k) => { const j = r.only ? r.only.indexOf(k) : k; return `<td class="m">${j < 0 ? 'not offered' : `${f2(r.z[j])} (${r.rank[j].toLocaleString('en-US')})`}</td>`; }).join('')}<td class="m p">${cells[i].p.map(f2).join(' · ')}</td><td><b>${type === 'choice' ? esc(opts[cells[i].best]) : cells[i].v.toFixed(2)}</b></td></tr>`).join('')}</table></div>
       <p class="muted" style="margin-top:8px">Ranks are among all ${N} tokens. The probabilities are a softmax over the ${opts.length} raw scores in that row.</p></div>
       <p class="muted" style="margin:14px 0 0">The surest tile in full:</p>${working(sure, sure.only ? sure.only.map((i) => opts[i]) : opts, type)}</details>`;
+    if (mode === 'both') $('pair').append(...shots);
   } catch (err) { $('tileStatus').textContent = 'Something went wrong: ' + (err?.message ?? err); console.error(err); }
   $('tileBtn').disabled = false;
 };
